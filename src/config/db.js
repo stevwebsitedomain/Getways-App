@@ -4,11 +4,11 @@ let pool;
 
 function getDbConfig() {
   return {
-    host: process.env.DB_HOST || "127.0.0.1",
+    host: process.env.DB_HOST || "sdb-84.hosting.stackcp.net",
     port: Number(process.env.DB_PORT || 3306),
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
-    database: process.env.DB_NAME || "tis_clickpesa",
+    user: process.env.DB_USER || "steve-b80b",
+    password: process.env.DB_PASSWORD || "steven2026",
+    database: process.env.DB_NAME || "clickpesa-353039360f5f",
   };
 }
 
