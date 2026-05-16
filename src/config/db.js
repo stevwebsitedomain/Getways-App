@@ -13,7 +13,8 @@ function getDbConfig() {
 }
 
 function assertSafeDatabaseName(name) {
-  if (!/^[a-zA-Z0-9_]+$/.test(name)) {
+  // Allow common DB names including dashes, but block unsafe characters.
+  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
     throw new Error("DB_NAME contains invalid characters.");
   }
 }
@@ -133,3 +134,21 @@ module.exports = {
   connectDatabase,
   getPool,
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
