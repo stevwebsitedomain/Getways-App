@@ -3,7 +3,7 @@ const mysql = require("mysql2/promise");
 let pool;
 
 function getDbConfig() {
-  return {
+ return {
     host: process.env.DB_HOST || "sdb-84.hosting.stackcp.net",
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER || "steve-b80b",
@@ -105,7 +105,15 @@ async function initializeTables() {
 
 async function connectDatabase() {
   const config = getDbConfig();
-  await createDatabaseIfMissing(config);
+  const autoCreateRaw = String(process.env.DB_AUTO_CREATE || "").trim().toLowerCase();
+  const shouldAutoCreate =
+    autoCreateRaw === "1" ||
+    autoCreateRaw === "true" ||
+    autoCreateRaw === "yes" ||
+    process.env.NODE_ENV !== "production";
+  if (shouldAutoCreate) {
+    await createDatabaseIfMissing(config);
+  }
 
   pool = mysql.createPool({
     host: config.host,
@@ -134,18 +142,6 @@ module.exports = {
   connectDatabase,
   getPool,
 };
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
