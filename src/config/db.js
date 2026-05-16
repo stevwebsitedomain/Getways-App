@@ -4,7 +4,7 @@ let pool;
 
 function getDbConfig() {
  return {
-    host: process.env.DB_HOST || "sdb-84.hosting.stackcp.net",
+    host: process.env.DB_HOST || "mysql.us.stackcp.com:39753",
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER || "steve-b80b",
     password: process.env.DB_PASSWORD || "steven2026",
