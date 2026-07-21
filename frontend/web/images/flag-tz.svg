@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 48" role="img" aria-label="Flag of Tanzania">
+  <title>Flag of Tanzania</title>
+  <defs>
+    <clipPath id="tz-clip"><rect width="72" height="48"/></clipPath>
+  </defs>
+  <g clip-path="url(#tz-clip)">
+    <!-- Green: upper hoist -->
+    <polygon fill="#1EB53A" points="0,0 72,0 0,48"/>
+    <!-- Blue: lower fly -->
+    <polygon fill="#00A3DD" points="72,0 72,48 0,48"/>
+    <!-- Yellow fimbriation (green side) -->
+    <polygon fill="#FCD116" points="-3.33,43.01 68.67,-4.99 70.00,-3.00 -2.00,45.01"/>
+    <!-- Black diagonal band -->
+    <polygon fill="#000000" points="-2.00,45.01 70.00,-3.00 74.00,3.00 2.00,51.01"/>
+    <!-- Yellow fimbriation (blue side) -->
+    <polygon fill="#FCD116" points="2.00,51.01 74.00,3.00 75.33,4.99 3.33,53.01"/>
+  </g>
+</svg>

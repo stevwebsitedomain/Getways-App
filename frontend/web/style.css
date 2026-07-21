@@ -1,0 +1,572 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f4f4f4;
+}
+
+/* =======================
+   "New Page" (HESLB-like)
+   ======================= */
+.heslb-shell {
+  background: #f2f4f7;
+}
+
+.heslb-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  padding-top: 72px;
+}
+
+.heslb-sidebar {
+  background: #eef3f9;
+  border-right: 1px solid #d9e2ef;
+  padding: 18px 14px;
+}
+
+.heslb-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 6px 12px;
+}
+
+.heslb-brand-logo {
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  color: #1b5fa7;
+}
+
+.heslb-burger {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.heslb-menu-title {
+  font-size: 12px;
+  color: #667085;
+  font-weight: 800;
+  padding: 10px 10px 6px;
+}
+
+.heslb-menu {
+  display: grid;
+  gap: 6px;
+}
+
+.heslb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #344054;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.heslb-menu-item:hover {
+  background: rgba(27, 95, 167, 0.06);
+  border-color: rgba(27, 95, 167, 0.12);
+}
+
+.heslb-menu-item.active {
+  background: #ffffff;
+  border-color: #d9e2ef;
+  box-shadow: 0 1px 0 rgba(16, 24, 40, 0.04);
+}
+
+.heslb-main {
+  padding: 18px 18px 40px;
+}
+
+.heslb-top-title {
+  text-align: center;
+  font-weight: 900;
+  color: #344054;
+  letter-spacing: 0.3px;
+  padding: 10px 0 16px;
+}
+
+.heslb-top-subtitle {
+  margin-top: 4px;
+  font-weight: 600;
+  color: #667085;
+  font-size: 12px;
+}
+
+.heslb-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.heslb-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(16, 24, 40, 0.06);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.heslb-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(27, 95, 167, 0.08);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.heslb-card-title {
+  font-weight: 900;
+  color: #111827;
+  text-align: center;
+}
+
+.heslb-card-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.heslb-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  text-decoration: none;
+  color: #1b5fa7;
+  font-weight: 800;
+  background: #f7fbff;
+}
+
+.heslb-action:hover {
+  filter: brightness(0.98);
+}
+
+.heslb-action span {
+  font-weight: 900;
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background: #003b73;
+  color: white;
+  padding: 15px;
+  font-weight: bold;
+  z-index: 1300;
+  box-sizing: border-box;
+}
+
+.navbar-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-title {
+  letter-spacing: 0.3px;
+  text-align: left;
+}
+
+.nav-menu-toggle {
+  display: none;
+  justify-self: start;
+  color: white;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.nav-mobile-menu {
+  display: none;
+}
+
+.nav-mobile-menu a {
+  color: white;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.nav-mobile-menu a.active {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.nav-links {
+  display: flex;
+  gap: 10px;
+  font-weight: bold;
+  justify-self: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.nav-links a {
+  color: white;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.nav-links a:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nav-links a.active {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.nav-account {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nav-account-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.nav-account-avatar--fallback {
+  font-size: 0.9rem;
+}
+
+.nav-account-meta {
+  min-width: 0;
+  display: grid;
+  line-height: 1.1;
+}
+
+.nav-account-meta strong {
+  font-size: 0.78rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.nav-account-meta span {
+  font-size: 0.66rem;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.container {
+  margin-top: 80px;
+  padding: 20px;
+  text-align: center;
+}
+
+.form {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.form input,
+.form select {
+  padding: 10px;
+  width: 200px;
+  border: 1px solid #cfcfcf;
+  background: #fff;
+}
+
+button {
+  padding: 10px 20px;
+  background: gold;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+button:hover {
+  filter: brightness(0.95);
+}
+
+.loading {
+  margin-top: 20px;
+  color: #333;
+}
+
+.result {
+  margin-top: 20px;
+  font-size: 14px;
+  text-align: left;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.result-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.muted {
+  color: #666;
+  font-size: 13px;
+}
+
+.table-wrap {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  overflow: auto;
+  position: relative;
+}
+
+/*
+ * Watermark: outer frame does not scroll. Only .table-scroll scrolls.
+ * Without max-height, .table-scroll grows to full table height → page scroll moves everything (watermark “scrolls”).
+ * max-height forces inner scroll so the overlay stays centered on the visible table window.
+ */
+.table-wrap.watermark {
+  overflow: hidden;
+}
+
+.table-wrap.watermark .table-scroll {
+  overflow: auto;
+  max-height: min(70vh, 560px);
+  min-height: 0;
+}
+
+.table-wrap.watermark .table-watermark-layer {
+  position: absolute;
+  inset: 0;
+  /* Try both common folders: image/ and images/ */
+  background-image: url("image/necta.png"), url("images/necta.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: min(400px, 52%);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 1;
+  /* Keep overlay tied to the frame, not the scrolled document */
+  transform: translateZ(0);
+}
+
+.table-wrap.watermark .results-table {
+  position: relative;
+  z-index: 0;
+}
+
+.result-query {
+  font-size: 14px;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.results-table th,
+.results-table td {
+  border-bottom: 1px solid #eeeeee;
+  padding: 10px 12px;
+  vertical-align: top;
+}
+
+.results-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f7f7f7;
+  text-align: left;
+  font-size: 13px;
+}
+
+.results-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.col-no {
+  width: 52px;
+  white-space: nowrap;
+  color: #333;
+}
+
+.col-domain {
+  width: 160px;
+  white-space: nowrap;
+  color: #333;
+}
+
+.col-query {
+  width: 160px;
+  white-space: nowrap;
+  color: #333;
+}
+
+.col-link {
+  width: 80px;
+  white-space: nowrap;
+}
+
+.col-title {
+  min-width: 240px;
+}
+
+.col-snippet {
+  min-width: 320px;
+  color: #444;
+  line-height: 1.35;
+}
+
+.results-table a {
+  color: #003b73;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.results-table a:hover {
+  text-decoration: underline;
+}
+
+.result-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-download {
+  padding: 6px 10px;
+  background: #003b73;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.btn-download:hover {
+  filter: brightness(1.08);
+}
+
+.error {
+  background: #ffe5e5;
+  border: 1px solid #ffb3b3;
+  padding: 10px;
+  color: #8a0000;
+}
+
+.divider {
+  margin: 28px auto;
+  max-width: 900px;
+  border: none;
+  border-top: 1px solid #dddddd;
+}
+
+@media (max-width: 720px) {
+  .navbar-inner {
+    grid-template-columns: auto 1fr;
+    justify-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .navbar {
+    padding: 10px 8px;
+  }
+
+  .nav-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-title {
+    font-size: 0.96rem;
+    text-align: right;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .nav-account {
+    display: none;
+  }
+
+  .navbar.is-mobile-menu-open .nav-mobile-menu {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .nav-mobile-menu a {
+    padding: 5px 8px;
+    font-size: 0.9rem;
+  }
+
+  .form input,
+  .form select {
+    width: min(320px, 92vw);
+  }
+}
+
+@media (max-width: 980px) {
+  .heslb-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .heslb-sidebar {
+    order: 2;
+  }
+
+  .heslb-cards {
+    grid-template-columns: 1fr;
+  }
+}

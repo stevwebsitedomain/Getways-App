@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" role="img" aria-label="Flag of the United Kingdom">
+  <title>Flag of the United Kingdom</title>
+  <clipPath id="gb-s"><path d="M0,0 v30 h60 v-30 z"/></clipPath>
+  <clipPath id="gb-t"><path d="M30,15 h30 v15 z v-30 h-30 z"/></clipPath>
+  <g clip-path="url(#gb-s)">
+    <path fill="#012169" d="M0,0 v30 h60 v-30 z"/>
+    <path stroke="#FFF" stroke-width="6" d="M0,0 L60,30 M60,0 L0,30"/>
+    <path stroke="#C8102E" stroke-width="4" d="M0,0 L60,30 M60,0 L0,30"/>
+    <path stroke="#FFF" stroke-width="10" d="M30,0 v30 M0,15 h60"/>
+    <path stroke="#C8102E" stroke-width="6" d="M30,0 v30 M0,15 h60"/>
+    <g clip-path="url(#gb-t)">
+      <path stroke="#FFF" stroke-width="6" d="M30,0 v30 M0,15 h60"/>
+      <path stroke="#C8102E" stroke-width="4" d="M30,0 v30 M0,15 h60"/>
+    </g>
+  </g>
+</svg>

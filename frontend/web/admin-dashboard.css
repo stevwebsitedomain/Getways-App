@@ -1,0 +1,353 @@
+:root {
+  --ad-bg: #0f1419;
+  --ad-card: #1a222c;
+  --ad-line: #2a3542;
+  --ad-text: #f2f5f8;
+  --ad-muted: #8b9aab;
+  --ad-accent: #2ecc71;
+  --ad-blue: #3b82f6;
+  --ad-amber: #f59e0b;
+  --ad-red: #ef4444;
+}
+
+* { box-sizing: border-box; }
+
+body.ad-body {
+  margin: 0;
+  min-height: 100svh;
+  font-family: "DM Sans", system-ui, sans-serif;
+  background: radial-gradient(1200px 600px at 10% -10%, #1b2a3a 0%, var(--ad-bg) 55%);
+  color: var(--ad-text);
+}
+
+.ad-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 18px 8px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.ad-eyebrow {
+  margin: 0;
+  color: var(--ad-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ad-top h1 {
+  margin: 4px 0 0;
+  font-size: clamp(1.4rem, 4vw, 1.8rem);
+}
+
+.ad-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ad-user {
+  color: var(--ad-muted);
+  font-size: 0.9rem;
+}
+
+.ad-link {
+  color: #fff;
+  text-decoration: none;
+  background: #243041;
+  border: 1px solid var(--ad-line);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ad-link--danger {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.ad-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 18px 40px;
+  display: grid;
+  gap: 16px;
+}
+
+.ad-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.ad-stat {
+  background: var(--ad-card);
+  border: 1px solid var(--ad-line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.ad-stat p {
+  margin: 0 0 6px;
+  color: var(--ad-muted);
+  font-size: 0.8rem;
+}
+
+.ad-stat strong {
+  font-size: 1.2rem;
+}
+
+.ad-stat--money strong {
+  color: var(--ad-accent);
+}
+
+.ad-stat--toggle {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ad-stat--toggle:hover,
+.ad-stat--toggle:focus-visible {
+  border-color: var(--ad-accent);
+  outline: none;
+  background: rgba(46, 204, 113, 0.08);
+}
+
+.ad-hint {
+  font-size: 0.65rem;
+  color: var(--ad-muted);
+  font-weight: 500;
+}
+
+.ad-auto-on {
+  color: var(--ad-accent);
+}
+
+.ad-auto-off {
+  color: var(--ad-muted);
+}
+
+.ad-db-banner {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fecaca;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.ad-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 800px) {
+  .ad-grid { grid-template-columns: 1fr; }
+}
+
+.ad-card {
+  background: var(--ad-card);
+  border: 1px solid var(--ad-line);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.ad-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.ad-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ad-card-head h2 { margin: 0; }
+
+.ad-refresh {
+  border: 1px solid var(--ad-line);
+  background: #243041;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.ad-pie {
+  min-height: 220px;
+}
+
+.ad-card-head--stack {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ad-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ad-period-select {
+  border: 1px solid var(--ad-line);
+  background: #121820;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.ad-period-sub {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--ad-muted);
+}
+
+.ad-trend-wrap {
+  margin-bottom: 16px;
+}
+
+.ad-trend-title {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: var(--ad-muted);
+}
+
+.ad-trend {
+  min-height: 90px;
+  border: 1px solid var(--ad-line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #121820;
+}
+
+.ad-trend-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ad-muted);
+}
+
+.ad-form {
+  display: grid;
+  gap: 10px;
+}
+
+.ad-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--ad-muted);
+}
+
+.ad-form input,
+.ad-form select {
+  border: 1px solid var(--ad-line);
+  background: #121820;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.ad-form button {
+  border: 0;
+  background: var(--ad-accent);
+  color: #06210f;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.ad-msg {
+  min-height: 1.2em;
+  font-size: 0.88rem;
+  color: var(--ad-amber);
+}
+
+.ad-msg.is-ok { color: var(--ad-accent); }
+.ad-msg.is-err { color: #ff8f8f; }
+
+.ad-note {
+  color: var(--ad-muted);
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+}
+
+.ad-table-wrap {
+  overflow-x: auto;
+}
+
+.ad-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.ad-table th,
+.ad-table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--ad-line);
+  white-space: nowrap;
+}
+
+.ad-table th {
+  color: var(--ad-muted);
+  font-weight: 600;
+}
+
+.ad-copy {
+  border: 1px solid var(--ad-line);
+  background: transparent;
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.ad-recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.ad-recent li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #121820;
+  border: 1px solid var(--ad-line);
+  font-size: 0.88rem;
+}
+
+.ad-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.ad-badge--ok { background: rgba(46,204,113,.18); color: var(--ad-accent); }
+.ad-badge--pending { background: rgba(245,158,11,.18); color: var(--ad-amber); }
+.ad-badge--fail { background: rgba(239,68,68,.18); color: #ff8f8f; }
