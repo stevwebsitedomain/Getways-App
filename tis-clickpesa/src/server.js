@@ -5,6 +5,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const { buildCorsOptions } = require("./config/cors");
 const paymentRoutes = require("./routes/paymentRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const { connectDatabase } = require("./config/db");
 
@@ -23,6 +24,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/", paymentRoutes);
+app.use("/admin", adminRoutes);
 app.use(errorHandler);
 
 async function startServer() {

@@ -115,18 +115,107 @@ function adminDbProbe(): ?array
                 'dsn' => $safeDsn,
                 'username' => $username,
                 'error' => $e->getMessage(),
-                'hint' => 'Check MySQL: host sakura.proxy.rlwy.net port 27413 database railway user root.',
+                'hint' => 'Local PHP hosting cannot reach Railway MySQL on port 27413. Dashboard reads data via Render proxy when deployed.',
             ],
             'causeFile' => 'common/config/main-local.php',
         ];
     }
 }
 
-function adminHandle(callable $callback, string $apiRoute): never
+function adminRemoteUpstream(): string
+{
+    $fromEnv = getenv('ADMIN_DATA_UPSTREAM');
+    if (is_string($fromEnv) && trim($fromEnv) !== '') {
+        return rtrim(trim($fromEnv), '/');
+    }
+
+    return 'https://getways-app.onrender.com';
+}
+
+/**
+ * @return array<string,mixed>|null
+ */
+function adminFetchRemote(string $remoteAction, string $method = 'GET', array $query = [], ?array $body = null): ?array
+{
+    $url = adminRemoteUpstream() . '/admin/' . rawurlencode($remoteAction);
+    if ($query !== []) {
+        $url .= '?' . http_build_query($query);
+    }
+
+    $headers = ['Accept: application/json', 'Content-Type: application/json'];
+    $token = getenv('ADMIN_API_TOKEN');
+    if (is_string($token) && trim($token) !== '') {
+        $headers[] = 'X-Admin-Proxy-Token: ' . trim($token);
+    }
+
+    $ch = curl_init($url);
+    if ($ch === false) {
+        return null;
+    }
+
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST => strtoupper($method),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT => 120,
+        CURLOPT_HTTPHEADER => $headers,
+    ]);
+
+    if ($body !== null && strtoupper($method) !== 'GET') {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+
+    $raw = curl_exec($ch);
+    if ($raw === false) {
+        curl_close($ch);
+        return null;
+    }
+
+    $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+
+    $decoded = json_decode((string) $raw, true);
+    if (!is_array($decoded)) {
+        return null;
+    }
+
+    if ($status >= 400 || ($decoded['success'] ?? true) === false) {
+        return [
+            'ok' => false,
+            'success' => false,
+            'message' => (string) ($decoded['message'] ?? 'Remote admin API failed.'),
+            'remoteStatus' => $status,
+            'remoteAction' => $remoteAction,
+        ];
+    }
+
+    return $decoded;
+}
+
+function adminHandle(callable $callback, string $apiRoute, ?string $remoteAction = null): never
 {
     try {
         adminYiiApp();
         $dbError = adminDbProbe();
+        if ($dbError !== null && $remoteAction !== null) {
+            $remote = adminFetchRemote(
+                $remoteAction,
+                strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')),
+                $_GET,
+                in_array(strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')), ['POST', 'PUT', 'PATCH'], true)
+                    ? readJsonBody()
+                    : null
+            );
+            if ($remote !== null) {
+                if (($remote['success'] ?? true) === false) {
+                    adminJson((int) ($remote['remoteStatus'] ?? 502), $remote + ['apiRoute' => $apiRoute, 'source' => 'render-admin-proxy']);
+                }
+                adminJson(200, ['ok' => true, 'apiRoute' => $apiRoute, 'source' => 'render-admin-proxy'] + $remote);
+            }
+
+            $dbError['hint'] = 'Local PHP hosting cannot reach Railway MySQL (port 27413 blocked). Data is fetched via Render admin proxy when available.';
+            adminJson(503, $dbError + ['apiRoute' => $apiRoute]);
+        }
         if ($dbError !== null) {
             adminJson(503, $dbError + ['apiRoute' => $apiRoute]);
         }
@@ -191,7 +280,7 @@ function adminClickPesa(): \common\services\ClickPesaService
 }
 
 if ($action === 'balance' && $method === 'GET') {
-    adminHandle(static fn() => adminClickPesa()->getAccountBalance(), '/api/clickpesa/account-balance');
+    adminHandle(static fn() => adminClickPesa()->getAccountBalance(), '/api/clickpesa/account-balance', 'balance');
 }
 
 if ($action === 'analytics' && $method === 'GET') {
@@ -206,7 +295,7 @@ if ($action === 'analytics' && $method === 'GET') {
         }
 
         return adminClickPesa()->getDashboardAnalytics($filters);
-    }, '/admin-api.php?action=analytics');
+    }, '/admin-api.php?action=analytics', 'analytics');
 }
 
 if ($action === 'statement' && $method === 'GET') {
@@ -221,11 +310,11 @@ if ($action === 'statement' && $method === 'GET') {
         }
 
         return adminClickPesa()->getDashboardAnalytics($filters);
-    }, '/admin-api.php?action=analytics');
+    }, '/admin-api.php?action=analytics', 'analytics');
 }
 
 if ($action === 'payout-settings' && $method === 'GET') {
-    adminHandle(static fn() => adminClickPesa()->getAutoPayoutSettings(), '/api/clickpesa/auto-payout/settings');
+    adminHandle(static fn() => adminClickPesa()->getAutoPayoutSettings(), '/api/clickpesa/auto-payout/settings', 'payout-settings');
 }
 
 if ($action === 'payout-settings' && $method === 'POST') {
@@ -275,11 +364,11 @@ if ($action === 'payout-settings' && $method === 'POST') {
 }
 
 if ($action === 'control-numbers' && $method === 'GET') {
-    adminHandle(static fn() => adminClickPesa()->listControlNumbers(100), '/api/clickpesa/control-numbers');
+    adminHandle(static fn() => adminClickPesa()->listControlNumbers(100), '/api/clickpesa/control-numbers', 'control-numbers');
 }
 
 if ($action === 'payouts' && $method === 'GET') {
-    adminHandle(static fn() => adminClickPesa()->listPayouts(100), '/api/clickpesa/payouts');
+    adminHandle(static fn() => adminClickPesa()->listPayouts(100), '/api/clickpesa/payouts', 'payouts');
 }
 
 if ($action === 'retry-payout' && $method === 'POST') {

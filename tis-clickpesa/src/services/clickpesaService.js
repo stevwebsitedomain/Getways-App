@@ -251,9 +251,29 @@ async function queryPaymentStatus(orderReference, channel = "autopay") {
   };
 }
 
+async function getAccountBalance(channel = "default") {
+  const token = await getAccessToken(channel);
+  const response = await clickpesaApi.get("/account/balance", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = response?.data || {};
+  const balance = Number(
+    data.balance ?? data.availableBalance ?? data.accountBalance ?? data.data?.balance ?? 0
+  );
+  const currency = String(data.currency ?? data.data?.currency ?? "TZS").toUpperCase();
+
+  return {
+    success: true,
+    currency,
+    balance: Number.isFinite(balance) ? balance : 0,
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
 module.exports = {
   generateAccessToken,
   getAccessToken,
+  getAccountBalance,
   createCheckoutLink,
   initiateUssdPush,
   queryPaymentStatus,
