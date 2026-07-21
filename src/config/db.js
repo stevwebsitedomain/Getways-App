@@ -1,15 +1,36 @@
 const mysql = require("mysql2/promise");
 
+const RAILWAY_PUBLIC_HOST = "sakura.proxy.rlwy.net";
+const RAILWAY_PUBLIC_PORT = 27413;
+
 let pool;
 
+function applyRailwayPublicProxy(config) {
+  if (
+    config.host === "mysql.railway.internal" ||
+    config.host.endsWith(".railway.internal")
+  ) {
+    console.warn(
+      `DB_HOST "${config.host}" only works inside Railway; using public proxy ${RAILWAY_PUBLIC_HOST}:${RAILWAY_PUBLIC_PORT}`
+    );
+    return {
+      ...config,
+      host: RAILWAY_PUBLIC_HOST,
+      port: RAILWAY_PUBLIC_PORT,
+    };
+  }
+
+  return config;
+}
+
 function getDbConfig() {
- return {
-    host: process.env.DB_HOST || "mysql.us.stackcp.com",
-    port: Number(process.env.DB_PORT || 42837),
-    user: process.env.DB_USER || "steve-b80b",
-    password: process.env.DB_PASSWORD || "steven2026",
-    database: process.env.DB_NAME || "clickpesa-353039360f5f",
-  };
+ return applyRailwayPublicProxy({
+    host: process.env.DB_HOST || "sakura.proxy.rlwy.net",
+    port: Number(process.env.DB_PORT || 27413),
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "ZFntrMWVmvQszgDhmtXMHzqKMCeriUFZ",
+    database: process.env.DB_NAME || "railway",
+  });
 }
 
 function assertSafeDatabaseName(name) {

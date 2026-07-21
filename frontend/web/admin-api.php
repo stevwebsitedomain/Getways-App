@@ -115,7 +115,7 @@ function adminDbProbe(): ?array
                 'dsn' => $safeDsn,
                 'username' => $username,
                 'error' => $e->getMessage(),
-                'hint' => 'Check MySQL: host sdb-71.hosting.stackcp.net port 3306 database Getway-app-35303539c325 user admin-48da.',
+                'hint' => 'Check MySQL: host sakura.proxy.rlwy.net port 27413 database railway user root.',
             ],
             'causeFile' => 'common/config/main-local.php',
         ];

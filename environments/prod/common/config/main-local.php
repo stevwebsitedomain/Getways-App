@@ -12,7 +12,7 @@ return [
     'components' => [
         'db' => [
             'class' => \yii\db\Connection::class,
-            'dsn' => 'mysql:host=mysql.railway.internal;port=3306;dbname=railway',
+            'dsn' => 'mysql:host=sakura.proxy.rlwy.net;port=27413;dbname=railway',
             'username' => 'root',
             'password' => 'ZFntrMWVmvQszgDhmtXMHzqKMCeriUFZ',
             'charset' => 'utf8mb4',
