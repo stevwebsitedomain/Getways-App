@@ -32,7 +32,7 @@ function mapWalletStatus(status) {
   return "PENDING";
 }
 
-// Warm in-memory cache from local file so history survives ngrok/Node restarts
+// Warm in-memory cache from local file so history survives Node restarts
 try {
   for (const row of paymentFileStore.listPayments()) {
     const key = String(row.orderReference || "")
@@ -101,7 +101,7 @@ function rememberPayment(entry) {
     const oldest = recentPayments.keys().next().value;
     recentPayments.delete(oldest);
   }
-  // Local file backup — survives ngrok/Node restart even if MySQL is down.
+  // Local file backup — survives Node restart even if MySQL is down.
   try {
     paymentFileStore.upsertPayment(normalized);
   } catch (_) {
@@ -154,7 +154,7 @@ async function listRecentPayments() {
     console.warn("listRecentPayments DB read failed:", err.message);
   }
 
-  // Local file backup (covers MySQL outages + fresh Node after ngrok restart)
+  // Local file backup (covers MySQL outages + fresh Node restarts)
   try {
     for (const row of paymentFileStore.listPayments()) {
       const key = String(row.orderReference || "").toUpperCase();

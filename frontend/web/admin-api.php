@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Admin Payout & Collections API.
- * Bootstraps Yii2 and calls ClickPesaService directly (no self-HTTP/ngrok proxy).
+ * Bootstraps Yii2 and calls ClickPesaService directly (no HTTP proxy).
  */
 
 header('Content-Type: application/json; charset=UTF-8');

@@ -3,6 +3,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const { buildCorsOptions } = require("./config/cors");
 const paymentRoutes = require("./routes/paymentRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const { connectDatabase } = require("./config/db");
@@ -10,7 +11,7 @@ const { connectDatabase } = require("./config/db");
 const app = express();
 const port = Number(process.env.PORT || 5000);
 
-app.use(cors());
+app.use(cors(buildCorsOptions()));
 // ClickPesa webhooks may be application/x-www-form-urlencoded; parse before JSON.
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(express.json({ limit: "1mb" }));
@@ -27,7 +28,7 @@ app.use(errorHandler);
 async function startServer() {
   await connectDatabase();
   app.listen(port, () => {
-    console.log(`TIS server is running on http://localhost:${port}`);
+    console.log(`TIS server is running on port ${port}`);
   });
 }
 

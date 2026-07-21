@@ -1,8 +1,14 @@
 # ClickPesa BillPay + Safe Auto Payout
 
-## Webhook URL (register in ClickPesa dashboard)
+## Webhook URLs (register in ClickPesa dashboard)
 
-Pretty URLs (preferred):
+Node backend on Render (wallet / TIS payments):
+
+```
+https://getways-app.onrender.com/webhook
+```
+
+Yii2 BillPay module (pretty URLs):
 
 ```
 https://getway.legitconsult.co.tz/api/clickpesa/webhook
@@ -14,7 +20,7 @@ With `index.php` (if rewrite not enabled):
 https://getway.legitconsult.co.tz/index.php/api/clickpesa/webhook
 ```
 
-Local XAMPP example:
+Local XAMPP example (Yii module only):
 
 ```
 http://localhost/Getways-App/frontend/web/api/clickpesa/webhook
@@ -49,6 +55,10 @@ php yii clickpesa/generate-token
 | `CLICKPESA_API_KEY` | API key |
 | `CLICKPESA_CHECKSUM_KEY` | Canonical HMAC key |
 | `CLICKPESA_API_BASE_URL` | Default `https://api.clickpesa.com/third-parties` |
+| `TIS_API_UPSTREAM` | Node backend URL — default `https://getways-app.onrender.com` |
+| `BASE_API_URL` | Same as `TIS_API_UPSTREAM` for frontend JS |
+| `BASE_URL` | Public URL for Node webhooks — default `https://getways-app.onrender.com` |
+| `CORS_ORIGINS` | Comma-separated frontend origins allowed by Node CORS |
 | `CLICKPESA_WEBHOOK_TOKEN` | Optional shared webhook token |
 | `CLICKPESA_ENCRYPTION_KEY` | Encrypts payout destination at rest |
 | `CLICKPESA_INTERNAL_API_TOKEN` | Protects control-number / payout-status APIs |

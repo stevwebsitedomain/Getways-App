@@ -3,8 +3,9 @@
   const SERVER_STATUS_STORAGE_KEY = "nectaServerStatus";
   const LANGUAGE_STORAGE_KEY = "nectaAppLanguage";
   const SWEETALERT_CDN = "https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js";
-  const API_BASE = window.TIS_API_BASE || `${window.location.origin}/api/tis`;
-  const API_HEADERS = { "ngrok-skip-browser-warning": "true" };
+  const RENDER_API = "https://getways-app.onrender.com";
+  const API_BASE = window.BASE_API_URL || window.TIS_API_BASE || RENDER_API;
+  const API_HEADERS = { "Content-Type": "application/json" };
   let swalLoaderPromise = null;
   let monitorTimer = null;
   let serverStatus = "unknown";

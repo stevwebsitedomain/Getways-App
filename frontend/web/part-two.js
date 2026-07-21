@@ -1,7 +1,8 @@
-const API_BASE = window.TIS_API_BASE || `${window.location.origin}/api/tis`;
+const RENDER_API = "https://getways-app.onrender.com";
+const API_BASE = window.BASE_API_URL || window.TIS_API_BASE || RENDER_API;
 const CLICKPESA_API_BASE = window.CLICKPESA_API_BASE || `${window.location.origin}/api/clickpesa`;
 const API_HEADERS = {
-  "ngrok-skip-browser-warning": "true",
+  "Content-Type": "application/json",
 };
 
 const successAmountEl = document.getElementById("success-amount");
@@ -469,14 +470,14 @@ function bindHomeControlNumber() {
     try {
       let res = await fetch(cnUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+        headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify(payload),
       });
       if (!res.ok && res.status === 404) {
         res = await fetch(`${CLICKPESA_API_BASE}/control-number`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+          headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
           body: JSON.stringify(payload),
         });

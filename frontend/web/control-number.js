@@ -42,7 +42,6 @@ function bindControlNumberForm() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true",
         },
         credentials: "same-origin",
         body: JSON.stringify(payload),
@@ -53,7 +52,6 @@ function bindControlNumberForm() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "ngrok-skip-browser-warning": "true",
           },
           credentials: "same-origin",
           body: JSON.stringify(payload),

@@ -249,9 +249,9 @@
 
     const headers = {
       "Content-Type": "application/json",
-      "ngrok-skip-browser-warning": "true",
     };
-    const apiTis = global.TIS_API_BASE || `${global.location.origin}/api/tis`;
+    const RENDER_API = "https://getways-app.onrender.com";
+    const apiTis = global.BASE_API_URL || global.TIS_API_BASE || RENDER_API;
     const apiYii = global.CLICKPESA_API_BASE || `${global.location.origin}/api/clickpesa`;
 
     let ok = false;

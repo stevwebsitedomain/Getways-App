@@ -75,7 +75,7 @@ class ApiController extends Controller
             return $response;
         }
 
-        $upstreamBase = rtrim(trim((string) (Yii::$app->params['tisApiUpstream'] ?? 'http://127.0.0.1:5000')), '/');
+        $upstreamBase = rtrim(trim((string) (Yii::$app->params['tisApiUpstream'] ?? 'https://getways-app.onrender.com')), '/');
         $targetUrl = $upstreamBase . ($path !== '' ? '/' . ltrim($path, '/') : '');
         $queryString = (string) $request->queryString;
         if ($queryString !== '') {
@@ -98,9 +98,6 @@ class ApiController extends Controller
             $line = $name . ': ' . (is_array($value) ? implode(', ', $value) : $value);
             $forwardHeaders[] = $line;
         }
-        if (str_contains($upstreamBase, 'ngrok-free.app')) {
-            $forwardHeaders[] = 'ngrok-skip-browser-warning: true';
-        }
 
         $rawBody = $request->getRawBody();
         curl_setopt_array($ch, [
@@ -121,49 +118,13 @@ class ApiController extends Controller
             $error = curl_error($ch);
             curl_close($ch);
 
-            // If ngrok is down, retry local Node (history / payments still work on localhost)
-            $localFallback = 'http://127.0.0.1:5000';
-            if ($upstreamBase !== $localFallback && str_contains($upstreamBase, 'ngrok')) {
-                $fallbackUrl = $localFallback . ($path !== '' ? '/' . ltrim($path, '/') : '');
-                if ($queryString !== '') {
-                    $fallbackUrl .= '?' . $queryString;
-                }
-                $ch2 = curl_init($fallbackUrl);
-                if ($ch2 !== false) {
-                    $localHeaders = array_values(array_filter(
-                        $forwardHeaders,
-                        static fn(string $h): bool => stripos($h, 'ngrok-skip-browser-warning') !== 0
-                    ));
-                    curl_setopt_array($ch2, [
-                        CURLOPT_CUSTOMREQUEST => $request->method,
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_HEADER => true,
-                        CURLOPT_FOLLOWLOCATION => false,
-                        CURLOPT_CONNECTTIMEOUT => 5,
-                        CURLOPT_TIMEOUT => 60,
-                        CURLOPT_HTTPHEADER => $localHeaders,
-                    ]);
-                    if ($rawBody !== '') {
-                        curl_setopt($ch2, CURLOPT_POSTFIELDS, $rawBody);
-                    }
-                    $result = curl_exec($ch2);
-                    if ($result !== false) {
-                        $ch = $ch2;
-                    } else {
-                        curl_close($ch2);
-                    }
-                }
-            }
-
-            if ($result === false) {
-                $response->statusCode = 502;
-                $response->content = json_encode([
-                    'message' => 'Upstream API unreachable.',
-                    'details' => $error,
-                ], JSON_UNESCAPED_SLASHES);
-                $response->headers->set('Content-Type', 'application/json; charset=UTF-8');
-                return $response;
-            }
+            $response->statusCode = 502;
+            $response->content = json_encode([
+                'message' => 'Upstream API unreachable.',
+                'details' => $error,
+            ], JSON_UNESCAPED_SLASHES);
+            $response->headers->set('Content-Type', 'application/json; charset=UTF-8');
+            return $response;
         }
 
         $statusCode = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);

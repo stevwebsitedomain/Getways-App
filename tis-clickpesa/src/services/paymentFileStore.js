@@ -1,6 +1,6 @@
 /**
  * Local file backup for wallet payments.
- * Survives Node/ngrok restarts when MySQL is unreachable.
+ * Survives Node restarts when MySQL is unreachable.
  */
 const fs = require("fs");
 const path = require("path");

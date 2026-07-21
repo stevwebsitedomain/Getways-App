@@ -103,9 +103,10 @@
    * Load payments from Yii + Node and merge.
    */
   async function loadMergedPayments(apiBase, clickpesaBase, headers) {
+    const RENDER_API = "https://getways-app.onrender.com";
     const yiiBase = clickpesaBase || global.CLICKPESA_API_BASE || `${global.location.origin}/api/clickpesa`;
-    const nodeBase = apiBase || global.TIS_API_BASE || `${global.location.origin}/api/tis`;
-    const hdrs = headers || { "ngrok-skip-browser-warning": "true" };
+    const nodeBase = apiBase || global.BASE_API_URL || global.TIS_API_BASE || RENDER_API;
+    const hdrs = headers || { "Content-Type": "application/json" };
 
     const [yii, node] = await Promise.all([
       fetchJsonSafe(`${yiiBase}/payments`, hdrs),

@@ -1,7 +1,7 @@
-const API_BASE = window.TIS_API_BASE || `${window.location.origin}/api/tis`;
+const RENDER_API = "https://getways-app.onrender.com";
+const API_BASE = window.BASE_API_URL || window.TIS_API_BASE || RENDER_API;
 const API_HEADERS = {
   "Content-Type": "application/json",
-  "ngrok-skip-browser-warning": "true",
 };
 
 const formMessageEl = document.getElementById("form-message");
