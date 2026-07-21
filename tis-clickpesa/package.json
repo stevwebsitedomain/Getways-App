@@ -1,0 +1,31 @@
+{
+  "name": "tis-clickpesa",
+  "version": "1.0.0",
+  "description": "Track Inventory System with ClickPesa integration",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/controllers/paymentController.js && node --check src/services/clickpesaService.js"
+  },
+  "keywords": [
+    "express",
+    "clickpesa",
+    "inventory",
+    "payments"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "morgan": "^1.10.0",
+    "mysql2": "^3.22.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

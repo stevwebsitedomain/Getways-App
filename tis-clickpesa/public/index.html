@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TIS Dashboard - ClickPesa</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="card header-card">
+        <h1>Track Inventory System (TIS)</h1>
+        <p>ClickPesa payment integration with automatic webhook updates.</p>
+      </header>
+
+      <section class="grid">
+        <div class="card">
+          <h2>Create Payment</h2>
+          <form id="payment-form">
+            <label>Customer Name</label>
+            <input type="text" id="customerName" value="Customer" required />
+
+            <label>Customer Email</label>
+            <input type="email" id="customerEmail" value="customer@example.com" required />
+
+            <label>Customer Phone</label>
+            <input type="text" id="customerPhone" value="255765149991" required />
+
+            <label>Description</label>
+            <input type="text" id="description" value="Inventory Payment" required />
+
+            <h3>Inventory Items</h3>
+            <div id="inventory-list"></div>
+
+            <div class="total-row">
+              <span>Order Total:</span>
+              <strong id="order-total">TZS 0</strong>
+            </div>
+
+            <button id="pay-now-btn" type="submit">PAY NOW</button>
+          </form>
+          <p id="form-message"></p>
+        </div>
+
+        <div class="card">
+          <h2>Dashboard</h2>
+          <div class="summary">
+            <div class="summary-item">
+              <span>Total Sales</span>
+              <strong id="total-sales">TZS 0</strong>
+            </div>
+            <div class="summary-item">
+              <span>Total Transactions</span>
+              <strong id="total-transactions">0</strong>
+            </div>
+          </div>
+
+          <h3>Transactions</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order Ref</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Phone</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="payments-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
