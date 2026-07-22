@@ -29,24 +29,62 @@
     return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
   }
 
-  function setBanner(id, message, type = "error", options = {}) {
+  function clearBanner(id) {
     const el = document.getElementById(id);
-    const text = String(message || "").trim();
     if (el) {
-      if (text) {
-        el.hidden = false;
-        el.textContent = text;
-        el.className = "ad-db-banner";
-        if (type === "success") el.classList.add("ad-db-banner--ok");
-        if (type === "warning") el.classList.add("ad-db-banner--warn");
-      } else {
-        el.hidden = true;
-        el.textContent = "";
-      }
+      el.hidden = true;
+      el.textContent = "";
     }
-    if (options.toast !== false && text) {
-      notify(text, type);
+  }
+
+  function setBanner(id, message, type = "error", options = {}) {
+    clearBanner(id);
+    const text = String(message || "").trim();
+    if (!text) return;
+    notify(text, type, options);
+  }
+
+  const recentAlerts = new Map();
+  const ALERT_DEDUPE_MS = 45000;
+
+  function notify(message, type = "info", options = {}) {
+    const text = String(message || "").trim();
+    if (!text) return;
+    if (!window.Swal || typeof window.Swal.fire !== "function") {
+      if (type === "error") console.error(text);
+      return;
     }
+
+    const key = `${type}:${text}`;
+    if (!options.force) {
+      const last = recentAlerts.get(key) || 0;
+      if (Date.now() - last < ALERT_DEDUPE_MS) return;
+    }
+    recentAlerts.set(key, Date.now());
+
+    const icon = type === "success" ? "success" : type === "warning" ? "warning" : type === "error" ? "error" : "info";
+    const useToast = options.toast === true || (type === "success" && options.modal !== true);
+
+    if (useToast) {
+      window.Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon,
+        title: text,
+        showConfirmButton: false,
+        timer: type === "error" ? 6000 : 3500,
+        timerProgressBar: true,
+      });
+      return;
+    }
+
+    window.Swal.fire({
+      icon,
+      title: type === "error" ? "Error" : type === "warning" ? "Onyo" : "Taarifa",
+      text,
+      confirmButtonText: "Sawa",
+      confirmButtonColor: "#16a34a",
+    });
   }
 
   function renderPager(pagerId, page, totalItems, onPage) {
@@ -66,25 +104,6 @@
       <button type="button" class="ad-pager-btn" data-page="next" ${current >= totalPages ? "disabled" : ""}>Next</button>`;
     pager.querySelector('[data-page="prev"]')?.addEventListener("click", () => onPage(current - 1));
     pager.querySelector('[data-page="next"]')?.addEventListener("click", () => onPage(current + 1));
-  }
-
-  function notify(message, type = "info") {
-    const text = String(message || "").trim();
-    if (!text) return;
-    if (!window.Swal || typeof window.Swal.fire !== "function") {
-      if (type === "error") console.error(text);
-      return;
-    }
-    const icon = type === "success" ? "success" : type === "warning" ? "warning" : type === "error" ? "error" : "info";
-    window.Swal.fire({
-      toast: true,
-      position: "top-end",
-      icon,
-      title: text,
-      showConfirmButton: false,
-      timer: type === "error" ? 5000 : 3500,
-      timerProgressBar: true,
-    });
   }
 
   async function promptAdminPassword() {
@@ -455,7 +474,7 @@
     if (recentPeriodEl) recentPeriodEl.textContent = label;
   }
 
-  async function loadBalance() {
+  async function loadBalance(options = {}) {
     const valueEl = document.getElementById("stat-balance");
     const updatedEl = document.getElementById("stat-balance-updated");
     try {
@@ -467,7 +486,7 @@
     } catch (error) {
       if (valueEl) valueEl.textContent = "Balance unavailable";
       if (updatedEl) updatedEl.textContent = "Last updated: --";
-      setBanner("ad-db-banner", error.message);
+      setBanner("ad-db-banner", error.message, "error", { toast: !options.manual });
     }
   }
 
@@ -482,11 +501,11 @@
         modeSelect.value = result.mode === "LIVE_AUTO" ? "LIVE_AUTO" : "MANUAL_APPROVAL";
       }
       if (result.warning) {
-        setBanner("ad-payouts-error", result.warning, "warning");
+        setBanner("ad-payouts-error", result.warning, "warning", { toast: true });
       }
     } catch (error) {
       setAutoPayoutUi(false, "ERROR");
-      setBanner("ad-payouts-error", error.message);
+      setBanner("ad-payouts-error", error.message, "error", { toast: true });
     }
   }
 
@@ -521,8 +540,8 @@
       drawTrend(document.getElementById("ad-trend"), []);
       drawPie(document.getElementById("ad-pie"), {});
       document.getElementById("ad-recent").innerHTML = "<li>No ClickPesa transactions were found for this period.</li>";
-      setBanner("ad-statement-error", error.message);
-      setBanner("ad-recent-error", error.message);
+      setBanner("ad-statement-error", error.message, "error", { toast: true });
+      clearBanner("ad-recent-error");
     }
   }
 
@@ -646,10 +665,10 @@
       latestControlRows = result.items || [];
       controlsPage = 1;
       renderControlsTable();
-      setBanner("ad-controls-error", "", "error", { toast: false });
+      setBanner("ad-controls-error", "");
     } catch (error) {
       body.innerHTML = `<tr><td colspan="9">No transactions yet.</td></tr>`;
-      setBanner("ad-controls-error", error.message, "error", { toast: false });
+      setBanner("ad-controls-error", error.message);
     }
   }
 
@@ -684,7 +703,7 @@
           await requestJson("retry-payout", { method: "POST", body: { id: Number(btn.getAttribute("data-retry-payout")) } });
           await loadPayouts();
         } catch (error) {
-          setBanner("ad-payouts-error", error.message, "error", { toast: false });
+          setBanner("ad-payouts-error", error.message);
         } finally {
           btn.disabled = false;
         }
@@ -710,10 +729,10 @@
       latestPayoutRows = result.items || [];
       payoutsPage = 1;
       renderPayoutsTable();
-      setBanner("ad-payouts-error", latestSettings?.warning || "", latestSettings?.warning ? "warning" : "info", { toast: false });
+      setBanner("ad-payouts-error", latestSettings?.warning || "", latestSettings?.warning ? "warning" : "info", { toast: true });
     } catch (error) {
       body.innerHTML = `<tr><td colspan="8">No automatic payouts have been processed.</td></tr>`;
-      setBanner("ad-payouts-error", error.message, "error", { toast: false });
+      setBanner("ad-payouts-error", error.message);
     }
   }
 
@@ -749,10 +768,10 @@
       latestUserRows = data.items || [];
       usersPage = 1;
       renderUsersTable();
-      setBanner("ad-users-error", "", "error", { toast: false });
+      setBanner("ad-users-error", "");
     } catch (error) {
       body.innerHTML = `<tr><td colspan="5">No registered users yet.</td></tr>`;
-      setBanner("ad-users-error", error.message, "error", { toast: false });
+      setBanner("ad-users-error", error.message);
     }
   }
 
@@ -805,8 +824,8 @@
       notify("Payout destination saved.", "success");
     } catch (error) {
       if (msg) {
-        msg.className = "ad-msg is-err";
-        msg.textContent = error.message;
+        msg.className = "ad-msg";
+        msg.textContent = "";
       }
       notify(error.message, "error");
     }
@@ -874,10 +893,6 @@
       await showControlNumberResult({ ...data, description: payload.description });
       await loadControls();
     } catch (error) {
-      if (msg) {
-        msg.className = "ad-msg is-err";
-        msg.textContent = error.message;
-      }
       showControlNumberError(error.message, "Control Number Haijafanikiwa");
     } finally {
       if (submit) submit.disabled = false;
@@ -911,7 +926,7 @@
   }
 
   document.getElementById("ad-refresh")?.addEventListener("click", () => loadAll());
-  document.getElementById("ad-balance-refresh")?.addEventListener("click", () => loadBalance());
+  document.getElementById("ad-balance-refresh")?.addEventListener("click", () => loadBalance({ manual: true }));
   document.getElementById("ad-payouts-refresh")?.addEventListener("click", () => loadPayouts());
   document.getElementById("ad-users-refresh")?.addEventListener("click", () => loadUsers());
   document.getElementById("ad-sync-transactions")?.addEventListener("click", () => syncTransactions());
@@ -932,7 +947,7 @@
   document.getElementById("ad-payouts-export")?.addEventListener("click", exportPayoutCsv);
 
   loadAll().catch((error) => {
-    setBanner("ad-db-banner", error.message);
+    setBanner("ad-db-banner", error.message, "error", { toast: true });
   });
   window.setInterval(loadBalance, REFRESH_MS);
 })();
