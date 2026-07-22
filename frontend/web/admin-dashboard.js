@@ -97,13 +97,13 @@
     if (!window.Swal || typeof window.Swal.fire !== "function") return;
     await window.Swal.fire({
       icon: "success",
-      title: "Control Number Created",
+      title: data.existing ? "Control Number Ready" : "Control Number Created",
       html: `
         <div style="text-align:left;font-size:0.95rem;line-height:1.6">
-          <p><strong>Control Number:</strong> <code>${cn}</code></p>
+          <p><strong>Control Number (ClickPesa):</strong> <code style="font-size:1.1rem">${cn}</code></p>
           <p><strong>Reference:</strong> ${ref}</p>
           <p><strong>Amount:</strong> ${amt}</p>
-          <p style="font-size:0.85rem;color:#64748b">Tumia <strong>Control Number</strong> hii kulipa kwenye BillPay. Kwa ClickPesa inaweza kuwa sawa na Reference.</p>
+          <p style="font-size:0.85rem;color:#64748b">Mteja analipa kwa kutumia <strong>Control Number</strong> hapo juu kwenye BillPay (M-Pesa, HaloPesa, n.k.). Hii hutengenezwa na ClickPesa — si namba unayoandika wewe.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px">
             <button type="button" class="ad-refresh" id="swal-copy-cn">Copy Control Number</button>
             ${invoiceUrl ? `<button type="button" class="ad-refresh" id="swal-view-invoice">View Invoice</button>` : ""}
@@ -664,11 +664,19 @@
     try {
       if (submit) submit.disabled = true;
       msg.className = "ad-msg";
-      msg.textContent = "Creating...";
+      msg.textContent = "Generating control number from ClickPesa...";
       const payload = Object.fromEntries(new FormData(event.target).entries());
+      if (!String(payload.order_id || "").trim()) {
+        delete payload.order_id;
+      }
+      if (!String(payload.description || "").trim()) {
+        payload.description = "BillPay payment";
+      }
       const data = await requestJson("create-control-number", { method: "POST", body: payload });
       msg.className = "ad-msg is-ok";
-      msg.textContent = `Created: ${data.controlNumber}`;
+      msg.textContent = data.existing
+        ? `Existing control number: ${data.controlNumber}`
+        : `Control number: ${data.controlNumber}`;
       event.target.reset();
       showSuccessDialog(data);
       await loadControls();

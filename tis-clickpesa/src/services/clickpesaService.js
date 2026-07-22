@@ -294,6 +294,18 @@ async function createMobileMoneyPayout(payload) {
   return response.data;
 }
 
+async function createOrderControlNumber(payload) {
+  const token = await getAccessToken("default");
+  const body = withChecksum(payload, "default");
+  const response = await clickpesaApi.post("/billpay/create-order-control-number", body, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.data;
+}
+
 module.exports = {
   generateAccessToken,
   getAccessToken,
@@ -304,4 +316,5 @@ module.exports = {
   createPayloadChecksum,
   previewMobileMoneyPayout,
   createMobileMoneyPayout,
+  createOrderControlNumber,
 };

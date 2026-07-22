@@ -8,6 +8,7 @@ const {
   payouts,
   invoice,
   withdraw,
+  createControlNumber,
 } = require("../controllers/adminController");
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.get("/control-numbers", controlNumbers);
 router.get("/invoice/:id", invoice);
 router.post("/withdraw/:id", withdraw);
 router.post("/withdraw", withdraw);
+router.post("/create-control-number", createControlNumber);
 router.get("/payouts", payouts);
 
 module.exports = router;

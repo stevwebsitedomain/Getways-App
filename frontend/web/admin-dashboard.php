@@ -96,17 +96,20 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
 
       <div class="ad-card">
         <h2>Create control number</h2>
+        <p class="ad-note">Weka kiasi na maelezo tu. <strong>Control number</strong> itatengenezwa na ClickPesa BillPay — hauandiki mwenyewe.</p>
         <form id="ad-cn-form" class="ad-form">
-          <label>Order ID<input name="order_id" required placeholder="TIS01" maxlength="20" pattern="[A-Za-z0-9]+" title="Letters and numbers only, max 20 characters (e.g. TIS01, ORDER1001)" /></label>
-          <label>Amount (TZS)<input name="amount" type="number" min="1" step="0.01" required /></label>
-          <label>Description<input name="description" required placeholder="Payment for order…" /></label>
+          <label>Order label <small>(si control number — hiari)</small>
+            <input name="order_id" placeholder="Acha tupu au weka TIS01" maxlength="20" pattern="[A-Za-z0-9]*" title="Herufi na namba tu (hiari)" />
+          </label>
+          <label>Amount (TZS)<input name="amount" type="number" min="1" step="0.01" required placeholder="1000" /></label>
+          <label>Description<input name="description" required placeholder="Malipo ya bidhaa / huduma" /></label>
           <label>Mode
             <select name="payment_mode">
               <option value="EXACT">EXACT</option>
               <option value="ALLOW_PARTIAL_AND_OVER_PAYMENT">ALLOW_PARTIAL_AND_OVER_PAYMENT</option>
             </select>
           </label>
-          <button type="submit">Create Control Number</button>
+          <button type="submit">Generate Control Number</button>
         </form>
         <p id="ad-cn-msg" class="ad-msg"></p>
       </div>

@@ -156,6 +156,25 @@ async function withdraw(req, res, next) {
   }
 }
 
+async function createControlNumber(req, res, next) {
+  try {
+    if (!isAuthorized(req)) {
+      return unauthorized(res);
+    }
+    const data = await adminService.createControlNumber(req.body || {});
+    return res.json({ ok: true, success: true, ...data });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        ok: false,
+        success: false,
+        message: error.message,
+      });
+    }
+    return next(error);
+  }
+}
+
 module.exports = {
   balance,
   analytics,
@@ -165,4 +184,5 @@ module.exports = {
   payouts,
   invoice,
   withdraw,
+  createControlNumber,
 };

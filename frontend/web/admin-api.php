@@ -424,7 +424,7 @@ if ($action === 'create-control-number' && $method === 'POST') {
             'description' => $body['description'] ?? '',
             'payment_mode' => $body['payment_mode'] ?? 'EXACT',
         ], null);
-    }, '/api/clickpesa/control-number');
+    }, '/api/clickpesa/control-number', 'create-control-number');
 }
 
 if ($action === 'summary' && $method === 'GET') {

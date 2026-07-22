@@ -1,5 +1,5 @@
 const { getPool } = require("../config/db");
-const { getAccountBalance } = require("./clickpesaService");
+const { getAccountBalance, createOrderControlNumber } = require("./clickpesaService");
 
 function mapPaymentStatus(status) {
   const value = String(status || "").trim().toUpperCase();
@@ -773,12 +773,196 @@ async function withdrawPayment(paymentId) {
   return payoutService.withdrawPayment(paymentId);
 }
 
+function normalizeBillReference(value) {
+  return String(value || "")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase()
+    .slice(0, 20);
+}
+
+function generateBillReference(orderId) {
+  const safe =
+    String(orderId || "ORD")
+      .replace(/[^A-Za-z0-9]/g, "")
+      .toUpperCase()
+      .slice(0, 8) || "ORD";
+  const suffix = `${String(Math.floor(Date.now() / 1000)).slice(-6)}${Math.floor(Math.random() * 90) + 10}`;
+  return `${safe}${suffix}`.slice(0, 20);
+}
+
+function extractNestedValue(obj, path) {
+  const parts = String(path).split(".");
+  let current = obj;
+  for (const part of parts) {
+    if (!current || typeof current !== "object") {
+      return null;
+    }
+    current = current[part];
+  }
+  return current == null || current === "" ? null : current;
+}
+
+function extractBillPayNumber(response) {
+  const paths = [
+    "billPayNumber",
+    "data.billPayNumber",
+    "data.billPay.billPayNumber",
+    "billPay.billPayNumber",
+    "controlNumber",
+    "data.controlNumber",
+    "control_number",
+    "data.control_number",
+  ];
+  for (const path of paths) {
+    const value = extractNestedValue(response, path);
+    if (value == null || value === "") {
+      continue;
+    }
+    const normalized = String(value).trim().toUpperCase();
+    if (!/^[A-Z0-9]+$/.test(normalized)) {
+      continue;
+    }
+    if (normalized.length < 3 || normalized.length > 20) {
+      continue;
+    }
+    return normalized;
+  }
+  return null;
+}
+
+async function createControlNumber(data = {}) {
+  const db = getPool();
+  let orderId = String(data.order_id || data.orderId || "").trim();
+  const amount = Number(data.amount || 0);
+  let description = String(data.description || data.billDescription || "").trim();
+  const paymentMode = String(data.payment_mode || data.paymentMode || "EXACT").toUpperCase();
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    const error = new Error("amount must be a positive value.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!orderId) {
+    orderId = `GW${String(Date.now()).slice(-8)}`;
+  }
+  if (!description) {
+    description = `Payment for ${orderId}`;
+  }
+  if (!["EXACT", "ALLOW_PARTIAL_AND_OVER_PAYMENT"].includes(paymentMode)) {
+    const error = new Error("payment_mode must be EXACT or ALLOW_PARTIAL_AND_OVER_PAYMENT.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [activeRows] = await db.query(
+    `SELECT * FROM clickpesa_transactions
+     WHERE order_id = ? AND payment_status = 'PENDING' AND control_number IS NOT NULL
+     LIMIT 1`,
+    [orderId]
+  );
+  if (activeRows[0] && !data.force_new && !data.forceNew) {
+    const active = activeRows[0];
+    return {
+      success: true,
+      id: active.id,
+      controlNumber: active.control_number,
+      reference: active.order_reference,
+      orderId: active.order_id || orderId,
+      amount: Number(active.expected_amount || active.amount || 0),
+      status: active.payment_status,
+      existing: true,
+      invoiceUrl: `admin-invoice.php?id=${active.id}`,
+    };
+  }
+
+  let billReference = normalizeBillReference(data.orderReference || data.billReference || orderId);
+  if (!billReference) {
+    billReference = generateBillReference(orderId);
+  }
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const [exists] = await db.query(
+      "SELECT id FROM clickpesa_transactions WHERE order_reference = ? LIMIT 1",
+      [billReference]
+    );
+    if (!exists[0]) {
+      break;
+    }
+    billReference = generateBillReference(orderId);
+  }
+
+  const payload = {
+    billDescription: description,
+    billPaymentMode: paymentMode,
+    billAmount: amount,
+    billReference,
+  };
+  if (data.customerName) {
+    payload.customerName = String(data.customerName);
+  }
+  if (data.phone) {
+    payload.customerPhone = normalizePhone(data.phone);
+  }
+  if (data.email) {
+    payload.customerEmail = String(data.email);
+  }
+
+  const response = await createOrderControlNumber(payload);
+  const controlNumber = extractBillPayNumber(response);
+  if (!controlNumber) {
+    const error = new Error(
+      "ClickPesa did not return a BillPay control number. Check API credentials and BillPay access."
+    );
+    error.statusCode = 502;
+    throw error;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  await db.query(
+    `INSERT INTO clickpesa_transactions
+      (order_id, order_reference, control_number, amount, expected_amount, currency, payment_mode, phone, customer_name, description, payment_status, transaction_type, channel, raw_request, raw_payload, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'TZS', ?, ?, ?, ?, 'PENDING', 'collection', 'billpay', ?, ?, ?, ?)`,
+    [
+      orderId,
+      billReference,
+      controlNumber,
+      amount,
+      amount,
+      paymentMode,
+      payload.customerPhone || null,
+      payload.customerName || null,
+      description,
+      JSON.stringify(payload),
+      JSON.stringify(response),
+      now,
+      now,
+    ]
+  );
+
+  const [createdRows] = await db.query(
+    "SELECT * FROM clickpesa_transactions WHERE order_reference = ? LIMIT 1",
+    [billReference]
+  );
+  const created = createdRows[0];
+
+  return {
+    success: true,
+    id: created?.id,
+    controlNumber,
+    reference: billReference,
+    orderId,
+    amount,
+    status: "PENDING",
+    invoiceUrl: created?.id ? `admin-invoice.php?id=${created.id}` : null,
+  };
+}
+
 module.exports = {
   getAccountBalance,
   getDashboardAnalytics,
   listControlNumbers,
   listPayouts,
   getInvoiceData,
+  createControlNumber,
   withdrawPayment,
   getAutoPayoutSettings,
   updateAutoPayoutSettings,
