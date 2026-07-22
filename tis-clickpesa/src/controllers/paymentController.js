@@ -4,6 +4,7 @@ const {
   initiateUssdPush,
   queryPaymentStatus,
 } = require("../services/clickpesaService");
+const { finalizeSuccessfulPayment } = require("../services/payoutService");
 const { getPool } = require("../config/db");
 const paymentFileStore = require("../services/paymentFileStore");
 
@@ -59,16 +60,20 @@ async function persistPaymentToDb(entry) {
   const status = mapWalletStatus(entry.status);
   const phone = String(entry.phone || "").trim().slice(0, 32) || null;
   const channel = String(entry.channel || entry.paymentMode || "tis").slice(0, 64) || null;
+  const customerName = String(entry.customerName || "").trim().slice(0, 255) || null;
+  const description = String(entry.description || "").trim().slice(0, 512) || null;
 
   try {
     const db = getPool();
     await db.query(
       `INSERT INTO clickpesa_transactions
-        (order_reference, amount, currency, phone, payment_status, transaction_type, channel, created_at, updated_at)
-       VALUES (?, ?, 'TZS', ?, ?, 'collection', ?, ?, ?)
+        (order_reference, amount, currency, phone, customer_name, description, payment_status, transaction_type, channel, created_at, updated_at)
+       VALUES (?, ?, 'TZS', ?, ?, ?, ?, 'collection', ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          amount = IF(VALUES(amount) > 0, VALUES(amount), amount),
          phone = COALESCE(VALUES(phone), phone),
+         customer_name = COALESCE(VALUES(customer_name), customer_name),
+         description = COALESCE(VALUES(description), description),
          payment_status = CASE
            WHEN payment_status IN ('SUCCESS', 'FAILED', 'REFUNDED')
              AND VALUES(payment_status) = 'PENDING' THEN payment_status
@@ -76,7 +81,7 @@ async function persistPaymentToDb(entry) {
          END,
          channel = COALESCE(VALUES(channel), channel),
          updated_at = VALUES(updated_at)`,
-      [orderReference, amount, phone, status, channel, now, now]
+      [orderReference, amount, phone, customerName, description, status, channel, now, now]
     );
   } catch (err) {
     console.warn("persistPaymentToDb failed:", err.message);
@@ -488,6 +493,8 @@ async function createPaymentWithChannel(req, res, next, channel = "default") {
         phone: phoneDigits,
         channel: "autopay",
         paymentMode: "ussd-push",
+        customerName: String(customerName || "").trim() || "Customer",
+        description,
         createdAt: new Date().toISOString(),
       });
       broadcastPaymentUpdate({
@@ -527,6 +534,8 @@ async function createPaymentWithChannel(req, res, next, channel = "default") {
       phone: customerPhoneForOrder,
       channel,
       paymentMode: "checkout-link",
+      customerName: String(customerName || "").trim() || "Customer",
+      description,
       createdAt: new Date().toISOString(),
     });
     broadcastPaymentUpdate({
@@ -660,6 +669,14 @@ async function getAutoPayStatus(req, res, next) {
       updatedAt: new Date().toISOString(),
     });
 
+    if (mapped === "SUCCESS") {
+      void finalizeSuccessfulPayment(
+        orderReference,
+        amountNum > 0 ? amountNum : Number(previous?.amount || dbRow?.amount || 0),
+        String(result.phone || previous?.phone || dbRow?.phone || "").trim()
+      ).catch((err) => console.warn("finalizeSuccessfulPayment:", err.message));
+    }
+
     if (mapped === "SUCCESS" || mapped === "FAILED") {
       broadcastPaymentUpdate({
         type: mapped === "SUCCESS" ? "PAYMENT_SUCCESS" : "PAYMENT_FAILED",
@@ -718,6 +735,11 @@ async function webhook(req, res, next) {
       createdAt: previous?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
+    if (status === "SUCCESS") {
+      void finalizeSuccessfulPayment(orderReference, finalAmount, finalPhone).catch((err) =>
+        console.warn("finalizeSuccessfulPayment:", err.message)
+      );
+    }
     broadcastPaymentUpdate({ type: status === "SUCCESS" ? "PAYMENT_SUCCESS" : "PAYMENT_FAILED", orderReference });
     return res.json({ message: "Webhook processed successfully (in-memory)." });
   } catch (error) {

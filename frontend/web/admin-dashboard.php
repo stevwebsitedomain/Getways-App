@@ -130,13 +130,14 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
               <th>Control #</th>
               <th>Reference</th>
               <th>Expected</th>
-              <th>Received</th>
+              <th>Paid</th>
+              <th>Withdraw</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="ad-controls-body">
-            <tr><td colspan="8">Loading…</td></tr>
+            <tr><td colspan="9">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -149,6 +150,12 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
       <form id="ad-payout-form" class="ad-form">
         <label>Payout phone number
           <input name="mobileMoneyNumber" type="tel" value="+255715296092" required placeholder="+255715296092" />
+        </label>
+        <label>Payout mode
+          <select name="payoutMode" id="ad-payout-mode">
+            <option value="MANUAL_APPROVAL">Manual — Withdraw button per payment</option>
+            <option value="LIVE_AUTO">Automatic — send to destination when paid</option>
+          </select>
         </label>
         <button type="submit">Save destination</button>
       </form>

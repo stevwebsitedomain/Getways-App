@@ -22,6 +22,167 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function parseJsonSafe(value) {
+  if (value == null || value === "") {
+    return null;
+  }
+  if (typeof value === "object") {
+    return value;
+  }
+  try {
+    return JSON.parse(String(value));
+  } catch (_) {
+    return null;
+  }
+}
+
+function pickFirstString(...values) {
+  for (const value of values) {
+    if (value == null) {
+      continue;
+    }
+    const text = String(value).trim();
+    if (text !== "" && text.toLowerCase() !== "customer") {
+      return text;
+    }
+  }
+  return null;
+}
+
+function deepFindString(obj, keys, depth = 0) {
+  if (!obj || depth > 5) {
+    return null;
+  }
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const found = deepFindString(item, keys, depth + 1);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+  if (typeof obj === "object") {
+    for (const key of keys) {
+      if (obj[key] != null) {
+        const text = String(obj[key]).trim();
+        if (text) {
+          return text;
+        }
+      }
+    }
+    for (const value of Object.values(obj)) {
+      const found = deepFindString(value, keys, depth + 1);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
+const PAYER_NAME_KEYS = [
+  "customerName",
+  "customer_name",
+  "beneficiaryName",
+  "beneficiary_name",
+  "payerName",
+  "senderName",
+  "name",
+  "fullName",
+];
+
+function formatPhoneLabel(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) {
+    return null;
+  }
+  if (digits.length >= 12 && digits.startsWith("255")) {
+    return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`.trim();
+  }
+  if (digits.length === 10 && digits.startsWith("0")) {
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+  }
+  return `+${digits}`;
+}
+
+function resolvePayerName(tx) {
+  const direct = pickFirstString(tx.customer_name);
+  if (direct) {
+    return direct;
+  }
+
+  const rawPayload = parseJsonSafe(tx.raw_payload);
+  const rawRequest = parseJsonSafe(tx.raw_request);
+  const fromPayload = deepFindString(rawPayload, PAYER_NAME_KEYS);
+  if (pickFirstString(fromPayload)) {
+    return pickFirstString(fromPayload);
+  }
+  const fromRequest = deepFindString(rawRequest, PAYER_NAME_KEYS);
+  if (pickFirstString(fromRequest)) {
+    return pickFirstString(fromRequest);
+  }
+
+  const phoneLabel = formatPhoneLabel(tx.phone);
+  return phoneLabel || "—";
+}
+
+function resolveOrderLabel(tx) {
+  if (tx.order_id) {
+    return String(tx.order_id);
+  }
+  const ref = String(tx.order_reference || "");
+  if (ref.startsWith("APAY")) {
+    return "AutoPay";
+  }
+  if (ref.startsWith("TIS")) {
+    return "Wallet Pay";
+  }
+  if (ref.startsWith("STATEMENT-")) {
+    return "Statement Sync";
+  }
+  if (String(tx.channel || "").toLowerCase() === "billpay") {
+    return "BillPay";
+  }
+  if (tx.channel) {
+    return String(tx.channel);
+  }
+  return "—";
+}
+
+function resolveControlNumber(tx) {
+  const controlNumber = String(tx.control_number || "").trim();
+  return controlNumber || null;
+}
+
+function formatDisplayDate(value) {
+  if (!value) {
+    return "—";
+  }
+  const date = typeof value === "number" ? new Date(value * 1000) : new Date(String(value));
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function resolvePaidAt(tx) {
+  if (isSuccessfulStatus(tx.payment_status) && tx.paid_at) {
+    return toIso(tx.paid_at);
+  }
+  if (isSuccessfulStatus(tx.payment_status) && tx.updated_at) {
+    return toIso(tx.updated_at);
+  }
+  return toIso(tx.created_at);
+}
+
 function buildAnalyticsPeriodLabel(startDate, endDate, period) {
   if (!startDate && !endDate) {
     if (period === "month") return "This month";
@@ -199,8 +360,22 @@ async function getDashboardAnalytics(filters = {}) {
   };
 }
 
+function resolveReceivedAmount(tx) {
+  const stored = tx.received_amount != null ? Number(tx.received_amount) : null;
+  if (stored != null && stored > 0) {
+    return stored;
+  }
+  if (isSuccessfulStatus(tx.payment_status)) {
+    return Number(tx.expected_amount || tx.amount || 0);
+  }
+  return stored;
+}
+
 async function listControlNumbers(limit = 100) {
   const db = getPool();
+  const { processPendingAutoPayouts, resolveWithdrawInfo } = require("./payoutService");
+  await processPendingAutoPayouts(5).catch(() => {});
+
   const [rows] = await db.query(
     `SELECT * FROM clickpesa_transactions
      WHERE transaction_type = 'collection'
@@ -208,21 +383,87 @@ async function listControlNumbers(limit = 100) {
     [limit]
   );
 
+  const settings = await getOrCreateSettingsRow(db);
+  const payoutSettings = formatAutoPayoutSettings(settings);
+  const paymentIds = rows.map((tx) => tx.id);
+  const payoutByPaymentId = new Map();
+  if (paymentIds.length) {
+    const [payoutRows] = await db.query(
+      `SELECT * FROM clickpesa_payout WHERE payment_id IN (${paymentIds.map(() => "?").join(",")})`,
+      paymentIds
+    );
+    for (const payout of payoutRows) {
+      payoutByPaymentId.set(payout.payment_id, payout);
+    }
+  }
+
   return {
     success: true,
-    items: rows.map((tx) => ({
-      id: tx.id,
-      orderId: tx.order_id,
-      customerName: tx.customer_name,
-      controlNumber: tx.control_number,
-      reference: tx.order_reference,
-      amount: Number(tx.expected_amount || tx.amount || 0),
-      receivedAmount: tx.received_amount != null ? Number(tx.received_amount) : null,
-      status: tx.payment_status,
-      description: tx.description,
-      createdAt: toIso(tx.created_at),
-      invoiceUrl: `/api/clickpesa/control-number/${tx.id}/invoice`,
-    })),
+    payoutSettings: {
+      enabled: payoutSettings.enabled,
+      mode: payoutSettings.mode,
+    },
+    items: rows.map((tx) => {
+      const controlNumber = resolveControlNumber(tx);
+      const payout = payoutByPaymentId.get(tx.id) || null;
+      const withdraw = resolveWithdrawInfo(tx, payout, settings);
+      return {
+        id: tx.id,
+        orderId: resolveOrderLabel(tx),
+        customerName: resolvePayerName(tx),
+        controlNumber: controlNumber || "—",
+        hasControlNumber: Boolean(controlNumber),
+        reference: tx.order_reference,
+        amount: Number(tx.expected_amount || tx.amount || 0),
+        receivedAmount: resolveReceivedAmount(tx),
+        status: tx.payment_status,
+        description: tx.description,
+        channel: tx.channel || null,
+        paidAt: resolvePaidAt(tx),
+        createdAt: toIso(tx.created_at),
+        withdrawStatus: withdraw.withdrawStatus,
+        canWithdraw: withdraw.canWithdraw,
+        payoutStatus: payout?.payout_status || tx.payout_status || null,
+        invoiceUrl: `admin-invoice.php?id=${tx.id}`,
+      };
+    }),
+  };
+}
+
+async function getInvoiceData(id) {
+  const db = getPool();
+  const [rows] = await db.query("SELECT * FROM clickpesa_transactions WHERE id = ? LIMIT 1", [id]);
+  const tx = rows[0];
+  if (!tx) {
+    const error = new Error("Transaction not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const controlNumber = resolveControlNumber(tx);
+  const paidAt = resolvePaidAt(tx);
+  const createdAt = toIso(tx.created_at);
+  const amount = Number(tx.received_amount || tx.expected_amount || tx.amount || 0);
+
+  return {
+    id: tx.id,
+    invoiceNumber: `INV-CP-${String(tx.id).padStart(6, "0")}`,
+    orderId: resolveOrderLabel(tx),
+    customerName: resolvePayerName(tx),
+    customerPhone: tx.phone ? maskPhone(tx.phone) : null,
+    controlNumber: controlNumber || "—",
+    hasControlNumber: Boolean(controlNumber),
+    billReference: tx.order_reference || "—",
+    amount,
+    currency: tx.currency || "TZS",
+    paymentMode: tx.payment_mode || "EXACT",
+    description: tx.description || "ClickPesa payment",
+    status: tx.payment_status,
+    channel: tx.channel || "clickpesa",
+    createdAt,
+    createdAtFormatted: formatDisplayDate(createdAt),
+    paidAt,
+    paidAtFormatted: formatDisplayDate(paidAt),
   };
 }
 
@@ -452,11 +693,22 @@ async function updateAutoPayoutSettings(data = {}) {
   return formatAutoPayoutSettings(rows[0] || current);
 }
 
+async function withdrawPayment(paymentId) {
+  const payoutService = require("./payoutService");
+  return payoutService.withdrawPayment(paymentId);
+}
+
 module.exports = {
   getAccountBalance,
   getDashboardAnalytics,
   listControlNumbers,
   listPayouts,
+  getInvoiceData,
+  withdrawPayment,
   getAutoPayoutSettings,
   updateAutoPayoutSettings,
+  getOrCreateSettingsRow,
+  getDestinationPhone,
+  maskPhone,
+  normalizePhone,
 };

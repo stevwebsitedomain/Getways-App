@@ -355,6 +355,10 @@
       latestSettings = result;
       document.getElementById("stat-dest").textContent = result.maskedDestination || "—";
       setAutoPayoutUi(!!result.enabled, result.mode || "TEST");
+      const modeSelect = document.getElementById("ad-payout-mode");
+      if (modeSelect && result.mode) {
+        modeSelect.value = result.mode === "LIVE_AUTO" ? "LIVE_AUTO" : "MANUAL_APPROVAL";
+      }
       if (result.warning) {
         setBanner("ad-payouts-error", result.warning, "warning");
       }
@@ -446,7 +450,7 @@
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
-      link.download = "clickpesa-invoice.pdf";
+      link.download = `receipt-${Date.now()}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -459,7 +463,7 @@
 
   async function loadControls() {
     const body = document.getElementById("ad-controls-body");
-    body.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
+    body.innerHTML = `<tr><td colspan="9">Loading...</td></tr>`;
     try {
       const result = await requestJson("control-numbers");
       const rows = result.items || [];
@@ -471,13 +475,15 @@
           <td>${esc(row.reference || "—")}</td>
           <td>${money(row.amount)}</td>
           <td>${row.receivedAmount != null ? money(row.receivedAmount) : "—"}</td>
+          <td>${esc(row.withdrawStatus || "—")}</td>
           <td>${statusBadge(row.status)}</td>
           <td>
-            ${row.controlNumber ? `<button type="button" data-copy="${esc(row.controlNumber)}">Copy</button>` : ""}
+            ${row.hasControlNumber ? `<button type="button" data-copy="${esc(row.controlNumber)}">Copy</button>` : ""}
+            ${row.canWithdraw ? `<button type="button" data-withdraw="${row.id}">Withdraw</button>` : ""}
             ${row.invoiceUrl ? `<button type="button" data-invoice="${esc(row.invoiceUrl)}">View</button>` : ""}
             ${row.invoiceUrl ? `<button type="button" data-invoice-download="${esc(row.invoiceUrl)}">Download</button>` : ""}
           </td>
-        </tr>`).join("") : `<tr><td colspan="8">No control numbers have been created yet.</td></tr>`;
+        </tr>`).join("") : `<tr><td colspan="9">No control numbers have been created yet.</td></tr>`;
       bindCopyButtons();
       body.querySelectorAll("[data-invoice]").forEach((btn) => {
         btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice") || "", false));
@@ -485,9 +491,25 @@
       body.querySelectorAll("[data-invoice-download]").forEach((btn) => {
         btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice-download") || "", true));
       });
+      body.querySelectorAll("[data-withdraw]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const paymentId = Number(btn.getAttribute("data-withdraw"));
+          if (!paymentId) return;
+          btn.disabled = true;
+          try {
+            const result = await requestJson("withdraw", { method: "POST", body: { id: paymentId } });
+            notify(result.message || "Withdraw initiated.", "success");
+            await Promise.all([loadControls(), loadPayouts(), loadBalance()]);
+          } catch (error) {
+            notify(error.message || "Withdraw failed.", "error");
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
       setBanner("ad-controls-error", "");
     } catch (error) {
-      body.innerHTML = `<tr><td colspan="8">No control numbers have been created yet.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="9">No control numbers have been created yet.</td></tr>`;
       setBanner("ad-controls-error", error.message);
     }
   }
@@ -577,8 +599,8 @@
         method: "POST",
         body: {
           ...payload,
+          mode: payload.payoutMode || latestSettings?.mode || "MANUAL_APPROVAL",
           enabled: latestSettings?.enabled ?? false,
-          mode: latestSettings?.mode || "MANUAL_APPROVAL",
           currentAdminPassword: adminPassword,
         },
       });
@@ -603,20 +625,29 @@
     const adminPassword = await promptAdminPassword();
     if (!adminPassword) return;
     const payoutPhone = document.querySelector('#ad-payout-form input[name="mobileMoneyNumber"]')?.value || "+255715296092";
+    const payoutMode = document.getElementById("ad-payout-mode")?.value || "MANUAL_APPROVAL";
     try {
       if (toggleCard) toggleCard.style.pointerEvents = "none";
       await requestJson("payout-settings", {
         method: "POST",
         body: {
           enabled: enabling,
-          mode: enabling ? "MANUAL_APPROVAL" : "TEST",
+          mode: enabling ? payoutMode : "TEST",
           mobileMoneyNumber: payoutPhone,
           currentAdminPassword: adminPassword,
-          manualApprovalRequired: enabling,
+          manualApprovalRequired: payoutMode === "MANUAL_APPROVAL",
         },
       });
       await loadSettings();
-      setBanner("ad-payouts-error", enabling ? "Automatic payout setting updated." : "Automatic payout disabled.", "success");
+      setBanner(
+        "ad-payouts-error",
+        enabling
+          ? payoutMode === "LIVE_AUTO"
+            ? "Automatic payout enabled — funds go to destination when paid."
+            : "Manual payout enabled — use Withdraw button on each payment."
+          : "Automatic payout disabled.",
+        "success"
+      );
     } catch (error) {
       setBanner("ad-payouts-error", error.message, "error");
     } finally {

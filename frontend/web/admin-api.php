@@ -380,7 +380,26 @@ if ($action === 'retry-payout' && $method === 'POST') {
         }
 
         return adminClickPesa()->retryPayout($id, true);
-    }, '/api/clickpesa/retry-payout');
+    }, '/api/clickpesa/retry-payout', 'retry-payout');
+}
+
+if ($action === 'withdraw' && $method === 'POST') {
+    adminHandle(static function () {
+        $body = readJsonBody();
+        $id = (int) ($body['id'] ?? $body['paymentId'] ?? 0);
+        if ($id <= 0) {
+            throw new yii\web\BadRequestHttpException('Payment id is required.');
+        }
+
+        $tx = \common\models\ClickPesaTransaction::findOne($id);
+        if ($tx === null) {
+            throw new yii\web\NotFoundHttpException('Payment not found.');
+        }
+
+        return adminClickPesa()->createPayout([
+            'orderReference' => $tx->order_reference,
+        ]);
+    }, '/api/clickpesa/payout', 'withdraw');
 }
 
 if ($action === 'sync-transactions' && $method === 'POST') {

@@ -270,6 +270,30 @@ async function getAccountBalance(channel = "default") {
   };
 }
 
+async function previewMobileMoneyPayout(payload) {
+  const token = await getAccessToken("default");
+  const body = withChecksum(payload, "default");
+  const response = await clickpesaApi.post("/payouts/preview-mobile-money-payout", body, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.data;
+}
+
+async function createMobileMoneyPayout(payload) {
+  const token = await getAccessToken("default");
+  const body = withChecksum(payload, "default");
+  const response = await clickpesaApi.post("/payouts/create-mobile-money-payout", body, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return response.data;
+}
+
 module.exports = {
   generateAccessToken,
   getAccessToken,
@@ -278,4 +302,6 @@ module.exports = {
   initiateUssdPush,
   queryPaymentStatus,
   createPayloadChecksum,
+  previewMobileMoneyPayout,
+  createMobileMoneyPayout,
 };

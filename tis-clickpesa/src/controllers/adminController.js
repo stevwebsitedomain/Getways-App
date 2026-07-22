@@ -102,6 +102,60 @@ async function payouts(req, res, next) {
   }
 }
 
+async function invoice(req, res, next) {
+  try {
+    if (!isAuthorized(req)) {
+      return unauthorized(res);
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        message: "Invalid invoice id.",
+      });
+    }
+    const invoiceData = await adminService.getInvoiceData(id);
+    return res.json({ ok: true, success: true, invoice: invoiceData });
+  } catch (error) {
+    if (error.statusCode === 404) {
+      return res.status(404).json({
+        ok: false,
+        success: false,
+        message: error.message,
+      });
+    }
+    return next(error);
+  }
+}
+
+async function withdraw(req, res, next) {
+  try {
+    if (!isAuthorized(req)) {
+      return unauthorized(res);
+    }
+    const paymentId = Number(req.params.id || req.body?.id || 0);
+    if (!Number.isFinite(paymentId) || paymentId <= 0) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        message: "Payment id is required.",
+      });
+    }
+    const data = await adminService.withdrawPayment(paymentId);
+    return res.json({ ok: true, success: true, ...data });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        ok: false,
+        success: false,
+        message: error.message,
+      });
+    }
+    return next(error);
+  }
+}
+
 module.exports = {
   balance,
   analytics,
@@ -109,4 +163,6 @@ module.exports = {
   updatePayoutSettings,
   controlNumbers,
   payouts,
+  invoice,
+  withdraw,
 };
