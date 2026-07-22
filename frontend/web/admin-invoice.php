@@ -90,9 +90,8 @@ function buildReceiptQrUrl(array $invoice): string
     if ($ref !== '') {
         $verifyUrl .= '&ref=' . rawurlencode($ref);
     }
-    $qrData = "GETWAY|REF:{$ref}|AMT:" . (string) ($invoice['amount'] ?? '') . '|URL:' . $verifyUrl;
 
-    return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&ecc=M&data=' . rawurlencode($qrData);
+    return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&ecc=H&data=' . rawurlencode($verifyUrl);
 }
 
 /**

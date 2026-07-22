@@ -1,5 +1,8 @@
 <?php
 require __DIR__ . '/auth-guard.php';
+$authUser = $_SESSION['gw_auth_user'] ?? [];
+$authName = trim((string) ($authUser['fullName'] ?? 'Customer'));
+$authAvatar = trim((string) ($authUser['avatar'] ?? ''));
 $cssVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
 $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
 ?>
@@ -28,6 +31,34 @@ $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
 
   <main class="tis-wrap w-shell">
     <div class="w-app">
+      <section class="tis-card">
+        <h2><i class="fa-solid fa-user"></i> Profile</h2>
+        <div class="w-profile-block">
+          <div class="w-profile-avatar-wrap">
+            <img
+              id="profile-avatar-preview"
+              class="w-profile-avatar"
+              src="<?= $authAvatar !== '' ? htmlspecialchars($authAvatar, ENT_QUOTES) : '' ?>"
+              alt="Profile picture"
+              <?= $authAvatar === '' ? 'hidden' : '' ?>
+            />
+            <div id="profile-avatar-fallback" class="w-profile-avatar w-profile-avatar--fallback" <?= $authAvatar !== '' ? 'hidden' : '' ?>>
+              <?= htmlspecialchars(strtoupper(substr($authName, 0, 1) ?: 'U'), ENT_QUOTES) ?>
+            </div>
+          </div>
+          <label class="w-profile-upload">
+            <input type="file" id="profile-avatar-input" accept="image/*" hidden />
+            <span><i class="fa-solid fa-camera"></i> Change profile picture</span>
+          </label>
+        </div>
+        <form id="profile-form" class="tis-form" style="margin-top: 14px;">
+          <label for="profile-name">Full name</label>
+          <input type="text" id="profile-name" name="fullName" value="<?= htmlspecialchars($authName, ENT_QUOTES) ?>" required minlength="2" />
+          <button class="btn-primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
+        </form>
+        <p id="profile-message" class="form-message"></p>
+      </section>
+
       <section class="tis-card">
         <h2><i class="fa-solid fa-gear"></i> Settings</h2>
         <p class="empty-state" style="margin-top: 4px;">Layout controls are moved here for mobile.</p>
@@ -64,5 +95,6 @@ $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
   <script src="script.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
+  <script src="settings.js?v=<?= urlencode((string) (@filemtime(__DIR__ . '/settings.js') ?: time())) ?>"></script>
 </body>
 </html>

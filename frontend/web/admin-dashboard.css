@@ -82,15 +82,33 @@ body.ad-body {
 
 .ad-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
 }
 
 .ad-stat {
-  background: var(--ad-card);
+  background: linear-gradient(145deg, rgba(26, 34, 44, 0.95), rgba(20, 28, 36, 0.98));
   border: 1px solid var(--ad-line);
-  border-radius: 14px;
-  padding: 14px;
+  border-radius: 16px;
+  padding: 16px 14px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  position: relative;
+  overflow: hidden;
+}
+
+.ad-stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.5), rgba(46, 204, 113, 0.5));
+  opacity: 0.65;
+}
+
+.ad-stat--money::before {
+  background: linear-gradient(90deg, #16a34a, #2ecc71);
+  opacity: 1;
 }
 
 .ad-stat p {
@@ -144,6 +162,48 @@ body.ad-body {
   line-height: 1.45;
 }
 
+.ad-db-banner--ok {
+  background: rgba(46, 204, 113, 0.12);
+  border-color: rgba(46, 204, 113, 0.35);
+  color: #bbf7d0;
+}
+
+.ad-db-banner--warn {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fde68a;
+}
+
+.ad-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.ad-pager-info {
+  color: var(--ad-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.ad-pager-btn {
+  border: 1px solid var(--ad-line);
+  background: #243041;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ad-pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .ad-grid {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
@@ -155,10 +215,11 @@ body.ad-body {
 }
 
 .ad-card {
-  background: var(--ad-card);
+  background: linear-gradient(160deg, rgba(26, 34, 44, 0.98), rgba(18, 24, 32, 0.98));
   border: 1px solid var(--ad-line);
-  border-radius: 16px;
-  padding: 16px;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
 }
 
 .ad-card h2 {

@@ -1,7 +1,13 @@
 (function () {
   const API = "admin-api.php";
   const REFRESH_MS = 60000;
+  const PAGE_SIZE = 5;
   let latestPayoutRows = [];
+  let latestControlRows = [];
+  let latestUserRows = [];
+  let controlsPage = 1;
+  let payoutsPage = 1;
+  let usersPage = 1;
   let latestSettings = null;
   let analyticsPeriod = "all";
 
@@ -23,13 +29,43 @@
     return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
   }
 
-  function setBanner(id, message, type = "error") {
+  function setBanner(id, message, type = "error", options = {}) {
     const el = document.getElementById(id);
+    const text = String(message || "").trim();
     if (el) {
-      el.hidden = true;
-      el.textContent = "";
+      if (text) {
+        el.hidden = false;
+        el.textContent = text;
+        el.className = "ad-db-banner";
+        if (type === "success") el.classList.add("ad-db-banner--ok");
+        if (type === "warning") el.classList.add("ad-db-banner--warn");
+      } else {
+        el.hidden = true;
+        el.textContent = "";
+      }
     }
-    notify(message, type);
+    if (options.toast !== false && text) {
+      notify(text, type);
+    }
+  }
+
+  function renderPager(pagerId, page, totalItems, onPage) {
+    const pager = document.getElementById(pagerId);
+    if (!pager) return;
+    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    const current = Math.min(Math.max(1, page), totalPages);
+    if (totalItems <= PAGE_SIZE) {
+      pager.hidden = true;
+      pager.innerHTML = "";
+      return;
+    }
+    pager.hidden = false;
+    pager.innerHTML = `
+      <button type="button" class="ad-pager-btn" data-page="prev" ${current <= 1 ? "disabled" : ""}>Previous</button>
+      <span class="ad-pager-info">Page ${current} of ${totalPages}</span>
+      <button type="button" class="ad-pager-btn" data-page="next" ${current >= totalPages ? "disabled" : ""}>Next</button>`;
+    pager.querySelector('[data-page="prev"]')?.addEventListener("click", () => onPage(current - 1));
+    pager.querySelector('[data-page="next"]')?.addEventListener("click", () => onPage(current + 1));
   }
 
   function notify(message, type = "info") {
@@ -547,13 +583,14 @@
     }
   }
 
-  async function loadControls() {
+  function renderControlsTable() {
     const body = document.getElementById("ad-controls-body");
-    body.innerHTML = `<tr><td colspan="9">Loading...</td></tr>`;
-    try {
-      const result = await requestJson("control-numbers");
-      const rows = result.items || [];
-      body.innerHTML = rows.length ? rows.map((row) => `
+    if (!body) return;
+    const rows = latestControlRows;
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    controlsPage = Math.min(Math.max(1, controlsPage), totalPages);
+    const slice = rows.slice((controlsPage - 1) * PAGE_SIZE, controlsPage * PAGE_SIZE);
+    body.innerHTML = slice.length ? slice.map((row) => `
         <tr>
           <td>${esc(row.orderId || "—")}</td>
           <td>${esc(row.customerName || "—")}</td>
@@ -571,44 +608,59 @@
             ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--download" data-invoice-download="${esc(row.invoiceUrl)}"><i class="fa-solid fa-download"></i><span>PDF</span></button>` : ""}
             </div>
           </td>
-        </tr>`).join("") : `<tr><td colspan="9">No control numbers have been created yet.</td></tr>`;
-      bindCopyButtons();
-      body.querySelectorAll("[data-invoice]").forEach((btn) => {
-        btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice") || "", false));
+        </tr>`).join("") : `<tr><td colspan="9">No transactions yet.</td></tr>`;
+    bindCopyButtons();
+    body.querySelectorAll("[data-invoice]").forEach((btn) => {
+      btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice") || "", false));
+    });
+    body.querySelectorAll("[data-invoice-download]").forEach((btn) => {
+      btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice-download") || "", true));
+    });
+    body.querySelectorAll("[data-withdraw]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const paymentId = Number(btn.getAttribute("data-withdraw"));
+        if (!paymentId) return;
+        btn.disabled = true;
+        try {
+          const result = await requestJson("withdraw", { method: "POST", body: { id: paymentId } });
+          notify(result.message || "Withdraw initiated.", "success");
+          await Promise.all([loadControls(), loadPayouts(), loadBalance()]);
+        } catch (error) {
+          notify(error.message || "Withdraw failed.", "error");
+        } finally {
+          btn.disabled = false;
+        }
       });
-      body.querySelectorAll("[data-invoice-download]").forEach((btn) => {
-        btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice-download") || "", true));
-      });
-      body.querySelectorAll("[data-withdraw]").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const paymentId = Number(btn.getAttribute("data-withdraw"));
-          if (!paymentId) return;
-          btn.disabled = true;
-          try {
-            const result = await requestJson("withdraw", { method: "POST", body: { id: paymentId } });
-            notify(result.message || "Withdraw initiated.", "success");
-            await Promise.all([loadControls(), loadPayouts(), loadBalance()]);
-          } catch (error) {
-            notify(error.message || "Withdraw failed.", "error");
-          } finally {
-            btn.disabled = false;
-          }
-        });
-      });
-      setBanner("ad-controls-error", "");
+    });
+    renderPager("ad-controls-pager", controlsPage, rows.length, (page) => {
+      controlsPage = page;
+      renderControlsTable();
+    });
+  }
+
+  async function loadControls() {
+    const body = document.getElementById("ad-controls-body");
+    body.innerHTML = `<tr><td colspan="9">Loading...</td></tr>`;
+    try {
+      const result = await requestJson("control-numbers");
+      latestControlRows = result.items || [];
+      controlsPage = 1;
+      renderControlsTable();
+      setBanner("ad-controls-error", "", "error", { toast: false });
     } catch (error) {
-      body.innerHTML = `<tr><td colspan="9">No control numbers have been created yet.</td></tr>`;
-      setBanner("ad-controls-error", error.message);
+      body.innerHTML = `<tr><td colspan="9">No transactions yet.</td></tr>`;
+      setBanner("ad-controls-error", error.message, "error", { toast: false });
     }
   }
 
-  async function loadPayouts() {
+  function renderPayoutsTable() {
     const body = document.getElementById("ad-payouts-body");
-    body.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
-    try {
-      const result = await requestJson("payouts");
-      latestPayoutRows = result.items || [];
-      body.innerHTML = latestPayoutRows.length ? latestPayoutRows.map((row) => `
+    if (!body) return;
+    const rows = latestPayoutRows;
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    payoutsPage = Math.min(Math.max(1, payoutsPage), totalPages);
+    const slice = rows.slice((payoutsPage - 1) * PAGE_SIZE, payoutsPage * PAGE_SIZE);
+    body.innerHTML = slice.length ? slice.map((row) => `
         <tr>
           <td>${esc(row.payoutReference)}</td>
           <td>${esc(row.destinationMasked || "—")}</td>
@@ -625,29 +677,82 @@
             </div>
           </td>
         </tr>`).join("") : `<tr><td colspan="8">No automatic payouts have been processed.</td></tr>`;
-      body.querySelectorAll("[data-retry-payout]").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          btn.disabled = true;
-          try {
-            await requestJson("retry-payout", { method: "POST", body: { id: Number(btn.getAttribute("data-retry-payout")) } });
-            await loadPayouts();
-          } catch (error) {
-            setBanner("ad-payouts-error", error.message);
-          } finally {
-            btn.disabled = false;
-          }
-        });
+    body.querySelectorAll("[data-retry-payout]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await requestJson("retry-payout", { method: "POST", body: { id: Number(btn.getAttribute("data-retry-payout")) } });
+          await loadPayouts();
+        } catch (error) {
+          setBanner("ad-payouts-error", error.message, "error", { toast: false });
+        } finally {
+          btn.disabled = false;
+        }
       });
-      body.querySelectorAll("[data-view-payout]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const row = latestPayoutRows.find((item) => Number(item.id) === Number(btn.getAttribute("data-view-payout")));
-          showPayoutDetails(row).catch(() => {});
-        });
+    });
+    body.querySelectorAll("[data-view-payout]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const row = latestPayoutRows.find((item) => Number(item.id) === Number(btn.getAttribute("data-view-payout")));
+        showPayoutDetails(row).catch(() => {});
       });
-      setBanner("ad-payouts-error", latestSettings?.warning || "", latestSettings?.warning ? "warning" : "info");
+    });
+    renderPager("ad-payouts-pager", payoutsPage, rows.length, (page) => {
+      payoutsPage = page;
+      renderPayoutsTable();
+    });
+  }
+
+  async function loadPayouts() {
+    const body = document.getElementById("ad-payouts-body");
+    body.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
+    try {
+      const result = await requestJson("payouts");
+      latestPayoutRows = result.items || [];
+      payoutsPage = 1;
+      renderPayoutsTable();
+      setBanner("ad-payouts-error", latestSettings?.warning || "", latestSettings?.warning ? "warning" : "info", { toast: false });
     } catch (error) {
       body.innerHTML = `<tr><td colspan="8">No automatic payouts have been processed.</td></tr>`;
-      setBanner("ad-payouts-error", error.message);
+      setBanner("ad-payouts-error", error.message, "error", { toast: false });
+    }
+  }
+
+  function renderUsersTable() {
+    const body = document.getElementById("ad-users-body");
+    if (!body) return;
+    const rows = latestUserRows;
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    usersPage = Math.min(Math.max(1, usersPage), totalPages);
+    const slice = rows.slice((usersPage - 1) * PAGE_SIZE, usersPage * PAGE_SIZE);
+    body.innerHTML = slice.length ? slice.map((row) => `
+        <tr>
+          <td>${esc(row.fullName || "—")}</td>
+          <td>${esc(row.phone || "—")}</td>
+          <td>${esc(row.username || "—")}</td>
+          <td>${statusBadge(row.role || "user")}</td>
+          <td>${fmtDate(row.createdAt)}</td>
+        </tr>`).join("") : `<tr><td colspan="5">No registered users yet.</td></tr>`;
+    renderPager("ad-users-pager", usersPage, rows.length, (page) => {
+      usersPage = page;
+      renderUsersTable();
+    });
+  }
+
+  async function loadUsers() {
+    const body = document.getElementById("ad-users-body");
+    if (!body) return;
+    body.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
+    try {
+      const res = await fetch("auth-api.php?action=list-users", { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Could not load users.");
+      latestUserRows = data.items || [];
+      usersPage = 1;
+      renderUsersTable();
+      setBanner("ad-users-error", "", "error", { toast: false });
+    } catch (error) {
+      body.innerHTML = `<tr><td colspan="5">No registered users yet.</td></tr>`;
+      setBanner("ad-users-error", error.message, "error", { toast: false });
     }
   }
 
@@ -802,12 +907,13 @@
   }
 
   async function loadAll() {
-    await Promise.all([loadBalance(), loadSettings(), loadStatement(), loadControls(), loadPayouts()]);
+    await Promise.all([loadBalance(), loadSettings(), loadStatement(), loadControls(), loadPayouts(), loadUsers()]);
   }
 
   document.getElementById("ad-refresh")?.addEventListener("click", () => loadAll());
   document.getElementById("ad-balance-refresh")?.addEventListener("click", () => loadBalance());
   document.getElementById("ad-payouts-refresh")?.addEventListener("click", () => loadPayouts());
+  document.getElementById("ad-users-refresh")?.addEventListener("click", () => loadUsers());
   document.getElementById("ad-sync-transactions")?.addEventListener("click", () => syncTransactions());
   document.getElementById("ad-period-select")?.addEventListener("change", (event) => {
     analyticsPeriod = event.target.value || "all";

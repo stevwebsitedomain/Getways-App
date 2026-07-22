@@ -117,7 +117,7 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
 
     <section class="ad-card">
       <div class="ad-card-head">
-        <h2>Control numbers</h2>
+        <h2>Transactions</h2>
         <div class="ad-top-actions">
           <button type="button" class="ad-refresh" id="ad-balance-refresh">Refresh Balance</button>
           <button type="button" class="ad-refresh" id="ad-refresh">Refresh</button>
@@ -155,6 +155,7 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
           </tbody>
         </table>
       </div>
+      <nav class="ad-pager" id="ad-controls-pager" hidden aria-label="Transactions pages"></nav>
     </section>
 
     <section class="ad-card">
@@ -202,6 +203,32 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
           </tbody>
         </table>
       </div>
+      <nav class="ad-pager" id="ad-payouts-pager" hidden aria-label="Payout pages"></nav>
+    </section>
+
+    <section class="ad-card">
+      <div class="ad-card-head">
+        <h2>Registered users</h2>
+        <button type="button" class="ad-refresh" id="ad-users-refresh">Refresh</button>
+      </div>
+      <p id="ad-users-error" class="ad-db-banner" hidden></p>
+      <div class="ad-table-wrap">
+        <table class="ad-table ad-table--users">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody id="ad-users-body">
+            <tr><td colspan="5">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <nav class="ad-pager" id="ad-users-pager" hidden aria-label="Users pages"></nav>
     </section>
 
     <section class="ad-card">

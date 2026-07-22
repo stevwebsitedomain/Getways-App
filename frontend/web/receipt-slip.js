@@ -159,7 +159,7 @@
       px +
       "x" +
       px +
-      "&margin=6&ecc=H&data=" +
+      "&margin=10&ecc=H&data=" +
       encodeURIComponent(payload)
     );
   }

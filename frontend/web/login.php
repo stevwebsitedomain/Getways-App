@@ -66,7 +66,7 @@ $next = trim((string) ($_GET['next'] ?? ''));
 
     <section id="pin-panel" class="mb-pin" hidden>
       <p class="mb-pin-title" data-i18n="pin_title">Enter PIN</p>
-      <p class="mb-pin-hint"><span data-i18n="pin_hint">Default admin PIN:</span> <strong>0000</strong></p>
+      <p class="mb-pin-hint"><span data-i18n="pin_hint">Admin password:</span> <strong>0000</strong></p>
       <div class="mb-pin-row-wrap">
         <div class="mb-pin-row" id="pin-digits">
           <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 1" />

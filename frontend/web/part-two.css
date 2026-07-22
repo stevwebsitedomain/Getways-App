@@ -3498,3 +3498,52 @@ body.tis-wallet-dash {
   cursor: pointer;
   font-size: 0.75rem;
 }
+
+.w-cn-page .ad-card {
+  margin-bottom: 14px;
+}
+
+.w-profile-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.w-profile-avatar-wrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+
+.w-profile-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(99, 87, 241, 0.35);
+}
+
+.w-profile-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #6357f1, #0f766e);
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.w-profile-upload span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(99, 87, 241, 0.12);
+  color: #4f46e5;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}

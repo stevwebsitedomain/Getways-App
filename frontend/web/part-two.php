@@ -55,9 +55,6 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
           <button type="button" class="w-phone-icon-btn" aria-label="Search" data-top-action="search">
             <i class="fa-solid fa-magnifying-glass"></i>
           </button>
-          <button type="button" class="w-phone-icon-btn" aria-label="Apps" aria-expanded="false" data-top-action="apps">
-            <i class="fa-solid fa-border-all"></i>
-          </button>
           <button type="button" class="w-phone-icon-btn w-lang-btn" aria-label="Change language" aria-expanded="false" data-language-toggle>
             <img class="w-lang-flag" data-language-flag src="images/flag-gb.svg?v=1" width="22" height="11" alt="" />
           </button>
@@ -82,17 +79,6 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
           <img class="w-lang-flag w-lang-flag--menu" src="images/flag-tz.svg?v=4" width="24" height="16" alt="" />
           Kiswahili
         </button>
-      </section>
-
-      <section class="w-top-apps-menu" data-top-apps-menu aria-label="Quick apps" hidden>
-        <a href="part-one.php">Part One</a>
-        <a href="part-two.php">Part Two</a>
-        <a href="new-page.php">New Page</a>
-        <a href="create-payment.php">Create Payment</a>
-        <a href="autopay.php">AutoPay</a>
-        <a href="admin-dashboard.php">Admin Dashboard</a>
-        <a href="settings.php">Settings</a>
-        <a href="logout.php">Logout</a>
       </section>
 
       <div class="w-hero-row w-searchable">

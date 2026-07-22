@@ -56,8 +56,12 @@
         if (btn.getAttribute("data-login-mode") === "admin" && $("#username")) {
           $("#username").placeholder = "admin";
           if (!$("#username").value) $("#username").value = "admin";
+          const pass = $("#password");
+          if (pass) pass.placeholder = "Password (admin: 0000)";
         } else if ($("#username")) {
-          $("#username").placeholder = "Username";
+          $("#username").placeholder = "Username or phone";
+          const pass = $("#password");
+          if (pass) pass.placeholder = "Your registered password";
         }
       });
     });

@@ -1,8 +1,10 @@
 <?php
 require __DIR__ . '/auth-guard.php';
+$authUser = $_SESSION['gw_auth_user'] ?? [];
 $cssVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
 $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
 $pageJsVersion = (string) (@filemtime(__DIR__ . '/control-number.js') ?: time());
+$adminCssVersion = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -19,64 +21,72 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/control-number.js') ?: time())
   />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="part-two.css?v=<?= urlencode($cssVersion) ?>" />
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-  />
+  <link rel="stylesheet" href="admin-dashboard.css?v=<?= urlencode($adminCssVersion) ?>" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
 </head>
 <body class="tis-shell tis-wallet-dash layout-phone create-pay-page w-home-sample">
 <?php $activeTopNav = 'autopay'; require __DIR__ . '/wallet-top-nav.php'; ?>
 
   <main class="tis-wrap w-shell">
-    <div class="w-app">
-      <header class="w-header">
-        <div class="w-header-center">
-          <label class="w-visually-hidden" for="wallet-global-search">Search this page</label>
-          <div class="w-header-search">
-            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-            <input
-              type="search"
-              id="wallet-global-search"
-              placeholder="Search control number form…"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
+    <div class="w-app w-cn-page">
+      <section class="ad-card" style="margin-top: 12px;">
+        <h2><i class="fa-solid fa-file-invoice-dollar"></i> Generate Control Number</h2>
+        <p class="ad-note">Weka kiasi na maelezo tu. Control number itatengenezwa na ClickPesa BillPay.</p>
+        <form id="control-number-form" class="ad-form">
+          <label>Order label <small>(hiari)</small>
+            <input name="order_id" placeholder="Acha tupu au weka TIS01" maxlength="20" />
+          </label>
+          <label>Amount (TZS)<input name="amount" type="number" min="1" step="0.01" required placeholder="1000" /></label>
+          <label>Description<input name="description" required placeholder="Malipo ya bidhaa / huduma" /></label>
+          <label>Mode
+            <select name="payment_mode">
+              <option value="EXACT">EXACT</option>
+              <option value="ALLOW_PARTIAL_AND_OVER_PAYMENT">ALLOW_PARTIAL_AND_OVER_PAYMENT</option>
+            </select>
+          </label>
+          <button type="submit">Generate Control Number</button>
+        </form>
+        <p id="control-number-message" class="ad-msg"></p>
+      </section>
+
+      <section class="ad-card">
+        <div class="ad-card-head">
+          <h2>Transactions</h2>
+          <button type="button" class="ad-refresh" id="cn-refresh">Refresh</button>
         </div>
-      </header>
-
-      <div class="w-page-content">
-        <section class="tis-grid">
-          <article class="tis-card w-searchable cp-form-card">
-            <h2><i class="fa-solid fa-file-invoice-dollar"></i> BillPay Control Number</h2>
-            <p class="empty-state" style="margin-top: 0; margin-bottom: 0.85rem">
-              Generate a ClickPesa control number for an order and share it with the customer.
-            </p>
-            <form id="control-number-form" class="tis-form">
-              <label for="cn-order-id"><i class="fa-solid fa-receipt"></i> Order ID</label>
-              <input type="text" id="cn-order-id" name="order_id" placeholder="Order ID" required />
-
-              <label for="cn-amount"><i class="fa-solid fa-money-bill-wave"></i> Amount TZS</label>
-              <input type="number" id="cn-amount" name="amount" min="1" step="0.01" placeholder="Amount TZS" required />
-
-              <label for="cn-description"><i class="fa-solid fa-pen-to-square"></i> Description</label>
-              <input type="text" id="cn-description" name="description" placeholder="Description" required />
-
-              <label for="cn-payment-mode"><i class="fa-solid fa-list-check"></i> Payment Mode</label>
-              <select id="cn-payment-mode" name="payment_mode" class="w-cn-select">
-                <option value="EXACT">EXACT</option>
-                <option value="ALLOW_PARTIAL_AND_OVER_PAYMENT">Partial/Over Payment</option>
-              </select>
-
-              <button class="btn-primary" type="submit">
-                <i class="fa-solid fa-plus"></i> Create Control Number
-              </button>
-            </form>
-            <p id="control-number-message" class="form-message"></p>
-            <div id="control-number-result" class="w-cn-result" hidden></div>
-          </article>
-        </section>
-      </div>
+        <p id="cn-tx-error" class="ad-db-banner" hidden></p>
+        <div class="ad-table-wrap">
+          <table class="ad-table ad-table--controls">
+            <colgroup>
+              <col class="ad-col-order" />
+              <col class="ad-col-customer" />
+              <col class="ad-col-control" />
+              <col class="ad-col-ref" />
+              <col class="ad-col-money" />
+              <col class="ad-col-money" />
+              <col class="ad-col-status" />
+              <col class="ad-col-actions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Control #</th>
+                <th>Reference</th>
+                <th>Expected</th>
+                <th>Paid</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cn-tx-body">
+              <tr><td colspan="8">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <nav class="ad-pager" id="cn-tx-pager" hidden aria-label="Transactions pages"></nav>
+      </section>
     </div>
 
 <?php $activeNav = 'autopay'; require __DIR__ . '/wallet-bottom-nav.php'; ?>
