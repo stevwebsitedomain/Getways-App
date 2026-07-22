@@ -90,6 +90,27 @@ function adminYiiApp(): \yii\web\Application
     return $app;
 }
 
+function adminDbHint(): string
+{
+    try {
+        $dsn = (string) (Yii::$app->db->dsn ?? '');
+        $user = (string) (Yii::$app->db->username ?? '');
+        if (preg_match('/host=([^;]+)/', $dsn, $hostMatch) && preg_match('/port=([^;]+)/', $dsn, $portMatch) && preg_match('/dbname=([^;]+)/', $dsn, $dbMatch)) {
+            return sprintf(
+                'Check MySQL: host %s port %s database %s user %s.',
+                $hostMatch[1],
+                $portMatch[1],
+                $dbMatch[1],
+                $user
+            );
+        }
+    } catch (Throwable $e) {
+        // ignore
+    }
+
+    return 'Check MySQL config in common/config/main-local.php.';
+}
+
 /**
  * Test DB before any query. Returns null on success, JSON error payload on failure.
  */
@@ -115,7 +136,7 @@ function adminDbProbe(): ?array
                 'dsn' => $safeDsn,
                 'username' => $username,
                 'error' => $e->getMessage(),
-                'hint' => 'Local PHP hosting cannot reach Railway MySQL on port 27413. Dashboard reads data via Render proxy when deployed.',
+                'hint' => adminDbHint(),
             ],
             'causeFile' => 'common/config/main-local.php',
         ];
@@ -222,7 +243,7 @@ function adminHandle(callable $callback, string $apiRoute, ?string $remoteAction
                 adminJson(200, ['ok' => true, 'apiRoute' => $apiRoute, 'source' => 'render-admin-proxy'] + $remote);
             }
 
-            $dbError['hint'] = 'Local PHP hosting cannot reach Railway MySQL (port 27413 blocked). Data is fetched via Render admin proxy when available.';
+            $dbError['hint'] = adminDbHint();
             adminJson(503, $dbError + ['apiRoute' => $apiRoute]);
         }
         if ($dbError !== null) {
@@ -429,7 +450,7 @@ if ($action === 'sync-transactions' && $method === 'POST') {
             'endDate' => $body['endDate'] ?? ($_GET['endDate'] ?? date('Y-m-d')),
             'currency' => $body['currency'] ?? ($_GET['currency'] ?? 'TZS'),
         ]);
-    }, '/api/clickpesa/sync-transactions');
+    }, '/api/clickpesa/sync-transactions', 'sync-transactions');
 }
 
 if ($action === 'create-control-number' && $method === 'POST') {

@@ -1,40 +1,21 @@
 const mysql = require("mysql2/promise");
 
-const RAILWAY_PUBLIC_HOST = "sakura.proxy.rlwy.net";
-const RAILWAY_PUBLIC_PORT = 27413;
+const DEFAULT_DB_HOST = "sdb-71.hosting.stackcp.net";
+const DEFAULT_DB_PORT = 3306;
 
 let pool;
 
-function applyRailwayPublicProxy(config) {
-  if (
-    config.host === "mysql.railway.internal" ||
-    config.host.endsWith(".railway.internal")
-  ) {
-    console.warn(
-      `DB_HOST "${config.host}" only works inside Railway; using public proxy ${RAILWAY_PUBLIC_HOST}:${RAILWAY_PUBLIC_PORT}`
-    );
-    return {
-      ...config,
-      host: RAILWAY_PUBLIC_HOST,
-      port: RAILWAY_PUBLIC_PORT,
-    };
-  }
-
-  return config;
-}
-
 function getDbConfig() {
- return applyRailwayPublicProxy({
-    host: process.env.DB_HOST || "sakura.proxy.rlwy.net",
-    port: Number(process.env.DB_PORT || 27413),
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "ZFntrMWVmvQszgDhmtXMHzqKMCeriUFZ",
-    database: process.env.DB_NAME || "railway",
-  });
+  return {
+    host: process.env.DB_HOST || DEFAULT_DB_HOST,
+    port: Number(process.env.DB_PORT || DEFAULT_DB_PORT),
+    user: process.env.DB_USER || "admin-48da",
+    password: process.env.DB_PASSWORD != null ? process.env.DB_PASSWORD : "Getway2026",
+    database: process.env.DB_NAME || "Getway-app-35303539c325",
+  };
 }
 
 function assertSafeDatabaseName(name) {
-  // Allow common DB names including dashes, but block unsafe characters.
   if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
     throw new Error("DB_NAME contains invalid characters.");
   }
@@ -163,9 +144,3 @@ module.exports = {
   connectDatabase,
   getPool,
 };
-
-
-
-
-
-
