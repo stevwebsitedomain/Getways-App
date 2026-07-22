@@ -22,6 +22,72 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function buildAnalyticsPeriodLabel(startDate, endDate, period) {
+  if (!startDate && !endDate) {
+    if (period === "month") return "This month";
+    if (period === "30d") return "Last 30 days";
+    if (period === "90d") return "Last 90 days";
+    return "All time";
+  }
+  if (startDate && endDate) {
+    return startDate === endDate ? startDate : `${startDate} → ${endDate}`;
+  }
+  return "All time";
+}
+
+function buildAnalyticsTrendDays(payments, numDays = 14) {
+  const safeDays = Math.max(1, Math.min(Number(numDays) || 14, 90));
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (safeDays - 1));
+
+  const days = [];
+  for (let i = 0; i < safeDays; i += 1) {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    days.push({
+      label: day.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+      count: 0,
+      date: day.toISOString().slice(0, 10),
+    });
+  }
+
+  for (const payment of payments) {
+    const ts = Date.parse(String(payment.createdAt || ""));
+    if (Number.isNaN(ts)) {
+      continue;
+    }
+    const day = new Date(ts);
+    day.setHours(0, 0, 0, 0);
+    const diff = Math.round((day.getTime() - start.getTime()) / 86400000);
+    if (diff >= 0 && diff < safeDays) {
+      days[diff].count += 1;
+    }
+  }
+
+  return days;
+}
+
+function getPaymentDateRange(payments) {
+  let firstTransactionAt = null;
+  let lastTransactionAt = null;
+
+  for (const payment of payments) {
+    const createdAt = payment.createdAt;
+    if (!createdAt) {
+      continue;
+    }
+    if (!firstTransactionAt || createdAt < firstTransactionAt) {
+      firstTransactionAt = createdAt;
+    }
+    if (!lastTransactionAt || createdAt > lastTransactionAt) {
+      lastTransactionAt = createdAt;
+    }
+  }
+
+  return { firstTransactionAt, lastTransactionAt };
+}
+
 async function getDashboardAnalytics(filters = {}) {
   const db = getPool();
   const period = String(filters.period || "all").toLowerCase();
@@ -104,6 +170,9 @@ async function getDashboardAnalytics(filters = {}) {
     });
   }
 
+  const { firstTransactionAt, lastTransactionAt } = getPaymentDateRange(payments);
+  const trendDays = buildAnalyticsTrendDays(payments, 14);
+
   return {
     success: true,
     source: "database",
@@ -120,10 +189,10 @@ async function getDashboardAnalytics(filters = {}) {
       pending,
       failed,
       recordCount: rows.length,
-      periodLabel: period,
-      firstTransactionAt: payments.length ? payments[payments.length - 1].createdAt : null,
-      lastTransactionAt: payments.length ? payments[0].createdAt : null,
-      trendDays: [],
+      periodLabel: buildAnalyticsPeriodLabel(startDate, endDate, period),
+      firstTransactionAt,
+      lastTransactionAt,
+      trendDays,
       recentCollections: recentCollections.slice(0, 15),
     },
     payments,
@@ -134,7 +203,7 @@ async function listControlNumbers(limit = 100) {
   const db = getPool();
   const [rows] = await db.query(
     `SELECT * FROM clickpesa_transactions
-     WHERE channel = 'billpay' OR control_number IS NOT NULL
+     WHERE transaction_type = 'collection'
      ORDER BY id DESC LIMIT ?`,
     [limit]
   );
