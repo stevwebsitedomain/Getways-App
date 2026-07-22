@@ -255,7 +255,6 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
       </div>
       <div class="body">
         <div class="amount">' . $amount . '</div>
-        ' . $qrHtml . '
         <hr class="divider" />
         <div class="row"><span class="lbl">Mlipaji</span><span class="val">' . $customerName . '</span></div>
         <div class="row"><span class="lbl">Simu</span><span class="val">' . $customerPhone . '</span></div>
@@ -268,6 +267,8 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
         <div class="row"><span class="lbl">Channel</span><span class="val">' . $channel . '</span></div>
         <div class="row"><span class="lbl">Maelezo</span><span class="val">' . $description . '</span></div>
         <div class="row"><span class="lbl">Tarehe ya kuundwa</span><span class="val">' . $createdAt . '</span></div>
+        <hr class="divider" />
+        ' . $qrHtml . '
       </div>
       ' . ($forPdf ? '' : '<div class="print-bar">
         <button type="button" class="btn print" onclick="window.print()"><i class="fa-solid fa-print"></i> Chapisha Risiti</button>
@@ -278,7 +279,7 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
       </div>
     </div>
     ' . ($forPdf ? '' : '<div class="actions">
-      <a class="btn primary" href="?id=' . (int) ($invoice['id'] ?? 0) . '&amp;download=1"><i class="fa-solid fa-file-pdf"></i> Pakua PDF</a>
+      <a class="btn primary" href="?id=' . (int) ($invoice['id'] ?? 0) . '&amp;download=1"><i class="fa-solid fa-download"></i> Pakua PDF</a>
       <button type="button" class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Chapisha</button>
       <a class="btn" href="admin-dashboard.php"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
     </div>') . '

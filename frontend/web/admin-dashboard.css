@@ -332,51 +332,62 @@ body.ad-body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.72rem;
-  font-weight: 700;
+  gap: 5px;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+  background: transparent;
+  box-shadow: none;
+  transition: background .15s ease, opacity .15s ease;
+}
+
+.ad-btn i {
+  font-size: 0.85rem;
 }
 
 .ad-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .ad-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .ad-btn--view {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
-  color: #fff;
-  border-color: #1e40af;
+  color: #60a5fa;
+}
+
+.ad-btn--view i {
+  color: #60a5fa;
 }
 
 .ad-btn--download {
-  background: linear-gradient(135deg, #0f766e, #14b8a6);
-  color: #fff;
-  border-color: #0f766e;
+  color: #34d399;
+}
+
+.ad-btn--download i {
+  color: #34d399;
 }
 
 .ad-btn--withdraw {
-  background: linear-gradient(135deg, #b45309, #f59e0b);
-  color: #111;
-  border-color: #d97706;
+  color: #fbbf24;
+}
+
+.ad-btn--withdraw i {
+  color: #fbbf24;
 }
 
 .ad-btn--copy {
-  background: #1f2937;
-  color: #e5e7eb;
-  border-color: #374151;
+  color: #9ca3af;
+}
+
+.ad-btn--copy i {
+  color: #9ca3af;
 }
 
 .ad-recent {
