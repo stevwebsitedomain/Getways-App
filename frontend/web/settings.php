@@ -54,7 +54,7 @@ $phoneTopbarTitle = 'Profile & Settings';
             <?php if ($authAvatar !== ''): ?>
               <img class="w-phone-profile-avatar" src="<?= htmlspecialchars($authAvatar, ENT_QUOTES) ?>" alt="" />
             <?php else: ?>
-              <span class="w-phone-profile-avatar w-phone-profile-avatar--fallback"><?= htmlspecialchars($authInitial, ENT_QUOTES) ?></span>
+              <span class="w-phone-profile-avatar w-phone-profile-avatar--fallback" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
             <?php endif; ?>
           </a>
           <a href="logout.php" class="w-phone-icon-btn w-phone-icon-link" aria-label="Logout">
@@ -68,13 +68,15 @@ $phoneTopbarTitle = 'Profile & Settings';
           <h2><i class="fa-solid fa-user"></i> Profile</h2>
           <div class="w-profile-block">
             <div class="w-profile-avatar-wrap">
-              <?php if ($authAvatar !== ''): ?>
-                <img id="profile-avatar-preview" class="w-profile-avatar" src="<?= htmlspecialchars($authAvatar, ENT_QUOTES) ?>" alt="Profile picture" />
-                <div id="profile-avatar-fallback" class="w-profile-avatar w-profile-avatar--fallback" hidden><?= htmlspecialchars($authInitial, ENT_QUOTES) ?></div>
-              <?php else: ?>
-                <img id="profile-avatar-preview" class="w-profile-avatar" src="" alt="Profile picture" hidden />
-                <div id="profile-avatar-fallback" class="w-profile-avatar w-profile-avatar--fallback"><?= htmlspecialchars($authInitial, ENT_QUOTES) ?></div>
-              <?php endif; ?>
+              <img
+                id="profile-avatar-preview"
+                class="w-profile-avatar w-profile-avatar--photo<?= $authAvatar === '' ? ' is-hidden' : '' ?>"
+                src="<?= $authAvatar !== '' ? htmlspecialchars($authAvatar, ENT_QUOTES) : '' ?>"
+                alt="Profile picture"
+              />
+              <div id="profile-avatar-fallback" class="w-profile-avatar-fallback<?= $authAvatar !== '' ? ' is-hidden' : '' ?>" aria-hidden="<?= $authAvatar !== '' ? 'true' : 'false' ?>">
+                <i class="fa-solid fa-user" aria-hidden="true"></i>
+              </div>
             </div>
             <label class="w-profile-upload">
               <input type="file" id="profile-avatar-input" accept="image/*" hidden />

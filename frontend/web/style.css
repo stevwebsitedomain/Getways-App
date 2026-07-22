@@ -270,7 +270,8 @@ body {
 }
 
 .nav-account-avatar--fallback {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .nav-account-meta {

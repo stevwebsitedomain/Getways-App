@@ -3514,26 +3514,44 @@ body.tis-wallet-dash {
 
 .w-profile-avatar-wrap {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 108px;
+  height: 108px;
+  margin: 4px auto 6px;
 }
 
-.w-profile-avatar {
-  width: 96px;
-  height: 96px;
+.w-profile-avatar--photo,
+.w-profile-avatar-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid rgba(99, 87, 241, 0.35);
+  box-sizing: border-box;
 }
 
-.w-profile-avatar--fallback {
+.w-profile-avatar--photo {
+  object-fit: cover;
+  border: 3px solid #d9e2ef;
+  background: #fff;
+}
+
+.w-profile-avatar-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, #6357f1, #0f766e);
-  color: #fff;
-  font-size: 2rem;
-  font-weight: 800;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  border: 3px solid #d9e2ef;
+  color: #64748b;
+  font-size: 2.35rem;
+}
+
+.w-profile-avatar--photo.is-hidden,
+.w-profile-avatar-fallback.is-hidden {
+  display: none !important;
+}
+
+.w-profile-upload {
+  margin-top: 4px;
 }
 
 .w-profile-upload span {
@@ -3576,10 +3594,9 @@ body.tis-wallet-dash {
   justify-content: center;
   width: 100%;
   height: 100%;
-  background: linear-gradient(145deg, #0f766e, #6357f1);
-  color: #fff;
-  font-size: 0.82rem;
-  font-weight: 800;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  color: #475569;
+  font-size: 0.95rem;
 }
 
 .w-phone-menu a {

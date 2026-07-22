@@ -4,12 +4,58 @@
   const fileInput = document.getElementById("profile-avatar-input");
   const preview = document.getElementById("profile-avatar-preview");
   const fallback = document.getElementById("profile-avatar-fallback");
+  const topAvatarImg = document.querySelector(".w-phone-profile-btn .w-phone-profile-avatar:not(.w-phone-profile-avatar--fallback)");
+  const topAvatarBtn = document.querySelector(".w-phone-profile-btn");
   let avatarData = preview?.getAttribute("src") || "";
 
   function setMessage(text, ok) {
     if (!msg) return;
     msg.textContent = text || "";
     msg.className = "form-message" + (ok ? " is-ok" : text ? " is-error" : "");
+  }
+
+  function showPhoto(dataUrl) {
+    if (!preview || !fallback) return;
+    const hasPhoto = Boolean(String(dataUrl || "").trim());
+    if (hasPhoto) {
+      preview.src = dataUrl;
+      preview.classList.remove("is-hidden");
+      fallback.classList.add("is-hidden");
+      fallback.setAttribute("aria-hidden", "true");
+    } else {
+      preview.removeAttribute("src");
+      preview.classList.add("is-hidden");
+      fallback.classList.remove("is-hidden");
+      fallback.setAttribute("aria-hidden", "false");
+    }
+    syncTopAvatar(dataUrl);
+  }
+
+  function syncTopAvatar(dataUrl) {
+    if (!topAvatarBtn) return;
+    const hasPhoto = Boolean(String(dataUrl || "").trim());
+    let img = topAvatarBtn.querySelector("img.w-phone-profile-avatar");
+    const iconFallback = topAvatarBtn.querySelector(".w-phone-profile-avatar--fallback");
+    if (hasPhoto) {
+      if (!img) {
+        img = document.createElement("img");
+        img.className = "w-phone-profile-avatar";
+        img.alt = "";
+        topAvatarBtn.insertBefore(img, topAvatarBtn.firstChild);
+      }
+      img.src = dataUrl;
+      img.hidden = false;
+      if (iconFallback) iconFallback.remove();
+      return;
+    }
+    if (img) img.remove();
+    if (!iconFallback) {
+      const span = document.createElement("span");
+      span.className = "w-phone-profile-avatar w-phone-profile-avatar--fallback";
+      span.setAttribute("aria-hidden", "true");
+      span.innerHTML = '<i class="fa-solid fa-user" aria-hidden="true"></i>';
+      topAvatarBtn.insertBefore(span, topAvatarBtn.firstChild);
+    }
   }
 
   fileInput?.addEventListener("change", () => {
@@ -22,11 +68,7 @@
     const reader = new FileReader();
     reader.onload = () => {
       avatarData = String(reader.result || "");
-      if (preview) {
-        preview.src = avatarData;
-        preview.hidden = false;
-      }
-      if (fallback) fallback.hidden = true;
+      showPhoto(avatarData);
     };
     reader.readAsDataURL(file);
   });
@@ -51,4 +93,8 @@
       setMessage(error.message || "Save failed.", false);
     }
   });
+
+  if (preview && !preview.classList.contains("is-hidden")) {
+    avatarData = preview.getAttribute("src") || "";
+  }
 })();

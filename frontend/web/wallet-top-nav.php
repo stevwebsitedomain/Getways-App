@@ -60,7 +60,7 @@ $isActive = static function (string $key) use ($activeTopNav): string {
         <?php if (!empty($authAvatar)): ?>
           <img class="nav-account-avatar" src="<?= htmlspecialchars($authAvatar, ENT_QUOTES) ?>" alt="Profile" referrerpolicy="no-referrer" />
         <?php else: ?>
-          <span class="nav-account-avatar nav-account-avatar--fallback"><?= htmlspecialchars($authInitial, ENT_QUOTES) ?></span>
+          <span class="nav-account-avatar nav-account-avatar--fallback" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
         <?php endif; ?>
         <div class="nav-account-meta">
           <strong><?= htmlspecialchars($authName, ENT_QUOTES) ?></strong>

@@ -42,7 +42,7 @@ if ($authInitial === '') {
             <?php if ($authAvatar !== ''): ?>
               <img class="w-phone-profile-avatar" src="<?= htmlspecialchars($authAvatar, ENT_QUOTES) ?>" alt="" />
             <?php else: ?>
-              <span class="w-phone-profile-avatar w-phone-profile-avatar--fallback"><?= htmlspecialchars($authInitial, ENT_QUOTES) ?></span>
+              <span class="w-phone-profile-avatar w-phone-profile-avatar--fallback" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
             <?php endif; ?>
           </a>
           <button type="button" class="w-phone-icon-btn w-lang-btn" aria-label="Change language" aria-expanded="false" data-language-toggle>
