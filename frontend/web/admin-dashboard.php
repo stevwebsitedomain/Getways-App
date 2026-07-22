@@ -61,15 +61,15 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
         <strong id="stat-incoming">TZS 0</strong>
         <small id="stat-incoming-period">All time</small>
       </article>
-      <article class="ad-stat">
+      <article class="ad-stat ad-stat--compact">
         <p>Success</p>
         <strong id="stat-success">0</strong>
       </article>
-      <article class="ad-stat">
+      <article class="ad-stat ad-stat--compact">
         <p>Pending</p>
         <strong id="stat-pending">0</strong>
       </article>
-      <article class="ad-stat">
+      <article class="ad-stat ad-stat--compact">
         <p>Failed</p>
         <strong id="stat-failed">0</strong>
       </article>

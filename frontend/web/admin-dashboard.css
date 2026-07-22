@@ -26,7 +26,7 @@ body.ad-body {
   align-items: flex-start;
   gap: 16px;
   padding: 20px 18px 8px;
-  max-width: 1400px;
+  max-width: 1120px;
   margin: 0 auto;
 }
 
@@ -73,7 +73,7 @@ body.ad-body {
 }
 
 .ad-main {
-  max-width: 1400px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 12px 18px 40px;
   display: grid;
@@ -82,8 +82,15 @@ body.ad-body {
 
 .ad-stats {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns:
+    minmax(0, 1.45fr)
+    minmax(0, 1.2fr)
+    minmax(0, 0.5fr)
+    minmax(0, 0.5fr)
+    minmax(0, 0.5fr)
+    minmax(0, 1fr)
+    minmax(0, 0.95fr);
+  gap: 8px;
 }
 
 .ad-stat {
@@ -142,6 +149,19 @@ body.ad-body {
 
 .ad-stat--money strong {
   color: var(--ad-accent);
+}
+
+.ad-stat--compact {
+  padding: 10px 6px;
+  text-align: center;
+}
+
+.ad-stat--compact p {
+  font-size: 0.68rem;
+}
+
+.ad-stat--compact strong {
+  font-size: 0.95rem;
 }
 
 .ad-stat--toggle {
