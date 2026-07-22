@@ -420,3 +420,98 @@ body.ad-body {
 .ad-badge--ok { background: rgba(46,204,113,.18); color: var(--ad-accent); }
 .ad-badge--pending { background: rgba(245,158,11,.18); color: var(--ad-amber); }
 .ad-badge--fail { background: rgba(239,68,68,.18); color: #ff8f8f; }
+
+.ad-cn-paper {
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  padding: 18px 14px 16px;
+  background: #fff;
+  color: #000;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  border: 1px dashed #94a3b8;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.ad-cn-brand {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ad-cn-sub {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ad-cn-dash {
+  border: none;
+  border-top: 1px dashed #000;
+  margin: 10px 0;
+}
+
+.ad-cn-number {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  word-break: break-all;
+  color: #0f766e;
+}
+
+.ad-cn-hint {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.ad-cn-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  margin: 5px 0;
+  font-size: 12px;
+}
+
+.ad-cn-row span:first-child {
+  flex: 0 0 auto;
+  min-width: 82px;
+  font-weight: 700;
+}
+
+.ad-cn-row span:last-child {
+  flex: 1 1 auto;
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.ad-cn-status {
+  font-weight: 800 !important;
+}
+
+.ad-cn-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.ad-cn-footnote {
+  margin: 12px 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.45;
+}

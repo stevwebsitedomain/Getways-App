@@ -89,33 +89,119 @@
     });
   }
 
-  async function showSuccessDialog(data) {
-    const cn = esc(data.controlNumber || "");
-    const ref = esc(data.reference || "");
-    const amt = money(data.amount || 0);
+  let waitSwalOpen = false;
+
+  function showWaitSwal(title, html) {
+    if (!window.Swal || typeof window.Swal.fire !== "function") return;
+    waitSwalOpen = true;
+    window.Swal.fire({
+      title: title || "Tafadhali subiri",
+      html:
+        html ||
+        '<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Tunatengeneza control number kutoka ClickPesa…</p>',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      backdrop: true,
+      didOpen: () => {
+        if (typeof window.Swal.showLoading === "function") {
+          window.Swal.showLoading();
+        }
+      },
+    });
+  }
+
+  function dismissWaitSwal() {
+    if (!window.Swal || typeof window.Swal.close !== "function") return;
+    try {
+      if (waitSwalOpen) window.Swal.close();
+    } catch (_) {
+      /* ignore */
+    }
+    waitSwalOpen = false;
+  }
+
+  function showControlNumberError(message, title) {
+    const text = String(message || "Hitilafu imetokea.").trim();
+    dismissWaitSwal();
+    if (!window.Swal || typeof window.Swal.fire !== "function") {
+      window.alert(text);
+      return;
+    }
+    window.Swal.fire({
+      icon: "error",
+      title: title || "Haijafanikiwa",
+      text,
+      confirmButtonText: "Sawa",
+      confirmButtonColor: "#b91c1c",
+    });
+  }
+
+  function buildControlNumberPaperHtml(data) {
+    const cn = esc(data.controlNumber || "—");
+    const ref = esc(data.reference || "—");
+    const amt = esc(money(data.amount || 0));
+    const desc = esc(data.description || "BillPay payment");
+    const status = String(data.status || "PENDING").toUpperCase();
+    const isPaid = ["SUCCESS", "PAID", "COMPLETED", "SETTLED"].includes(status);
+    const statusLabel = isPaid ? "IMELIPWA" : "BADO — INASUBIRI MALIPO";
+    const statusColor = isPaid ? "#15803d" : "#b45309";
+    const when = esc(new Date().toLocaleString());
+    const existing = !!data.existing;
+
+    return `
+      <div class="ad-cn-paper">
+        <div class="ad-cn-brand">Getway | BillPay</div>
+        <div class="ad-cn-sub">${existing ? "CONTROL NUMBER TAYARI IPO" : "CONTROL NUMBER IMETENGENEZWA"}</div>
+        <hr class="ad-cn-dash" />
+        <div class="ad-cn-number">${cn}</div>
+        <p class="ad-cn-hint">Mteja analipa kwa kutumia namba hii kwenye M-Pesa, HaloPesa, n.k.</p>
+        <hr class="ad-cn-dash" />
+        <div class="ad-cn-row"><span>REFERENCE</span><span>${ref}</span></div>
+        <div class="ad-cn-row"><span>AMOUNT</span><span>${amt}</span></div>
+        <div class="ad-cn-row"><span>DESCRIPTION</span><span>${desc}</span></div>
+        <div class="ad-cn-row"><span>MALIPO</span><span class="ad-cn-status" style="color:${statusColor}">${statusLabel}</span></div>
+        <div class="ad-cn-row"><span>DATE</span><span>${when}</span></div>
+      </div>`;
+  }
+
+  async function showControlNumberResult(data) {
+    dismissWaitSwal();
+    const cn = data.controlNumber || "";
     const invoiceUrl = data.invoiceUrl || "";
+    const existing = !!data.existing;
+    const msg = document.getElementById("ad-cn-msg");
+    if (msg) {
+      msg.className = "ad-msg is-ok";
+      msg.textContent = existing
+        ? `Control number tayari ipo: ${cn}`
+        : `Control number imetengenezwa: ${cn}`;
+    }
     if (!window.Swal || typeof window.Swal.fire !== "function") return;
     await window.Swal.fire({
-      icon: "success",
-      title: data.existing ? "Control Number Ready" : "Control Number Created",
+      icon: existing ? "info" : "success",
+      title: existing ? "Control Number Tayari Ipo" : "Imefanikiwa!",
       html: `
-        <div style="text-align:left;font-size:0.95rem;line-height:1.6">
-          <p><strong>Control Number (ClickPesa):</strong> <code style="font-size:1.1rem">${cn}</code></p>
-          <p><strong>Reference:</strong> ${ref}</p>
-          <p><strong>Amount:</strong> ${amt}</p>
-          <p style="font-size:0.85rem;color:#64748b">Mteja analipa kwa kutumia <strong>Control Number</strong> hapo juu kwenye BillPay (M-Pesa, HaloPesa, n.k.). Hii hutengenezwa na ClickPesa — si namba unayoandika wewe.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px">
-            <button type="button" class="ad-refresh" id="swal-copy-cn">Copy Control Number</button>
-            ${invoiceUrl ? `<button type="button" class="ad-refresh" id="swal-view-invoice">View Invoice</button>` : ""}
-            ${invoiceUrl ? `<button type="button" class="ad-refresh" id="swal-download-invoice">Download PDF</button>` : ""}
-          </div>
-        </div>`,
-      confirmButtonText: "Close",
+        ${buildControlNumberPaperHtml(data)}
+        <div class="ad-cn-actions">
+          <button type="button" class="ad-refresh" id="swal-copy-cn">Nakili Control Number</button>
+          ${invoiceUrl ? '<button type="button" class="ad-refresh" id="swal-view-invoice">Angalia Risiti</button>' : ""}
+          ${invoiceUrl ? '<button type="button" class="ad-refresh" id="swal-download-invoice">Pakua PDF</button>' : ""}
+        </div>
+        <p class="ad-cn-footnote">
+          ${
+            existing
+              ? "Malipo bado yanaweza kusubiriwa kwa control number hii."
+              : "Control number imetoka ClickPesa. Malipo yataonekana hapa mteja akilipa."
+          }
+        </p>`,
+      confirmButtonText: "Funga",
       confirmButtonColor: "#16a34a",
+      width: 400,
       didOpen: () => {
         document.getElementById("swal-copy-cn")?.addEventListener("click", async () => {
-          await navigator.clipboard?.writeText(data.controlNumber || "");
-          notify("Control number copied.", "success");
+          await navigator.clipboard?.writeText(cn);
+          notify("Control number imenakiliwa.", "success");
         });
         document.getElementById("swal-view-invoice")?.addEventListener("click", () => openInvoice(invoiceUrl, false));
         document.getElementById("swal-download-invoice")?.addEventListener("click", () => openInvoice(invoiceUrl, true));
@@ -663,8 +749,14 @@
     const submit = event.target.querySelector('button[type="submit"]');
     try {
       if (submit) submit.disabled = true;
-      msg.className = "ad-msg";
-      msg.textContent = "Generating control number from ClickPesa...";
+      if (msg) {
+        msg.className = "ad-msg";
+        msg.textContent = "";
+      }
+      showWaitSwal(
+        "Tafadhali subiri",
+        '<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Tunatengeneza control number kutoka ClickPesa…</p><p style="margin:0.5rem 0 0;font-size:0.85rem;font-weight:500;color:#94a3b8">Usifunge ukurasa huu.</p>'
+      );
       const payload = Object.fromEntries(new FormData(event.target).entries());
       if (!String(payload.order_id || "").trim()) {
         delete payload.order_id;
@@ -673,17 +765,15 @@
         payload.description = "BillPay payment";
       }
       const data = await requestJson("create-control-number", { method: "POST", body: payload });
-      msg.className = "ad-msg is-ok";
-      msg.textContent = data.existing
-        ? `Existing control number: ${data.controlNumber}`
-        : `Control number: ${data.controlNumber}`;
       event.target.reset();
-      showSuccessDialog(data);
+      await showControlNumberResult({ ...data, description: payload.description });
       await loadControls();
     } catch (error) {
-      msg.className = "ad-msg is-err";
-      msg.textContent = error.message;
-      notify(error.message, "error");
+      if (msg) {
+        msg.className = "ad-msg is-err";
+        msg.textContent = error.message;
+      }
+      showControlNumberError(error.message, "Control Number Haijafanikiwa");
     } finally {
       if (submit) submit.disabled = false;
     }
