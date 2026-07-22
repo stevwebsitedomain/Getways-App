@@ -42,6 +42,7 @@
       pay: "Pay",
       search: "Search",
       more: "More",
+      settings: "Settings",
     },
     sw: {
       welcome: "Karibu",
@@ -73,6 +74,7 @@
       pay: "Lipa",
       search: "Tafuta",
       more: "Zaidi",
+      settings: "Mipangilio",
     },
   };
 

@@ -40,7 +40,7 @@ $isActive = static function (string $key) use ($activeTopNav): string {
         <a class="<?= trim($isActive('settings')) ?>" href="settings.php">Settings</a>
         <a href="logout.php">Logout</a>
       </div>
-      <div class="nav-account" title="<?= htmlspecialchars($authEmail !== '' ? $authEmail : $authName, ENT_QUOTES) ?>">
+      <a class="nav-account" href="settings.php" title="<?= htmlspecialchars($authEmail !== '' ? $authEmail : $authName, ENT_QUOTES) ?>">
         <?php if (!empty($authAvatar)): ?>
           <img class="nav-account-avatar" src="<?= htmlspecialchars($authAvatar, ENT_QUOTES) ?>" alt="Profile" referrerpolicy="no-referrer" />
         <?php else: ?>
@@ -50,7 +50,7 @@ $isActive = static function (string $key) use ($activeTopNav): string {
           <strong><?= htmlspecialchars($authName, ENT_QUOTES) ?></strong>
           <span><?= htmlspecialchars($authEmail !== '' ? $authEmail : 'Signed in', ENT_QUOTES) ?></span>
         </div>
-      </div>
+      </a>
     </div>
     <div class="nav-mobile-menu" data-nav-mobile-menu>
       <a class="<?= trim($isActive('home')) ?>" href="part-two.php">Dashboard</a>

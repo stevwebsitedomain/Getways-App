@@ -3547,3 +3547,51 @@ body.tis-wallet-dash {
   font-size: 0.88rem;
   cursor: pointer;
 }
+
+.w-phone-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(11, 47, 107, 0.25);
+  overflow: hidden;
+  flex-shrink: 0;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.w-phone-profile-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.w-phone-profile-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(145deg, #0f766e, #6357f1);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.w-phone-menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-account {
+  text-decoration: none;
+  color: inherit;
+}
+
+.nav-account:hover {
+  opacity: 0.92;
+}

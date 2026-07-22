@@ -31,6 +31,7 @@ $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
 
   <main class="tis-wrap w-shell">
     <div class="w-app">
+<?php $phoneTopbarTitle = 'Profile & Settings'; require __DIR__ . '/wallet-phone-topbar.php'; ?>
       <section class="tis-card">
         <h2><i class="fa-solid fa-user"></i> Profile</h2>
         <div class="w-profile-block">

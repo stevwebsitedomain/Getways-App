@@ -24,7 +24,7 @@ $activeNav = $activeNav ?? 'home';
         <span class="w-nav-txt" data-i18n="search">Search</span>
       </a>
       <a href="settings.php" class="w-nav-item<?= $activeNav === 'more' ? ' is-active' : '' ?>"<?= $activeNav === 'more' ? ' aria-current="page"' : '' ?>>
-        <span class="w-nav-ico"><i class="fa-solid fa-gear"></i></span>
-        <span class="w-nav-txt" data-i18n="more">More</span>
+        <span class="w-nav-ico"><i class="fa-solid fa-user"></i></span>
+        <span class="w-nav-txt" data-i18n="settings">Settings</span>
       </a>
     </nav>

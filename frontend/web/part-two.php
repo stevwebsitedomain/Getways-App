@@ -40,46 +40,7 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
 
   <main class="tis-wrap w-shell">
     <div class="w-app">
-      <section class="w-phone-topbar w-searchable" aria-label="App quick header">
-        <button type="button" class="w-phone-icon-btn" aria-label="Open menu" aria-expanded="false" data-phone-menu-toggle>
-          <i class="fa-solid fa-bars"></i>
-        </button>
-        <div class="w-phone-greet">
-          <p data-i18n="welcome">Welcome</p>
-          <h1 data-i18n="home_dashboard">Home Dashboard</h1>
-        </div>
-        <div class="w-phone-top-actions">
-          <button type="button" class="w-phone-icon-btn" aria-label="Notifications" data-top-action="history">
-            <i class="fa-regular fa-bell"></i>
-          </button>
-          <button type="button" class="w-phone-icon-btn" aria-label="Search" data-top-action="search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-          </button>
-          <button type="button" class="w-phone-icon-btn w-lang-btn" aria-label="Change language" aria-expanded="false" data-language-toggle>
-            <img class="w-lang-flag" data-language-flag src="images/flag-gb.svg?v=1" width="22" height="11" alt="" />
-          </button>
-          <a href="logout.php" class="w-phone-icon-btn w-phone-icon-link" aria-label="Logout">
-            <i class="fa-solid fa-right-from-bracket"></i>
-          </a>
-        </div>
-      </section>
-
-      <section class="w-phone-menu w-searchable" data-phone-menu>
-        <a href="part-one.php">Part One</a>
-        <a href="part-two.php">Part Two</a>
-        <a href="new-page.php">New Page</a>
-      </section>
-
-      <section class="w-lang-menu" data-lang-menu aria-label="Language options" hidden>
-        <button type="button" data-language-option="en">
-          <img class="w-lang-flag w-lang-flag--menu" src="images/flag-gb.svg?v=1" width="24" height="12" alt="" />
-          English
-        </button>
-        <button type="button" data-language-option="sw">
-          <img class="w-lang-flag w-lang-flag--menu" src="images/flag-tz.svg?v=4" width="24" height="16" alt="" />
-          Kiswahili
-        </button>
-      </section>
+<?php $phoneTopbarTitle = 'Home Dashboard'; require __DIR__ . '/wallet-phone-topbar.php'; ?>
 
       <div class="w-hero-row w-searchable">
       <section class="w-balance-card" aria-labelledby="balance-label">
