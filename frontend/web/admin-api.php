@@ -360,7 +360,7 @@ if ($action === 'payout-settings' && $method === 'POST') {
         }
 
         return adminClickPesa()->updateAutoPayoutSettings($body, null, $_SERVER['REMOTE_ADDR'] ?? null);
-    }, '/api/clickpesa/auto-payout/settings');
+    }, '/api/clickpesa/auto-payout/settings', 'payout-settings');
 }
 
 if ($action === 'control-numbers' && $method === 'GET') {

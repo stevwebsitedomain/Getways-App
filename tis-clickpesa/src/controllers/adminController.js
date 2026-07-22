@@ -59,6 +59,25 @@ async function payoutSettings(req, res, next) {
   }
 }
 
+async function updatePayoutSettings(req, res, next) {
+  try {
+    if (!isAuthorized(req)) {
+      return unauthorized(res);
+    }
+    const data = await adminService.updateAutoPayoutSettings(req.body || {});
+    return res.json({ ok: true, success: true, ...data });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        ok: false,
+        success: false,
+        message: error.message,
+      });
+    }
+    return next(error);
+  }
+}
+
 async function controlNumbers(req, res, next) {
   try {
     if (!isAuthorized(req)) {
@@ -87,6 +106,7 @@ module.exports = {
   balance,
   analytics,
   payoutSettings,
+  updatePayoutSettings,
   controlNumbers,
   payouts,
 };

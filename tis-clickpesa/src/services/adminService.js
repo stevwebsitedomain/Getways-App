@@ -181,15 +181,85 @@ async function listPayouts(limit = 100) {
 
 async function getAutoPayoutSettings() {
   const db = getPool();
+  const settings = await getOrCreateSettingsRow(db);
+  return formatAutoPayoutSettings(settings);
+}
+
+function maskPhone(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length < 6) {
+    return "*".repeat(digits.length);
+  }
+  return `${digits.slice(0, 4)}${"*".repeat(Math.max(0, digits.length - 6))}${digits.slice(-2)}`;
+}
+
+function normalizePhone(phone) {
+  let digits = String(phone || "").replace(/\D/g, "");
+  if (digits.startsWith("0") && digits.length === 10) {
+    digits = `255${digits.slice(1)}`;
+  }
+  if (digits.length === 9) {
+    digits = `255${digits}`;
+  }
+  return digits;
+}
+
+function encryptDestinationPhone(phone) {
+  return `plain:${Buffer.from(normalizePhone(phone), "utf8").toString("base64")}`;
+}
+
+function getDestinationPhone(encrypted) {
+  const value = String(encrypted || "");
+  if (!value) {
+    return null;
+  }
+  if (value.startsWith("plain:")) {
+    return Buffer.from(value.slice(6), "base64").toString("utf8");
+  }
+  return null;
+}
+
+function verifyAdminPassword(password) {
+  const provided = String(password || "").trim();
+  if (!provided) {
+    return false;
+  }
+  const allowed = String(process.env.ADMIN_PROXY_PASSWORDS || "admin123,1234")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return allowed.includes(provided);
+}
+
+async function getOrCreateSettingsRow(db) {
   const [rows] = await db.query("SELECT * FROM clickpesa_setting ORDER BY id ASC LIMIT 1");
-  const settings = rows[0] || {};
+  if (rows[0]) {
+    return rows[0];
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const encryptedDestination = encryptDestinationPhone("255715296092");
+  await db.query(
+    `INSERT INTO clickpesa_setting
+      (auto_payout_enabled, mode, destination_type, encrypted_destination, payout_percentage, minimum_amount, daily_limit, delay_seconds, require_manual_approval, created_at, updated_at)
+     VALUES (0, 'TEST', 'MOBILE_MONEY', ?, 100, 1000, 0, 60, 1, ?, ?)`,
+    [encryptedDestination, now, now]
+  );
+  const [created] = await db.query("SELECT * FROM clickpesa_setting ORDER BY id ASC LIMIT 1");
+  return created[0];
+}
+
+function formatAutoPayoutSettings(settings) {
+  const phone = getDestinationPhone(settings.encrypted_destination);
+  const mode = settings.mode || "TEST";
+  const enabled = Boolean(settings.auto_payout_enabled);
 
   return {
     success: true,
-    enabled: Boolean(settings.auto_payout_enabled),
-    mode: settings.mode || "TEST",
+    enabled,
+    mode,
     destinationType: settings.destination_type || "MOBILE_MONEY",
-    maskedDestination: settings.destination_masked || null,
+    maskedDestination: phone ? maskPhone(phone) : "—",
     mobileProvider: settings.mobile_provider || null,
     minimumAmount: Number(settings.minimum_amount || 0),
     dailyLimit: Number(settings.daily_limit || 0),
@@ -198,10 +268,119 @@ async function getAutoPayoutSettings() {
     manualApprovalRequired: Boolean(settings.require_manual_approval),
     lastSyncedAt: settings.last_synced_at ? toIso(settings.last_synced_at) : null,
     warning:
-      (settings.mode || "TEST") === "TEST"
+      mode === "TEST"
         ? "TEST MODE — auto payout is off. Turn Auto payout ON and enter admin password to activate."
-        : null,
+        : enabled && mode === "MANUAL_APPROVAL"
+          ? "Manual approval mode — payouts need approval before sending."
+          : null,
   };
+}
+
+async function updateAutoPayoutSettings(data = {}) {
+  const db = getPool();
+  const current = await getOrCreateSettingsRow(db);
+  const before = formatAutoPayoutSettings(current);
+
+  const mode = String(data.mode || current.mode || "TEST").trim().toUpperCase();
+  const enabled = Object.prototype.hasOwnProperty.call(data, "enabled")
+    ? Boolean(data.enabled)
+    : Boolean(current.auto_payout_enabled);
+
+  if (!["TEST", "MANUAL_APPROVAL", "LIVE_AUTO"].includes(mode)) {
+    const error = new Error("mode must be TEST, MANUAL_APPROVAL or LIVE_AUTO.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if ((enabled && !current.auto_payout_enabled) || mode === "LIVE_AUTO") {
+    const password = data.currentAdminPassword || data.adminPassword || data.admin_password || "";
+    if (!verifyAdminPassword(password)) {
+      const error = new Error(
+        password ? "Invalid admin password." : "Admin password is required to change automatic payout settings."
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+  }
+
+  const destinationType = String(
+    data.destinationType || current.destination_type || "MOBILE_MONEY"
+  )
+    .trim()
+    .toUpperCase();
+
+  let encryptedDestination = current.encrypted_destination;
+  if (data.mobileMoneyNumber) {
+    encryptedDestination = encryptDestinationPhone(data.mobileMoneyNumber);
+  } else if (enabled && !getDestinationPhone(encryptedDestination)) {
+    encryptedDestination = encryptDestinationPhone("255715296092");
+  }
+
+  const phone = getDestinationPhone(encryptedDestination);
+  if (destinationType === "MOBILE_MONEY" && enabled && !phone) {
+    const error = new Error("Configure a valid payout destination before enabling automatic payout.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let nextEnabled = enabled ? 1 : 0;
+  const nextMode = mode;
+  let requireManualApproval = Object.prototype.hasOwnProperty.call(data, "manualApprovalRequired")
+    ? data.manualApprovalRequired ? 1 : 0
+    : Number(current.require_manual_approval || 0);
+
+  if (nextMode === "TEST") {
+    nextEnabled = 0;
+  } else if (enabled) {
+    nextEnabled = 1;
+  }
+  if (nextMode === "MANUAL_APPROVAL") {
+    requireManualApproval = 1;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  await db.query(
+    `UPDATE clickpesa_setting SET
+      auto_payout_enabled = ?,
+      mode = ?,
+      destination_type = ?,
+      encrypted_destination = ?,
+      mobile_provider = ?,
+      payout_percentage = ?,
+      minimum_amount = ?,
+      daily_limit = ?,
+      delay_seconds = ?,
+      require_manual_approval = ?,
+      updated_at = ?
+     WHERE id = ?`,
+    [
+      nextEnabled,
+      nextMode,
+      destinationType,
+      encryptedDestination,
+      String(data.mobileProvider || current.mobile_provider || "").trim() || null,
+      Number(data.payoutPercentage ?? current.payout_percentage ?? 100),
+      Number(data.minimumAmount ?? current.minimum_amount ?? 1000),
+      Number(data.dailyLimit ?? current.daily_limit ?? 0),
+      Number(data.delaySeconds ?? current.delay_seconds ?? 60),
+      requireManualApproval,
+      now,
+      current.id,
+    ]
+  );
+
+  try {
+    await db.query(
+      `INSERT INTO clickpesa_setting_audit (action, changes_json, ip_address, created_at)
+       VALUES ('settings_updated', ?, ?, ?)`,
+      [JSON.stringify({ before, after: data }), null, now]
+    );
+  } catch (_) {
+    /* audit table optional */
+  }
+
+  const [rows] = await db.query("SELECT * FROM clickpesa_setting WHERE id = ? LIMIT 1", [current.id]);
+  return formatAutoPayoutSettings(rows[0] || current);
 }
 
 module.exports = {
@@ -210,4 +389,5 @@ module.exports = {
   listControlNumbers,
   listPayouts,
   getAutoPayoutSettings,
+  updateAutoPayoutSettings,
 };
