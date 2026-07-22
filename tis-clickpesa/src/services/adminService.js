@@ -106,25 +106,94 @@ function formatPhoneLabel(phone) {
   return `+${digits}`;
 }
 
-function resolvePayerName(tx) {
+function looksLikePhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 9;
+}
+
+function extractPayerNameFromTx(tx) {
   const direct = pickFirstString(tx.customer_name);
-  if (direct) {
+  if (direct && !looksLikePhone(direct)) {
     return direct;
   }
 
   const rawPayload = parseJsonSafe(tx.raw_payload);
   const rawRequest = parseJsonSafe(tx.raw_request);
   const fromPayload = deepFindString(rawPayload, PAYER_NAME_KEYS);
-  if (pickFirstString(fromPayload)) {
-    return pickFirstString(fromPayload);
+  const payloadName = pickFirstString(fromPayload);
+  if (payloadName && !looksLikePhone(payloadName)) {
+    return payloadName;
   }
   const fromRequest = deepFindString(rawRequest, PAYER_NAME_KEYS);
-  if (pickFirstString(fromRequest)) {
-    return pickFirstString(fromRequest);
+  const requestName = pickFirstString(fromRequest);
+  if (requestName && !looksLikePhone(requestName)) {
+    return requestName;
   }
 
-  const phoneLabel = formatPhoneLabel(tx.phone);
-  return phoneLabel || "—";
+  const description = pickFirstString(tx.description);
+  if (description && !looksLikePhone(description) && !/payment|clickpesa|autopay/i.test(description)) {
+    return description;
+  }
+
+  return null;
+}
+
+async function lookupOrderCustomerName(db, orderReference) {
+  const ref = String(orderReference || "").trim();
+  if (!ref) {
+    return null;
+  }
+  try {
+    const [rows] = await db.query("SELECT customerName FROM orders WHERE orderReference = ? LIMIT 1", [ref]);
+    const name = pickFirstString(rows[0]?.customerName);
+    return name && !looksLikePhone(name) ? name : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function lookupBackupCustomerName(orderReference) {
+  try {
+    const paymentFileStore = require("./paymentFileStore");
+    const ref = String(orderReference || "").trim().toUpperCase();
+    const entry = paymentFileStore.listPayments().find(
+      (row) => String(row.orderReference || "").trim().toUpperCase() === ref
+    );
+    const name = pickFirstString(entry?.customerName);
+    return name && !looksLikePhone(name) ? name : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function resolvePayerDetails(db, tx) {
+  let displayName =
+    extractPayerNameFromTx(tx) ||
+    (await lookupOrderCustomerName(db, tx.order_reference)) ||
+    lookupBackupCustomerName(tx.order_reference);
+
+  if (!displayName || looksLikePhone(displayName) || displayName.toLowerCase() === "customer") {
+    displayName = "Mteja";
+  }
+
+  const phoneFormatted = formatPhoneLabel(tx.phone);
+  return {
+    displayName,
+    maskedPhone: tx.phone ? maskPhone(tx.phone) : null,
+    phoneFormatted: phoneFormatted || null,
+  };
+}
+
+function resolvePayerName(tx) {
+  const name = extractPayerNameFromTx(tx);
+  if (name) {
+    return name;
+  }
+  const backup = lookupBackupCustomerName(tx.order_reference);
+  if (backup) {
+    return backup;
+  }
+  return "Mteja";
 }
 
 function resolveOrderLabel(tx) {
@@ -403,14 +472,16 @@ async function listControlNumbers(limit = 100) {
       enabled: payoutSettings.enabled,
       mode: payoutSettings.mode,
     },
-    items: rows.map((tx) => {
+    items: await Promise.all(
+      rows.map(async (tx) => {
       const controlNumber = resolveControlNumber(tx);
       const payout = payoutByPaymentId.get(tx.id) || null;
       const withdraw = resolveWithdrawInfo(tx, payout, settings);
+      const payer = await resolvePayerDetails(db, tx);
       return {
         id: tx.id,
         orderId: resolveOrderLabel(tx),
-        customerName: resolvePayerName(tx),
+        customerName: payer.displayName,
         controlNumber: controlNumber || "—",
         hasControlNumber: Boolean(controlNumber),
         reference: tx.order_reference,
@@ -426,7 +497,8 @@ async function listControlNumbers(limit = 100) {
         payoutStatus: payout?.payout_status || tx.payout_status || null,
         invoiceUrl: `admin-invoice.php?id=${tx.id}`,
       };
-    }),
+    })
+    ),
   };
 }
 
@@ -444,13 +516,15 @@ async function getInvoiceData(id) {
   const paidAt = resolvePaidAt(tx);
   const createdAt = toIso(tx.created_at);
   const amount = Number(tx.received_amount || tx.expected_amount || tx.amount || 0);
+  const payer = await resolvePayerDetails(db, tx);
 
   return {
     id: tx.id,
     invoiceNumber: `INV-CP-${String(tx.id).padStart(6, "0")}`,
     orderId: resolveOrderLabel(tx),
-    customerName: resolvePayerName(tx),
-    customerPhone: tx.phone ? maskPhone(tx.phone) : null,
+    customerName: payer.displayName,
+    customerPhone: payer.maskedPhone,
+    customerPhoneFormatted: payer.phoneFormatted,
     controlNumber: controlNumber || "—",
     hasControlNumber: Boolean(controlNumber),
     billReference: tx.order_reference || "—",
@@ -464,6 +538,7 @@ async function getInvoiceData(id) {
     createdAtFormatted: formatDisplayDate(createdAt),
     paidAt,
     paidAtFormatted: formatDisplayDate(paidAt),
+    qrReference: tx.order_reference || "",
   };
 }
 

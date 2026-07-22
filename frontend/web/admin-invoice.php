@@ -78,6 +78,23 @@ function moneyLabel(float $amount, string $currency): string
     return h($currency) . ' ' . number_format($amount, 0, '.', ',');
 }
 
+function buildReceiptQrUrl(array $invoice): string
+{
+    $id = (int) ($invoice['id'] ?? 0);
+    $ref = trim((string) ($invoice['qrReference'] ?? $invoice['billReference'] ?? ''));
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $scriptDir = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/admin-invoice.php')));
+    $base = rtrim($scheme . '://' . $host . $scriptDir, '/');
+    $verifyUrl = $base . '/admin-invoice.php?id=' . $id;
+    if ($ref !== '') {
+        $verifyUrl .= '&ref=' . rawurlencode($ref);
+    }
+    $qrData = "GETWAY|REF:{$ref}|AMT:" . (string) ($invoice['amount'] ?? '') . '|URL:' . $verifyUrl;
+
+    return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&ecc=M&data=' . rawurlencode($qrData);
+}
+
 /**
  * @param array<string,mixed> $invoice
  */
@@ -90,8 +107,8 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
     $statusClass = $ok ? 'ok' : ($status === 'PENDING' ? 'pending' : 'failed');
     $statusLabel = $ok ? 'PAID' : $status;
 
-    $customerName = h((string) ($invoice['customerName'] ?? '—'));
-    $customerPhone = h((string) ($invoice['customerPhone'] ?? '—'));
+    $customerName = h((string) ($invoice['customerName'] ?? 'Mteja'));
+    $customerPhone = h((string) ($invoice['customerPhone'] ?? ($invoice['customerPhoneFormatted'] ?? '—')));
     $invoiceNumber = h((string) ($invoice['invoiceNumber'] ?? ''));
     $orderId = h((string) ($invoice['orderId'] ?? '—'));
     $reference = h((string) ($invoice['billReference'] ?? '—'));
@@ -102,6 +119,8 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
     $paidAt = h((string) ($invoice['paidAtFormatted'] ?? '—'));
     $createdAt = h((string) ($invoice['createdAtFormatted'] ?? '—'));
     $amount = moneyLabel((float) ($invoice['amount'] ?? 0), (string) ($invoice['currency'] ?? 'TZS'));
+    $qrUrl = buildReceiptQrUrl($invoice);
+    $qrHtml = '<div class="qr-wrap"><img src="' . h($qrUrl) . '" alt="QR code" class="qr-img" /><p class="qr-caption">Skani kuthibitisha muamala</p></div>';
 
     $controlBlock = $hasControlNumber
         ? '<div class="row"><span class="lbl">Control No.</span><span class="val">' . $controlNumber . '</span></div>'
@@ -113,24 +132,26 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
 <html lang="sw">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Receipt ' . $invoiceNumber . '</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
-    body { margin: 0; font-family: ' . $fontFamily . '; color: #111827; background: #f3f4f6; }
-    .wrap { max-width: 420px; margin: 0 auto; padding: 24px 16px; }
+    body { margin: 0; font-family: ' . $fontFamily . '; color: #111827; background: #eef2f7; }
+    .wrap { max-width: 440px; margin: 0 auto; padding: 24px 16px 32px; }
     .paper {
       background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
       overflow: hidden;
       border: 1px solid #e5e7eb;
     }
     .head {
       background: linear-gradient(135deg, #0f172a, #1e3a5f);
       color: #fff;
-      padding: 20px 18px 16px;
+      padding: 22px 18px 18px;
       text-align: center;
     }
-    .brand { font-size: 18px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .brand { font-size: 20px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
     .sub { margin-top: 4px; font-size: 12px; opacity: .85; }
     .stamp {
       display: inline-block;
@@ -144,14 +165,24 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
     .stamp.ok { background: #dcfce7; color: #14532d; }
     .stamp.pending { background: #fef3c7; color: #92400e; }
     .stamp.failed { background: #fee2e2; color: #7f1d1d; }
-    .body { padding: 18px; }
+    .body { padding: 18px 18px 8px; }
     .amount {
       text-align: center;
-      font-size: 28px;
+      font-size: 30px;
       font-weight: 800;
-      margin: 4px 0 14px;
+      margin: 4px 0 10px;
       color: #0f172a;
     }
+    .qr-wrap { text-align: center; margin: 8px 0 14px; }
+    .qr-img {
+      width: 168px;
+      height: 168px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      background: #fff;
+    }
+    .qr-caption { margin: 8px 0 0; font-size: 11px; color: #6b7280; font-weight: 600; }
     .divider { border: none; border-top: 1px dashed #d1d5db; margin: 12px 0; }
     .row {
       display: flex;
@@ -163,6 +194,14 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
     }
     .lbl { color: #6b7280; font-weight: 600; min-width: 110px; }
     .val { color: #111827; font-weight: 600; text-align: right; word-break: break-word; }
+    .print-bar {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      padding: 14px 18px;
+      border-top: 1px dashed #e5e7eb;
+      background: #f8fafc;
+    }
     .footer {
       padding: 14px 18px 18px;
       border-top: 1px solid #e5e7eb;
@@ -179,22 +218,30 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
       flex-wrap: wrap;
     }
     .btn {
-      display: inline-block;
-      padding: 10px 16px;
-      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
+      border-radius: 10px;
       border: 1px solid #d1d5db;
       background: #fff;
       color: #111827;
       text-decoration: none;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+      transition: transform .15s ease, box-shadow .15s ease;
     }
-    .btn.primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1); }
+    .btn.primary { background: linear-gradient(135deg, #0f172a, #1e3a5f); color: #fff; border-color: #0f172a; }
+    .btn.print { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
     @media print {
       body { background: #fff; }
       .wrap { max-width: none; padding: 0; }
       .paper { box-shadow: none; border: none; border-radius: 0; }
-      .actions { display: none; }
+      .actions, .print-bar { display: none !important; }
     }
   </style>
 </head>
@@ -208,6 +255,7 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
       </div>
       <div class="body">
         <div class="amount">' . $amount . '</div>
+        ' . $qrHtml . '
         <hr class="divider" />
         <div class="row"><span class="lbl">Mlipaji</span><span class="val">' . $customerName . '</span></div>
         <div class="row"><span class="lbl">Simu</span><span class="val">' . $customerPhone . '</span></div>
@@ -221,14 +269,18 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
         <div class="row"><span class="lbl">Maelezo</span><span class="val">' . $description . '</span></div>
         <div class="row"><span class="lbl">Tarehe ya kuundwa</span><span class="val">' . $createdAt . '</span></div>
       </div>
+      ' . ($forPdf ? '' : '<div class="print-bar">
+        <button type="button" class="btn print" onclick="window.print()"><i class="fa-solid fa-print"></i> Chapisha Risiti</button>
+      </div>') . '
       <div class="footer">
         Asante kwa malipo yako.<br />
         Hii ni risiti rasmi ya muamala wako.
       </div>
     </div>
     ' . ($forPdf ? '' : '<div class="actions">
-      <a class="btn primary" href="?id=' . (int) ($invoice['id'] ?? 0) . '&amp;download=1">Pakua PDF</a>
-      <button type="button" class="btn" onclick="window.print()">Chapisha</button>
+      <a class="btn primary" href="?id=' . (int) ($invoice['id'] ?? 0) . '&amp;download=1"><i class="fa-solid fa-file-pdf"></i> Pakua PDF</a>
+      <button type="button" class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Chapisha</button>
+      <a class="btn" href="admin-dashboard.php"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
     </div>') . '
   </div>
 </body>
@@ -272,6 +324,7 @@ if ($download) {
         'margin_right' => 14,
         'margin_top' => 14,
         'margin_bottom' => 14,
+        'allowRemoteImages' => true,
     ]);
     $pdf->WriteHTML($html);
 

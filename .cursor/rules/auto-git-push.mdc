@@ -1,0 +1,23 @@
+---
+description: Commit and push to origin after completing code changes in this repo
+alwaysApply: true
+---
+
+# Auto Git Push
+
+After finishing any task that modifies tracked project files:
+
+1. Run `git status` and `git diff` to review changes.
+2. Stage only relevant files (never `.env`, secrets, or credentials).
+3. Create a concise commit message focused on **why** the change was made.
+4. Commit and **push to `origin` on the current branch** without asking the user first.
+5. Tell the user the commit hash and that the push completed.
+
+Skip commit/push only when:
+- The user explicitly says not to commit or push.
+- There are no file changes to commit.
+- The only changes are secrets or local-only config the user must not publish.
+
+On Windows PowerShell, pass multi-line commit messages via a temp file (`git commit -F .git/COMMIT_MSG.txt`), not heredocs.
+
+Do not force-push to `main` or `master`.

@@ -478,10 +478,12 @@
           <td>${esc(row.withdrawStatus || "—")}</td>
           <td>${statusBadge(row.status)}</td>
           <td>
-            ${row.hasControlNumber ? `<button type="button" data-copy="${esc(row.controlNumber)}">Copy</button>` : ""}
-            ${row.canWithdraw ? `<button type="button" data-withdraw="${row.id}">Withdraw</button>` : ""}
-            ${row.invoiceUrl ? `<button type="button" data-invoice="${esc(row.invoiceUrl)}">View</button>` : ""}
-            ${row.invoiceUrl ? `<button type="button" data-invoice-download="${esc(row.invoiceUrl)}">Download</button>` : ""}
+            <div class="ad-actions">
+            ${row.hasControlNumber ? `<button type="button" class="ad-btn ad-btn--copy" data-copy="${esc(row.controlNumber)}"><i class="fa-regular fa-copy"></i> Copy</button>` : ""}
+            ${row.canWithdraw ? `<button type="button" class="ad-btn ad-btn--withdraw" data-withdraw="${row.id}"><i class="fa-solid fa-money-bill-transfer"></i> Withdraw</button>` : ""}
+            ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--view" data-invoice="${esc(row.invoiceUrl)}"><i class="fa-solid fa-eye"></i> View</button>` : ""}
+            ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--download" data-invoice-download="${esc(row.invoiceUrl)}"><i class="fa-solid fa-file-pdf"></i> PDF</button>` : ""}
+            </div>
           </td>
         </tr>`).join("") : `<tr><td colspan="9">No control numbers have been created yet.</td></tr>`;
       bindCopyButtons();

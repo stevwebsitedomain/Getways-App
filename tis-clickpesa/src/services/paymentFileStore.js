@@ -55,6 +55,8 @@ function upsertPayment(entry) {
     amount: Number(entry.amount || 0),
     status: String(entry.status || "PENDING").toUpperCase(),
     phone: entry.phone || "",
+    customerName: String(entry.customerName || "").trim(),
+    description: String(entry.description || "").trim(),
     channel: entry.channel || entry.paymentMode || "",
     createdAt: entry.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),

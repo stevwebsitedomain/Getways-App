@@ -657,17 +657,18 @@ async function getAutoPayStatus(req, res, next) {
 
     const amountNum = Number(result.amount || previous?.amount || dbRow?.amount || 0);
 
-    rememberPayment({
-      id: orderReference,
-      orderReference,
-      amount: amountNum > 0 ? amountNum : Number(previous?.amount || 0),
-      status: mapped === "PENDING" ? "PENDING" : mapped,
-      phone: String(result.phone || previous?.phone || dbRow?.phone || "").trim(),
-      channel: "autopay",
-      paymentMode: "ussd-push",
-      createdAt: previous?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+      rememberPayment({
+        id: orderReference,
+        orderReference,
+        amount: amountNum > 0 ? amountNum : Number(previous?.amount || 0),
+        status: mapped === "PENDING" ? "PENDING" : mapped,
+        phone: String(result.phone || previous?.phone || dbRow?.phone || "").trim(),
+        customerName: String(previous?.customerName || "").trim(),
+        channel: "autopay",
+        paymentMode: "ussd-push",
+        createdAt: previous?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
 
     if (mapped === "SUCCESS") {
       void finalizeSuccessfulPayment(
@@ -732,6 +733,7 @@ async function webhook(req, res, next) {
       amount: finalAmount,
       status,
       phone: finalPhone,
+      customerName: String(previous?.customerName || "").trim(),
       createdAt: previous?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
