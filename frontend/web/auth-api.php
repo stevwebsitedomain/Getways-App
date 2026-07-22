@@ -29,6 +29,15 @@ function jsonResponse(int $code, array $payload): never
     exit;
 }
 
+function gwStrStartsWith(string $haystack, string $needle): bool
+{
+    if ($needle === '') {
+        return true;
+    }
+
+    return strncmp($haystack, $needle, strlen($needle)) === 0;
+}
+
 function readInput(): array
 {
     $raw = file_get_contents('php://input');
@@ -65,9 +74,19 @@ function ensureStore(string $path): array
     return $data;
 }
 
-function writeStore(string $path, array $data): void
+function writeStore(string $path, array $data): bool
 {
-    file_put_contents($path, json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), LOCK_EX);
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    $written = @file_put_contents(
+        $path,
+        json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
+        LOCK_EX
+    );
+
+    return $written !== false;
 }
 
 function normalizePhone(string $phone): string
@@ -88,13 +107,13 @@ function phoneLoginVariants(string $phone): array
     }
 
     $variants = [$norm];
-    if (str_starts_with($norm, '+')) {
+    if (gwStrStartsWith($norm, '+')) {
         $variants[] = ltrim($norm, '+');
     }
-    if (str_starts_with($norm, '0') && strlen($norm) >= 10) {
+    if (gwStrStartsWith($norm, '0') && strlen($norm) >= 10) {
         $variants[] = '255' . substr($norm, 1);
     }
-    if (str_starts_with($norm, '255') && strlen($norm) > 3) {
+    if (gwStrStartsWith($norm, '255') && strlen($norm) > 3) {
         $variants[] = '0' . substr($norm, 3);
     }
 
@@ -172,31 +191,47 @@ function currentUserSummary(): ?array
     ];
 }
 
-function ensureAdminUser(array &$store, string $storePath): void
+function isAdminUser(array $user): bool
 {
-    $hasAdmin = false;
+    return ($user['role'] ?? '') === 'admin'
+        || strcasecmp((string) ($user['username'] ?? ''), 'admin') === 0;
+}
+
+function ensureAdminUser(array &$store, string $storePath): ?array
+{
     foreach ($store['users'] as $user) {
-        if (($user['role'] ?? '') === 'admin' || strcasecmp((string) ($user['username'] ?? ''), 'admin') === 0) {
-            $hasAdmin = true;
-            break;
+        if (isAdminUser($user)) {
+            return $user;
         }
     }
-    if ($hasAdmin) {
-        return;
-    }
-    $store['users'][] = [
+
+    $admin = [
         'id' => 'admin-' . bin2hex(random_bytes(4)),
         'fullName' => 'System Admin',
         'username' => 'admin',
         'phone' => '',
         'email' => 'admin@getway.local',
-        'passwordHash' => password_hash('admin123', PASSWORD_DEFAULT),
-        'pinHash' => password_hash('0000', PASSWORD_DEFAULT),
+        'passwordHash' => '$2y$10$XqD4SST2R729S9PuhpZj/.6I.gk0cPTwtqCJU4k19gkmV.S4WTc.i',
+        'pinHash' => '$2y$10$3hM48KNMB41sTJ5qi7fXOe3Vu7uQvJKJ0gB3QB376wqn6KMcJesw6',
         'role' => 'admin',
         'provider' => 'password',
         'createdAt' => gmdate('c'),
     ];
+    $store['users'][] = $admin;
     writeStore($storePath, $store);
+
+    return $admin;
+}
+
+function loginAdminFromStore(array &$store, string $storePath): ?array
+{
+    foreach ($store['users'] as $user) {
+        if (isAdminUser($user)) {
+            return $user;
+        }
+    }
+
+    return ensureAdminUser($store, $storePath);
 }
 
 function redirectForRole(string $role): string
@@ -206,11 +241,13 @@ function redirectForRole(string $role): string
 
 function loginSession(array $user): array
 {
-    session_regenerate_id(true);
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        @session_regenerate_id(true);
+    }
     if (!isset($user['role']) || $user['role'] === '') {
         $user['role'] = 'user';
     }
-    $_SESSION['gw_auth_user'] = $user;
+    $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
     unset($_SESSION['gw_pending']);
     $role = (string) $user['role'];
 
@@ -230,7 +267,6 @@ function loginSession(array $user): array
 $input = readInput();
 $store = ensureStore($storePath);
 ensureAdminUser($store, $storePath);
-$store = ensureStore($storePath);
 $users = $store['users'];
 
 if ($method === 'GET' && $action === 'status') {
@@ -323,7 +359,7 @@ if ($action === 'register-start') {
     $store['users'][] = $newUser;
     writeStore($storePath, $store);
     session_regenerate_id(true);
-    $_SESSION['gw_auth_user'] = $newUser;
+    $_SESSION['gw_auth_user'] = gwAuthSessionUser($newUser);
     unset($_SESSION['gw_pending']);
 
     jsonResponse(200, [
@@ -362,7 +398,7 @@ if ($action === 'verify-otp') {
         $store = ensureStore($storePath);
         $store['users'][] = $newUser;
         writeStore($storePath, $store);
-        $_SESSION['gw_auth_user'] = $newUser;
+        $_SESSION['gw_auth_user'] = gwAuthSessionUser($newUser);
         unset($_SESSION['gw_pending']);
         jsonResponse(200, [
             'ok' => true,
@@ -384,7 +420,7 @@ if ($action === 'verify-otp') {
                 if ($hash === '' || !password_verify($passwordAgain, $hash)) {
                     jsonResponse(401, ['ok' => false, 'message' => 'The password you entered is incorrect.']);
                 }
-                $_SESSION['gw_auth_user'] = $user;
+                $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
                 unset($_SESSION['gw_pending']);
                 jsonResponse(200, [
                     'ok' => true,
@@ -434,18 +470,11 @@ if ($action === 'login') {
     }
 
     if ($wantedRole === 'admin' && $password === '0000') {
-        foreach ($users as $user) {
-            if (($user['role'] ?? '') === 'admin' || strcasecmp((string) ($user['username'] ?? ''), 'admin') === 0) {
-                jsonResponse(200, loginSession($user));
-            }
+        $adminUser = loginAdminFromStore($store, $storePath);
+        if ($adminUser !== null) {
+            jsonResponse(200, loginSession($adminUser));
         }
-        ensureAdminUser($store, $storePath);
-        $store = ensureStore($storePath);
-        foreach ($store['users'] as $user) {
-            if (($user['role'] ?? '') === 'admin') {
-                jsonResponse(200, loginSession($user));
-            }
-        }
+        jsonResponse(500, ['ok' => false, 'message' => 'Could not start admin session. Check that frontend/web/runtime is writable.']);
     }
 
     // Prefer username / phone / full name match
@@ -502,19 +531,11 @@ if ($action === 'pin-login') {
 
     // Default PIN 0000 → admin
     if ($pin === '0000') {
-        foreach ($users as $user) {
-            if (($user['role'] ?? '') === 'admin' || strcasecmp((string) ($user['username'] ?? ''), 'admin') === 0) {
-                jsonResponse(200, loginSession($user));
-            }
+        $adminUser = loginAdminFromStore($store, $storePath);
+        if ($adminUser !== null) {
+            jsonResponse(200, loginSession($adminUser));
         }
-        // Create on the fly if missing
-        ensureAdminUser($store, $storePath);
-        $store = ensureStore($storePath);
-        foreach ($store['users'] as $user) {
-            if (($user['role'] ?? '') === 'admin') {
-                jsonResponse(200, loginSession($user));
-            }
-        }
+        jsonResponse(500, ['ok' => false, 'message' => 'Could not start admin session. Check that frontend/web/runtime is writable.']);
     }
 
     foreach ($users as $user) {
@@ -581,7 +602,7 @@ if ($action === 'google-login') {
             }
             $user['provider'] = 'google';
             writeStore($storePath, $store);
-            $_SESSION['gw_auth_user'] = $user;
+            $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
             jsonResponse(200, ['ok' => true, 'message' => 'Google login successful.', 'redirect' => 'lets-go.php']);
         }
     }
@@ -599,7 +620,7 @@ if ($action === 'google-login') {
     ];
     $store['users'][] = $newUser;
     writeStore($storePath, $store);
-    $_SESSION['gw_auth_user'] = $newUser;
+    $_SESSION['gw_auth_user'] = gwAuthSessionUser($newUser);
     jsonResponse(200, [
         'ok' => true,
         'message' => 'Google account linked.',
@@ -629,7 +650,7 @@ if ($method === 'POST' && $action === 'update-profile') {
             }
             $user['avatar'] = $avatar;
         }
-        $_SESSION['gw_auth_user'] = $user;
+        $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
         $updated = $user;
         break;
     }

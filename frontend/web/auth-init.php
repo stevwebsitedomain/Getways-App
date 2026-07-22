@@ -14,12 +14,8 @@ function gwAuthStartSession(): void
     $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
 
-    $base = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/')));
-    if ($base === '/' || $base === '.' || $base === '') {
-        $cookiePath = '/';
-    } else {
-        $cookiePath = rtrim($base, '/') . '/';
-    }
+    // Always use site root so auth-api.php and admin-dashboard.php share the same cookie.
+    $cookiePath = '/';
 
     if (PHP_VERSION_ID >= 70300) {
         session_set_cookie_params([
@@ -41,7 +37,27 @@ function gwAuthStartSession(): void
         session_save_path($savePath);
     }
 
-    session_start();
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        @session_start();
+    }
+}
+
+/**
+ * @param array<string, mixed> $user
+ * @return array<string, string>
+ */
+function gwAuthSessionUser(array $user): array
+{
+    return [
+        'id' => (string) ($user['id'] ?? ''),
+        'fullName' => (string) ($user['fullName'] ?? 'Customer'),
+        'phone' => (string) ($user['phone'] ?? ''),
+        'email' => (string) ($user['email'] ?? ''),
+        'username' => (string) ($user['username'] ?? ''),
+        'role' => (string) ($user['role'] ?? 'user'),
+        'provider' => (string) ($user['provider'] ?? 'password'),
+        'avatar' => (string) ($user['avatar'] ?? ''),
+    ];
 }
 
 function gwAuthRuntimeDir(): string

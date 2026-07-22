@@ -96,6 +96,6 @@ $next = trim((string) ($_GET['next'] ?? ''));
     </aside>
   </main>
   <script src="mb-login-lang.js?v=2"></script>
-  <script src="auth.js?v=8"></script>
+  <script src="auth.js?v=9"></script>
 </body>
 </html>

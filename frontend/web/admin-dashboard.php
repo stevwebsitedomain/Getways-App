@@ -1,9 +1,24 @@
 <?php
-require __DIR__ . '/admin-guard.php';
+declare(strict_types=1);
+
+try {
+    require __DIR__ . '/admin-guard.php';
+} catch (Throwable $e) {
+    error_log('Getway admin-dashboard guard failed: ' . $e->getMessage());
+    http_response_code(500);
+    echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>Admin error</title></head><body style="font-family:sans-serif;padding:24px">'
+        . '<h1>Admin dashboard unavailable</h1>'
+        . '<p>Please try again or <a href="logout.php">logout</a> and sign in again.</p>'
+        . '</body></html>';
+    exit;
+}
+
 $authUser = $_SESSION['gw_auth_user'] ?? [];
-$authName = trim((string) ($authUser['fullName'] ?? 'Admin'));
+$authName = htmlspecialchars(trim((string) ($authUser['fullName'] ?? 'Admin')), ENT_QUOTES);
 $cssV = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
 $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
+$cssV = htmlspecialchars($cssV, ENT_QUOTES);
+$jsV = htmlspecialchars($jsV, ENT_QUOTES);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -16,7 +31,7 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="admin-dashboard.css?v=<?= urlencode($cssV) ?>" />
+  <link rel="stylesheet" href="admin-dashboard.css?v=<?php echo $cssV; ?>" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
 </head>
 <body class="ad-body">
@@ -26,7 +41,7 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
       <h1>Payout &amp; Collections</h1>
     </div>
     <div class="ad-top-actions">
-      <span class="ad-user"><?= htmlspecialchars($authName, ENT_QUOTES) ?></span>
+      <span class="ad-user"><?php echo $authName; ?></span>
       <a class="ad-link" href="part-two.php">User wallet</a>
       <a class="ad-link ad-link--danger" href="logout.php">Logout</a>
     </div>
@@ -242,6 +257,6 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-  <script src="admin-dashboard.js?v=<?= urlencode($jsV) ?>"></script>
+  <script src="admin-dashboard.js?v=<?php echo $jsV; ?>"></script>
 </body>
 </html>
