@@ -45,7 +45,7 @@ $next = trim((string) ($_GET['next'] ?? ''));
       <div class="mb-fields">
         <label class="mb-field">
           <span class="mb-sr" data-i18n="username">Username</span>
-          <input id="username" name="username" type="text" placeholder="Username" data-i18n="username" autocomplete="username" required />
+          <input id="username" name="username" type="text" placeholder="Phone number or full name" data-i18n="username" autocomplete="username" required />
         </label>
         <div class="mb-field mb-field--pass">
           <input id="password" name="password" type="password" placeholder="Password" data-i18n="password" autocomplete="current-password" required />
@@ -96,6 +96,6 @@ $next = trim((string) ($_GET['next'] ?? ''));
     </aside>
   </main>
   <script src="mb-login-lang.js?v=2"></script>
-  <script src="auth.js?v=7"></script>
+  <script src="auth.js?v=8"></script>
 </body>
 </html>

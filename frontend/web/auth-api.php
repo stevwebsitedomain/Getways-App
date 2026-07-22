@@ -77,6 +77,74 @@ function normalizePhone(string $phone): string
     return $clean;
 }
 
+/**
+ * @return list<string>
+ */
+function phoneLoginVariants(string $phone): array
+{
+    $norm = normalizePhone($phone);
+    if ($norm === '') {
+        return [];
+    }
+
+    $variants = [$norm];
+    if (str_starts_with($norm, '+')) {
+        $variants[] = ltrim($norm, '+');
+    }
+    if (str_starts_with($norm, '0') && strlen($norm) >= 10) {
+        $variants[] = '255' . substr($norm, 1);
+    }
+    if (str_starts_with($norm, '255') && strlen($norm) > 3) {
+        $variants[] = '0' . substr($norm, 3);
+    }
+
+    return array_values(array_unique(array_filter($variants)));
+}
+
+function phonesMatchForLogin(string $input, string $stored): bool
+{
+    $inputVariants = phoneLoginVariants($input);
+    $storedVariants = phoneLoginVariants($stored);
+    if ($inputVariants === [] || $storedVariants === []) {
+        return false;
+    }
+    foreach ($inputVariants as $candidate) {
+        if (in_array($candidate, $storedVariants, true)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function userMatchesLoginIdentifier(array $user, string $identifier): bool
+{
+    $needle = trim($identifier);
+    if ($needle === '') {
+        return false;
+    }
+
+    $uName = (string) ($user['username'] ?? '');
+    $uPhone = (string) ($user['phone'] ?? '');
+    $uEmail = (string) ($user['email'] ?? '');
+    $uFullName = trim((string) ($user['fullName'] ?? ''));
+
+    if (strcasecmp($uName, $needle) === 0) {
+        return true;
+    }
+    if ($uEmail !== '' && strcasecmp($uEmail, $needle) === 0) {
+        return true;
+    }
+    if ($uFullName !== '' && strcasecmp($uFullName, $needle) === 0) {
+        return true;
+    }
+    if (phonesMatchForLogin($needle, $uPhone) || phonesMatchForLogin($needle, $uName)) {
+        return true;
+    }
+
+    return false;
+}
+
 function maskPhone(string $phone): string
 {
     $len = strlen($phone);
@@ -380,17 +448,10 @@ if ($action === 'login') {
         }
     }
 
-    // Prefer username / phone match
+    // Prefer username / phone / full name match
     if ($username !== '') {
-        $phoneNorm = normalizePhone($username);
         foreach ($users as $user) {
-            $uName = (string) ($user['username'] ?? '');
-            $uPhone = (string) ($user['phone'] ?? '');
-            $uEmail = (string) ($user['email'] ?? '');
-            $match = strcasecmp($uName, $username) === 0
-                || ($phoneNorm !== '' && $uPhone === $phoneNorm)
-                || strcasecmp($uEmail, $username) === 0;
-            if (!$match) {
+            if (!userMatchesLoginIdentifier($user, $username)) {
                 continue;
             }
             $hash = (string) ($user['passwordHash'] ?? '');
@@ -408,7 +469,7 @@ if ($action === 'login') {
             }
             jsonResponse(200, loginSession($user));
         }
-        jsonResponse(404, ['ok' => false, 'message' => 'Account not found. Please register first.']);
+        jsonResponse(404, ['ok' => false, 'message' => 'Account not found. Use your phone number or full name from registration.']);
     }
 
     // Legacy: password-only login

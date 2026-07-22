@@ -59,7 +59,7 @@
           const pass = $("#password");
           if (pass) pass.placeholder = "Password (admin: 0000)";
         } else if ($("#username")) {
-          $("#username").placeholder = "Username or phone";
+          $("#username").placeholder = "Phone number or full name";
           const pass = $("#password");
           if (pass) pass.placeholder = "Your registered password";
         }
