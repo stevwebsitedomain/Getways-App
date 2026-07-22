@@ -125,7 +125,18 @@ $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
       </div>
       <p id="ad-controls-error" class="ad-db-banner" hidden></p>
       <div class="ad-table-wrap">
-        <table class="ad-table">
+        <table class="ad-table ad-table--controls">
+          <colgroup>
+            <col class="ad-col-order" />
+            <col class="ad-col-customer" />
+            <col class="ad-col-control" />
+            <col class="ad-col-ref" />
+            <col class="ad-col-money" />
+            <col class="ad-col-money" />
+            <col class="ad-col-withdraw" />
+            <col class="ad-col-status" />
+            <col class="ad-col-actions" />
+          </colgroup>
           <thead>
             <tr>
               <th>Order</th>

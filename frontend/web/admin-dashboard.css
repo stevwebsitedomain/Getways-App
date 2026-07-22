@@ -298,12 +298,39 @@ body.ad-body {
   font-size: 0.82rem;
 }
 
+.ad-table--controls {
+  table-layout: fixed;
+}
+
+.ad-table--controls .ad-col-order { width: 8%; }
+.ad-table--controls .ad-col-customer { width: 9%; }
+.ad-table--controls .ad-col-control { width: 11%; }
+.ad-table--controls .ad-col-ref { width: 22%; }
+.ad-table--controls .ad-col-money { width: 9%; }
+.ad-table--controls .ad-col-withdraw { width: 9%; }
+.ad-table--controls .ad-col-status { width: 9%; }
+.ad-table--controls .ad-col-actions { width: 14%; }
+
 .ad-table th,
 .ad-table td {
   text-align: left;
   padding: 8px 6px;
   border-bottom: 1px solid var(--ad-line);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.ad-table--controls td:nth-child(2),
+.ad-table--controls th:nth-child(2) {
+  max-width: 110px;
+}
+
+.ad-table--controls td:last-child,
+.ad-table--controls th:last-child {
+  overflow: visible;
+  white-space: normal;
 }
 
 .ad-table th {
