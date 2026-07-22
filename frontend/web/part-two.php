@@ -40,7 +40,11 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
 
   <main class="tis-wrap w-shell">
     <div class="w-app">
-<?php $phoneTopbarTitle = 'Home Dashboard'; require __DIR__ . '/wallet-phone-topbar.php'; ?>
+<?php $phoneTopbarTitle = 'Home Dashboard';
+if (is_file(__DIR__ . '/wallet-phone-topbar.php')) {
+    require __DIR__ . '/wallet-phone-topbar.php';
+}
+?>
 
       <div class="w-hero-row w-searchable">
       <section class="w-balance-card" aria-labelledby="balance-label">

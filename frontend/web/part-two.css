@@ -2234,6 +2234,7 @@ body.tis-wallet-dash {
 
 .w-phone-topbar {
   display: none;
+  grid-template-columns: auto 1fr auto;
 }
 
 .w-phone-hero,
@@ -3594,4 +3595,21 @@ body.tis-wallet-dash {
 
 .nav-account:hover {
   opacity: 0.92;
+}
+
+body.settings-page .w-phone-topbar {
+  display: grid !important;
+}
+
+body.settings-page .settings-content {
+  position: relative;
+  z-index: 1;
+}
+
+body.settings-page .tis-card {
+  background: #fff;
+  border: 1px solid #e2e8f5;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(31, 47, 74, 0.08);
 }

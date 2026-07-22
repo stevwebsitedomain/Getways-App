@@ -30,7 +30,11 @@ $adminCssVersion = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: tim
 
   <main class="tis-wrap w-shell">
     <div class="w-app w-cn-page">
-<?php $phoneTopbarTitle = 'Control Number'; require __DIR__ . '/wallet-phone-topbar.php'; ?>
+<?php $phoneTopbarTitle = 'Control Number';
+if (is_file(__DIR__ . '/wallet-phone-topbar.php')) {
+    require __DIR__ . '/wallet-phone-topbar.php';
+}
+?>
       <section class="ad-card" style="margin-top: 12px;">
         <h2><i class="fa-solid fa-file-invoice-dollar"></i> Generate Control Number</h2>
         <p class="ad-note">Weka kiasi na maelezo tu. Control number itatengenezwa na ClickPesa BillPay.</p>

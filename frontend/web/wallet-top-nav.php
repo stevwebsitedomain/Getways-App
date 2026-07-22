@@ -22,6 +22,22 @@ if (!isset($authName)) {
     if ($authInitial === '') {
         $authInitial = 'U';
     }
+} else {
+    if (!isset($authUser)) {
+        $authUser = $_SESSION['gw_auth_user'] ?? [];
+    }
+    if (!isset($authEmail)) {
+        $authEmail = trim((string) ($authUser['email'] ?? ''));
+    }
+    if (!isset($authAvatar)) {
+        $authAvatar = trim((string) ($authUser['avatar'] ?? ''));
+    }
+    if (!isset($authInitial)) {
+        $authInitial = strtoupper(substr($authName, 0, 1));
+        if ($authInitial === '') {
+            $authInitial = 'U';
+        }
+    }
 }
 
 $isActive = static function (string $key) use ($activeTopNav): string {
