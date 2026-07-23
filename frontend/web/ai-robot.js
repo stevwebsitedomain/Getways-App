@@ -5,29 +5,49 @@
   const LANG_KEY = "nectaAppLanguage";
   const MODE_KEY = "gwRobotMode";
   const MONITOR_INTERVAL = 30000;
-  const ERROR_CHECK_INTERVAL = 15000;
+  const ERROR_CHECK_INTERVAL = 12000;
 
   let root = null;
   let panelOpen = false;
   let currentMode = "overview";
   let statusData = null;
   let speaking = false;
+  let listening = false;
   let monitorTimer = null;
   let errorTimer = null;
   let lastSpokenErrorCount = -1;
   let synth = window.speechSynthesis || null;
+  let recognition = null;
+  let isAuthorized = false;
+  let agentCodename = "Special Agent namba 3";
 
   const MODES = {
     overview: { icon: "fa-gauge-high", labelSw: "Muhtasari", labelEn: "Overview" },
     login: { icon: "fa-right-to-bracket", labelSw: "Ingia", labelEn: "Logins" },
     monitor: { icon: "fa-eye", labelSw: "Ufuatiliaji", labelEn: "Monitor" },
     error: { icon: "fa-bug", labelSw: "Makosa", labelEn: "Errors" },
+    chat: { icon: "fa-comments", labelSw: "Ongea", labelEn: "Chat" },
   };
+
+  function robotFaceHtml() {
+    return `
+      <div class="gw-robot-face" data-expression="neutral">
+        <div class="gw-robot-head-shell">
+          <div class="gw-robot-antenna"></div>
+          <div class="gw-robot-eyes">
+            <div class="gw-robot-eye gw-robot-eye--left"><div class="gw-robot-pupil"></div></div>
+            <div class="gw-robot-eye gw-robot-eye--right"><div class="gw-robot-pupil"></div></div>
+          </div>
+          <div class="gw-robot-mouth"></div>
+          <div class="gw-robot-cheek gw-robot-cheek--left"></div>
+          <div class="gw-robot-cheek gw-robot-cheek--right"></div>
+        </div>
+      </div>`;
+  }
 
   function getLang() {
     try {
-      const stored = localStorage.getItem(LANG_KEY);
-      return stored === "en" ? "en" : "sw";
+      return localStorage.getItem(LANG_KEY) === "en" ? "en" : "sw";
     } catch (_) {
       return "sw";
     }
@@ -35,13 +55,6 @@
 
   function t(sw, en) {
     return getLang() === "sw" ? sw : en;
-  }
-
-  function escapeHtml(v) {
-    return String(v ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
   }
 
   async function apiFetch(action, options = {}) {
@@ -56,27 +69,36 @@
       headers: { "Content-Type": "application/json" },
     };
     if (method === "POST" && options.body) {
-      fetchOpts.body = JSON.stringify(options.body);
+      fetchOpts.body = JSON.stringify({ ...options.body, lang: getLang() });
     }
     const res = await fetch(url, fetchOpts);
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(data.message || `API error ${res.status}`);
-    }
+    if (!res.ok) throw new Error(data.message || `API error ${res.status}`);
     return data;
   }
 
   function reportClientError(message, source = "client") {
     apiFetch("report-error", {
       method: "POST",
-      body: {
-        source,
-        message,
-        page: document.title,
-        url: window.location.href,
-        severity: "error",
-      },
+      body: { source, message, page: document.title, url: window.location.href, severity: "error" },
     }).catch(() => {});
+  }
+
+  function setExpression(emotion) {
+    const faces = root?.querySelectorAll(".gw-robot-face");
+    const expr = emotion || "neutral";
+    faces?.forEach((f) => f.setAttribute("data-expression", expr));
+  }
+
+  function updateSpeakingUI(active) {
+    const fab = root?.querySelector(".gw-robot-fab");
+    const faces = root?.querySelectorAll(".gw-robot-face");
+    fab?.classList.toggle("is-speaking", active);
+    faces?.forEach((f) => {
+      f.classList.toggle("is-speaking", active);
+      if (active) f.setAttribute("data-expression", "speaking");
+      else if (!listening) f.setAttribute("data-expression", "neutral");
+    });
   }
 
   function getVoiceLang() {
@@ -84,25 +106,17 @@
   }
 
   function stopSpeaking() {
-    if (synth) {
-      synth.cancel();
-    }
+    synth?.cancel();
     speaking = false;
     updateSpeakingUI(false);
   }
 
-  function updateSpeakingUI(active) {
-    const fab = root?.querySelector(".gw-robot-fab");
-    const avatar = root?.querySelector(".gw-robot-avatar");
-    fab?.classList.toggle("is-speaking", active);
-    avatar?.classList.toggle("is-speaking", active);
-  }
+  function speak(text, emotion) {
+    if (!text) return Promise.resolve();
+    setSpeechText(text);
+    if (emotion) setExpression(emotion);
 
-  function speak(text) {
-    if (!text || !synth) {
-      setSpeechText(text || t("Sauti haipatikani.", "Speech not available."));
-      return Promise.resolve();
-    }
+    if (!synth) return Promise.resolve();
 
     stopSpeaking();
     speaking = true;
@@ -111,18 +125,17 @@
     return new Promise((resolve) => {
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = getVoiceLang();
-      utter.rate = 0.95;
-      utter.pitch = 1;
+      utter.rate = 0.92;
+      utter.pitch = 1.05;
 
       const voices = synth.getVoices();
-      const preferred = voices.find(
-        (v) => v.lang.startsWith(getLang() === "sw" ? "sw" : "en") && !v.localService
-      ) || voices.find((v) => v.lang.startsWith(getLang() === "sw" ? "sw" : "en"));
-      if (preferred) utter.voice = preferred;
+      const pref = voices.find((v) => v.lang.startsWith(getLang() === "sw" ? "sw" : "en"));
+      if (pref) utter.voice = pref;
 
       utter.onend = () => {
         speaking = false;
         updateSpeakingUI(false);
+        if (!listening) setExpression(emotion || "neutral");
         resolve();
       };
       utter.onerror = () => {
@@ -130,7 +143,6 @@
         updateSpeakingUI(false);
         resolve();
       };
-
       synth.speak(utter);
     });
   }
@@ -142,6 +154,9 @@
 
   function updateStatusUI(data) {
     statusData = data;
+    isAuthorized = data?.agent?.authorized === true;
+    if (data?.agent?.codename) agentCodename = data.agent.codename;
+
     const dot = root?.querySelector(".gw-robot-dot");
     const statusEl = root?.querySelector(".gw-robot-status-text");
     const badge = root?.querySelector(".gw-robot-badge");
@@ -150,21 +165,23 @@
 
     dot?.classList.toggle("has-error", count > 0);
     if (statusEl) {
-      statusEl.textContent = count > 0
-        ? t(`Makosa ${count} yamegunduliwa`, `${count} error(s) detected`)
-        : t("Mfumo unaendeshwa vizuri", "System running smoothly");
-    }
-    if (badge) {
-      if (count > 0) {
-        badge.textContent = String(count);
-        badge.hidden = false;
-      } else {
-        badge.hidden = true;
+      statusEl.textContent = isAuthorized
+        ? t(`${agentCodename} — mfumo salama`, `${agentCodename} — system OK`)
+        : count > 0
+          ? t(`Makosa ${count}`, `${count} error(s)`)
+          : t("Mfumo salama", "System OK");
+      if (count > 0 && isAuthorized) {
+        statusEl.textContent = t(
+          `${agentCodename} — makosa ${count}!`,
+          `${agentCodename} — ${count} error(s)!`
+        );
       }
     }
-    if (fixBtn) {
-      fixBtn.disabled = count === 0;
+    if (badge) {
+      badge.textContent = String(count);
+      badge.hidden = count === 0;
     }
+    if (fixBtn) fixBtn.disabled = count === 0;
   }
 
   async function refreshStatus() {
@@ -173,7 +190,7 @@
       updateStatusUI(data);
       return data;
     } catch (err) {
-      reportClientError(err.message || "Status fetch failed", "api");
+      reportClientError(err.message || "Status failed", "api");
       return null;
     }
   }
@@ -182,12 +199,22 @@
     currentMode = mode || currentMode;
     try {
       const data = await apiFetch("speak", { mode: currentMode });
-      setSpeechText(data.text || "");
-      await speak(data.text || "");
+      const emotion = mode === "error" && (statusData?.errorCount ?? 0) > 0 ? "angry" : "happy";
+      await speak(data.text || "", emotion);
     } catch (err) {
-      const msg = t("Imeshindwa kupata taarifa.", "Failed to get information.");
-      setSpeechText(msg);
-      reportClientError(err.message || "Speak failed", "api");
+      await speak(t("Imeshindwa kupata taarifa.", "Failed to get info."), "angry");
+    }
+  }
+
+  async function sendChat(message) {
+    if (!message.trim()) return;
+    setSpeechText(t("Ninasikiliza...", "Listening..."));
+    try {
+      const data = await apiFetch("chat", { method: "POST", body: { message } });
+      await speak(data.text || "", data.emotion || "neutral");
+      if (!data.authorized) setExpression("angry");
+    } catch (err) {
+      await speak(t("Imeshindwa kujibu.", "Could not respond."), "angry");
     }
   }
 
@@ -195,24 +222,16 @@
     try {
       const data = await apiFetch("fix", { method: "POST", body: {} });
       await refreshStatus();
+      if (!speakResult) return data;
 
-      if (speakResult) {
-        const fixed = (data.fixed || []).join(". ");
-        const failed = (data.failed || []).join(". ");
-        let msg;
-        if (fixed) {
-          msg = t(`Nimerekebisha: ${fixed}`, `Fixed: ${fixed}`);
-        } else if (failed) {
-          msg = t(`Imeshindwa: ${failed}`, `Failed: ${failed}`);
-        } else {
-          msg = t("Hakuna makosa ya kurekebisha.", "No errors to fix.");
-        }
-        if (data.remaining > 0) {
-          msg += t(` Bado ${data.remaining}.`, ` ${data.remaining} remaining.`);
-        }
-        setSpeechText(msg);
-        await speak(msg);
+      const fixed = (data.fixed || []).join(". ");
+      let msg = fixed
+        ? t(`${agentCodename}, nimerekebisha: ${fixed}`, `${agentCodename}, fixed: ${fixed}`)
+        : t(`${agentCodename}, hakuna makosa.`, `${agentCodename}, no errors.`);
+      if (data.remaining > 0) {
+        msg += t(` Bado ${data.remaining}.`, ` ${data.remaining} left.`);
       }
+      await speak(msg, data.remaining > 0 ? "angry" : "happy");
       return data;
     } catch (err) {
       reportClientError(err.message || "Fix failed", "api");
@@ -227,29 +246,104 @@
     const count = data.errorCount ?? 0;
     if (count > 0 && count !== lastSpokenErrorCount) {
       lastSpokenErrorCount = count;
-      if (currentMode === "error" || currentMode === "monitor") {
+      const msg = t(
+        `Tahadhari ${agentCodename}! Makosa ${count} yamegunduliwa kwenye mfumo. Nitairekebisha sasa.`,
+        `Alert ${agentCodename}! ${count} error(s) detected. Fixing now.`
+      );
+      setExpression("angry");
+      setSpeechText(msg);
+      if (isAuthorized || panelOpen) {
+        await speak(msg, "angry");
         await autoFixErrors(true);
-      } else if (panelOpen) {
-        const msg = t(
-          `Tahadhari! Makosa ${count} yamegunduliwa.`,
-          `Alert! ${count} error(s) detected.`
-        );
-        setSpeechText(msg);
-        await speak(msg);
       }
     }
-    if (count === 0) {
-      lastSpokenErrorCount = 0;
-    }
+    if (count === 0) lastSpokenErrorCount = 0;
   }
 
   function setMode(mode) {
     currentMode = mode;
-    try {
-      localStorage.setItem(MODE_KEY, mode);
-    } catch (_) {}
+    try { localStorage.setItem(MODE_KEY, mode); } catch (_) {}
     root?.querySelectorAll(".gw-robot-mode").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.mode === mode);
+    });
+  }
+
+  function initSpeechRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = getLang() === "sw" ? "sw-TZ" : "en-US";
+    rec.maxAlternatives = 1;
+
+    rec.onstart = () => {
+      listening = true;
+      setExpression("listening");
+      root?.querySelector(".gw-robot-mic-btn")?.classList.add("is-listening");
+      setSpeechText(t("Sema sasa, ninasikiliza...", "Speak now, I am listening..."));
+    };
+
+    rec.onend = () => {
+      listening = false;
+      root?.querySelector(".gw-robot-mic-btn")?.classList.remove("is-listening");
+      if (!speaking) setExpression("neutral");
+    };
+
+    rec.onerror = () => {
+      listening = false;
+      setExpression("angry");
+      speak(t("Sikukusikia vizuri. Jaribu tena.", "I did not hear you. Try again."), "angry");
+    };
+
+    rec.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript || "";
+      if (transcript) sendChat(transcript);
+    };
+
+    return rec;
+  }
+
+  function toggleListening() {
+    if (!recognition) {
+      recognition = initSpeechRecognition();
+    }
+    if (!recognition) {
+      speak(t("Kivinjari chako hakiungi mkono sauti.", "Your browser does not support voice."), "angry");
+      return;
+    }
+    if (listening) {
+      recognition.stop();
+      return;
+    }
+    stopSpeaking();
+    try {
+      recognition.lang = getLang() === "sw" ? "sw-TZ" : "en-US";
+      recognition.start();
+    } catch (_) {
+      speak(t("Jaribu tena.", "Try again."), "neutral");
+    }
+  }
+
+  function initEyeTracking() {
+    document.addEventListener("mousemove", (e) => {
+      const pupils = root?.querySelectorAll(".gw-robot-pupil");
+      if (!pupils?.length) return;
+      pupils.forEach((pupil) => {
+        const eye = pupil.parentElement;
+        if (!eye) return;
+        const rect = eye.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = e.clientX - cx;
+        const dy = e.clientY - cy;
+        const angle = Math.atan2(dy, dx);
+        const dist = Math.min(4, Math.hypot(dx, dy) / 30);
+        const px = Math.cos(angle) * dist;
+        const py = Math.sin(angle) * dist;
+        pupil.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px))`;
+      });
     });
   }
 
@@ -260,53 +354,52 @@
     root.id = "gw-robot-root";
     root.className = "gw-robot-root";
     root.innerHTML = `
-      <div class="gw-robot-panel" role="dialog" aria-label="Kaka AI Robot">
-        <div class="gw-robot-head">
-          <div class="gw-robot-avatar" aria-hidden="true">
-            <i class="fa-solid fa-robot"></i>
-          </div>
-          <div class="gw-robot-title">
-            <strong>Kaka AI</strong>
-            <small>${t("Msaidizi wa mfumo", "System assistant")}</small>
-          </div>
-          <button type="button" class="gw-robot-close" aria-label="${t("Funga", "Close")}">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-        <div class="gw-robot-body">
-          <div class="gw-robot-modes">
-            ${Object.entries(MODES)
-              .map(
-                ([key, m]) => `
-              <button type="button" class="gw-robot-mode" data-mode="${key}">
-                <i class="fa-solid ${m.icon}"></i>
-                <span>${t(m.labelSw, m.labelEn)}</span>
-              </button>`
-              )
-              .join("")}
-          </div>
-          <div class="gw-robot-status">
-            <span class="gw-robot-dot"></span>
-            <span class="gw-robot-status-text">${t("Inapakia...", "Loading...")}</span>
-          </div>
-          <div class="gw-robot-speech">${t("Bonyeza roboti kuzungumza.", "Click the robot to speak.")}</div>
-          <div class="gw-robot-actions">
-            <button type="button" class="gw-robot-speak-btn">
-              <i class="fa-solid fa-volume-high"></i>
-              ${t("Zungumza", "Speak")}
-            </button>
-            <button type="button" class="gw-robot-fix-btn" disabled>
-              <i class="fa-solid fa-wrench"></i>
-              ${t("Rekebisha", "Fix")}
+      <div class="gw-robot-layout">
+        <button type="button" class="gw-robot-fab" aria-label="${t("Zungumza na Kaka", "Talk to Kaka")}">
+          ${robotFaceHtml()}
+          <span class="gw-robot-badge" hidden>0</span>
+        </button>
+        <div class="gw-robot-panel" role="dialog" aria-label="Kaka AI">
+          <div class="gw-robot-head">
+            <div class="gw-robot-avatar">${robotFaceHtml()}</div>
+            <div class="gw-robot-title">
+              <strong>Kaka AI</strong>
+              <small>${t("Roboti wa Special Agent namba 3", "Robot for Special Agent #3")}</small>
+            </div>
+            <button type="button" class="gw-robot-close" aria-label="${t("Funga", "Close")}">
+              <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
+          <div class="gw-robot-body">
+            <div class="gw-robot-modes">
+              ${Object.entries(MODES).map(([key, m]) => `
+                <button type="button" class="gw-robot-mode" data-mode="${key}">
+                  <i class="fa-solid ${m.icon}"></i>
+                  <span>${t(m.labelSw, m.labelEn)}</span>
+                </button>`).join("")}
+            </div>
+            <div class="gw-robot-status">
+              <span class="gw-robot-dot"></span>
+              <span class="gw-robot-status-text">${t("Inapakia...", "Loading...")}</span>
+            </div>
+            <div class="gw-robot-speech">${t("Bonyeza roboti au maikrofoni kuzungumza.", "Click robot or mic to talk.")}</div>
+            <div class="gw-robot-actions">
+              <button type="button" class="gw-robot-mic-btn">
+                <i class="fa-solid fa-microphone"></i>
+                ${t("Sema", "Talk")}
+              </button>
+              <button type="button" class="gw-robot-speak-btn">
+                <i class="fa-solid fa-volume-high"></i>
+                ${t("Sikiza", "Listen")}
+              </button>
+              <button type="button" class="gw-robot-fix-btn" disabled>
+                <i class="fa-solid fa-wrench"></i>
+                ${t("Rekebisha makosa", "Fix errors")}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-      <button type="button" class="gw-robot-fab" aria-label="${t("Fungua Kaka AI", "Open Kaka AI")}">
-        <i class="fa-solid fa-robot"></i>
-        <span class="gw-robot-badge" hidden>0</span>
-      </button>
-    `;
+      </div>`;
     document.body.appendChild(root);
 
     try {
@@ -316,7 +409,16 @@
 
     setMode(currentMode);
     bindEvents();
-    refreshStatus();
+    initEyeTracking();
+    refreshStatus().then((data) => {
+      if (data?.agent?.authorized) {
+        const greet = t(
+          `Karibu ${agentCodename}. Mimi ni Kaka, niko tayari kuzungumza nawe.`,
+          `Welcome ${agentCodename}. I am Kaka, ready to talk.`
+        );
+        setSpeechText(greet);
+      }
+    });
     startMonitoring();
     setupErrorCapture();
 
@@ -330,36 +432,43 @@
     const fab = root.querySelector(".gw-robot-fab");
     const closeBtn = root.querySelector(".gw-robot-close");
     const speakBtn = root.querySelector(".gw-robot-speak-btn");
+    const micBtn = root.querySelector(".gw-robot-mic-btn");
     const fixBtn = root.querySelector(".gw-robot-fix-btn");
 
     fab.addEventListener("click", async () => {
       if (!panelOpen) {
         panelOpen = true;
         root.classList.add("is-open");
-        await speakMode(currentMode);
+        setExpression("happy");
+        if (currentMode === "chat") {
+          toggleListening();
+        } else {
+          await speakMode(currentMode);
+        }
         return;
       }
-      if (speaking) {
-        stopSpeaking();
-      } else {
-        await speakMode(currentMode);
-      }
+      if (speaking) stopSpeaking();
+      else toggleListening();
     });
 
     closeBtn.addEventListener("click", () => {
       panelOpen = false;
       root.classList.remove("is-open");
       stopSpeaking();
+      if (listening && recognition) recognition.stop();
+      setExpression("neutral");
     });
 
     speakBtn.addEventListener("click", () => speakMode(currentMode));
+    micBtn.addEventListener("click", () => toggleListening());
     fixBtn.addEventListener("click", () => autoFixErrors(true));
 
     root.querySelectorAll(".gw-robot-mode").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const mode = btn.dataset.mode;
         setMode(mode);
-        await speakMode(mode);
+        if (mode === "chat") toggleListening();
+        else await speakMode(mode);
       });
     });
   }
@@ -370,56 +479,36 @@
 
     monitorTimer = setInterval(async () => {
       await refreshStatus();
-      if (currentMode === "monitor" && !speaking) {
+      if (currentMode === "monitor" && !speaking && !listening) {
         await speakMode("monitor");
       }
     }, MONITOR_INTERVAL);
 
-    errorTimer = setInterval(() => {
-      checkErrorsAndSpeak().catch(() => {});
-    }, ERROR_CHECK_INTERVAL);
+    errorTimer = setInterval(() => checkErrorsAndSpeak().catch(() => {}), ERROR_CHECK_INTERVAL);
   }
 
   function setupErrorCapture() {
     window.addEventListener("error", (event) => {
-      const msg = event.message || "Unknown JS error";
-      reportClientError(`${msg} at ${event.filename}:${event.lineno}`, "javascript");
+      reportClientError(`${event.message} at ${event.filename}:${event.lineno}`, "javascript");
     });
-
     window.addEventListener("unhandledrejection", (event) => {
-      const reason = event.reason?.message || String(event.reason || "Unhandled rejection");
-      reportClientError(reason, "promise");
+      reportClientError(event.reason?.message || String(event.reason || "rejection"), "promise");
     });
-
-    const origFetch = window.fetch;
-    if (typeof origFetch === "function") {
-      window.fetch = async function (...args) {
-        const res = await origFetch.apply(this, args);
-        try {
-          const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
-          if (!res.ok && (url.includes("api.php") || url.includes("/api/"))) {
-            reportClientError(`API ${res.status}: ${url}`, "api");
-          }
-        } catch (_) {}
-        return res;
-      };
-    }
-  }
-
-  function init() {
-    buildWidget();
   }
 
   window.GwAiRobot = {
     speak: (mode) => speakMode(mode || currentMode),
+    chat: (msg) => sendChat(msg),
+    listen: () => toggleListening(),
     refresh: refreshStatus,
     fix: () => autoFixErrors(true),
     setMode,
+    setExpression,
   };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", buildWidget);
   } else {
-    init();
+    buildWidget();
   }
 })();

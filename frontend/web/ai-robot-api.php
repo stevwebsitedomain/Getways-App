@@ -115,6 +115,22 @@ if ($action === 'speak') {
     ]);
 }
 
+if ($action === 'chat' && $method === 'POST') {
+    $message = trim((string) ($input['message'] ?? ''));
+    if ($message === '') {
+        robotJson(422, ['ok' => false, 'message' => 'Message required.']);
+    }
+    $result = gwRobotChat($message, $user, $lang);
+    robotJson(200, [
+        'ok' => true,
+        'text' => $result['text'],
+        'emotion' => $result['emotion'],
+        'authorized' => $result['authorized'],
+    ]);
+}
+
+$agentInfo = gwRobotCheckAgent($user);
+
 // Default: status
 $logins = gwRobotGetRecentLogins(5);
 $errors = gwRobotGetOpenErrors();
@@ -140,11 +156,17 @@ robotJson(200, [
     'systemOk' => count($errors) === 0,
     'isAdmin' => $isAdmin,
     'serverTime' => date('Y-m-d H:i:s'),
+    'agent' => [
+        'codename' => $agentInfo['codename'],
+        'authorized' => $agentInfo['authorized'],
+        'bound' => $agentInfo['bound'],
+    ],
 ]);
 
 function robotBuildSpeakText(string $mode, array $user, bool $isAdmin, string $lang): string
 {
-    $name = trim((string) ($user['fullName'] ?? 'User'));
+    $agent = gwRobotCheckAgent($user);
+    $name = $agent['authorized'] ? $agent['codename'] : trim((string) ($user['fullName'] ?? 'User'));
     $roleLabel = $isAdmin ? ($lang === 'sw' ? 'msimamizi' : 'admin') : ($lang === 'sw' ? 'mtumiaji' : 'user');
     $loginAt = (string) ($_SESSION['gw_login_at'] ?? '');
     $logins = gwRobotGetRecentLogins(5);
@@ -234,7 +256,10 @@ function robotBuildSpeakText(string $mode, array $user, bool $isAdmin, string $l
 
     // overview
     if ($lang === 'sw') {
-        $msg = "Karibu {$name}. Mimi ni Kaka, msaidizi wako wa mfumo wa Getway. ";
+        $msg = "Karibu {$name}. Mimi ni Kaka, roboti yako ya mfumo wa Getway. ";
+        if ($agent['authorized']) {
+            $msg .= 'Nimekutambua wewe kama wakala wangu pekee. ';
+        }
         $msg .= "Wewe ni {$roleLabel}";
         if ($loginAt !== '') {
             $msg .= ', umeingia ' . gwRobotFormatDurationSw($loginAt);
@@ -253,7 +278,10 @@ function robotBuildSpeakText(string $mode, array $user, bool $isAdmin, string $l
         return $msg;
     }
 
-    $msg = "Welcome {$name}. I am Kaka, your Getway system assistant. ";
+    $msg = "Welcome {$name}. I am Kaka, your Getway system robot. ";
+    if ($agent['authorized']) {
+        $msg .= 'I recognize you as my only authorized agent. ';
+    }
     $msg .= "You are {$roleLabel}";
     if ($loginAt !== '') {
         $msg .= ', logged in ' . gwRobotFormatDuration($loginAt);
