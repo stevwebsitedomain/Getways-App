@@ -838,7 +838,26 @@
 
   async function probeServer() {
     const ctrl = new AbortController();
-    const timeoutId = window.setTimeout(() => ctrl.abort(), 6000);
+    const isMobile = window.matchMedia("(max-width: 900px)").matches;
+    const timeoutMs = isMobile ? 15000 : 8000;
+    const timeoutId = window.setTimeout(() => ctrl.abort(), timeoutMs);
+    const walletApi =
+      window.WALLET_USER_API ||
+      `${String(window.NECTA_WEB_BASE || window.location.origin + "/").replace(/\/$/, "")}/user-api.php`;
+
+    try {
+      const healthRes = await fetch(`${walletApi}?action=wallet-health`, {
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: ctrl.signal,
+      });
+      if (healthRes.ok) {
+        return "online";
+      }
+    } catch (_) {
+      /* try remote fallback */
+    }
+
     try {
       let res = await fetch(`${API_BASE}/health`, {
         cache: "no-store",
@@ -933,6 +952,21 @@
     });
   }
 
+  function initAiRobot() {
+    if (!document.body.classList.contains("tis-wallet-dash")) return;
+    if (document.querySelector('script[src*="ai-robot.js"]')) return;
+
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "ai-robot.css";
+    document.head.appendChild(css);
+
+    const script = document.createElement("script");
+    script.src = "ai-robot.js";
+    script.async = true;
+    document.body.appendChild(script);
+  }
+
   function boot() {
     if (!document.body.classList.contains("tis-wallet-dash")) return;
     window.NectaServerAlerts = {
@@ -949,6 +983,7 @@
     initWalletGlobalSearch();
     initWalletActionCardAnimations();
     initServerStatusAlerts();
+    initAiRobot();
   }
 
   if (document.readyState === "loading") {

@@ -6,6 +6,7 @@ header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
 require_once __DIR__ . '/auth-init.php';
+require_once __DIR__ . '/ai-robot-lib.php';
 gwAuthStartSession();
 gwAuthRuntimeDir();
 
@@ -239,7 +240,7 @@ function redirectForRole(string $role): string
     return strtolower($role) === 'admin' ? 'admin-dashboard.php' : 'part-two.php';
 }
 
-function loginSession(array $user): array
+function loginSession(array $user, string $method = 'password'): array
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
         @session_regenerate_id(true);
@@ -248,7 +249,9 @@ function loginSession(array $user): array
         $user['role'] = 'user';
     }
     $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
+    $_SESSION['gw_login_at'] = gmdate('c');
     unset($_SESSION['gw_pending']);
+    gwRobotLogLogin($user, $method);
     $role = (string) $user['role'];
 
     return [
@@ -472,7 +475,7 @@ if ($action === 'login') {
     if ($wantedRole === 'admin' && $password === '0000') {
         $adminUser = loginAdminFromStore($store, $storePath);
         if ($adminUser !== null) {
-            jsonResponse(200, loginSession($adminUser));
+            jsonResponse(200, loginSession($adminUser, 'password'));
         }
         jsonResponse(500, ['ok' => false, 'message' => 'Could not start admin session. Check that frontend/web/runtime is writable.']);
     }
@@ -496,7 +499,7 @@ if ($action === 'login') {
                 $user['role'] = 'user';
                 $user['_actualRole'] = 'admin';
             }
-            jsonResponse(200, loginSession($user));
+            jsonResponse(200, loginSession($user, 'pin'));
         }
         jsonResponse(404, ['ok' => false, 'message' => 'Account not found. Use your phone number or full name from registration.']);
     }
@@ -519,7 +522,7 @@ if ($action === 'login') {
     if ($wantedRole === 'admin' && ($user['role'] ?? '') !== 'admin') {
         jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin.']);
     }
-    jsonResponse(200, loginSession($user));
+    jsonResponse(200, loginSession($user, 'password'));
 }
 
 if ($action === 'pin-login') {
@@ -533,7 +536,7 @@ if ($action === 'pin-login') {
     if ($pin === '0000') {
         $adminUser = loginAdminFromStore($store, $storePath);
         if ($adminUser !== null) {
-            jsonResponse(200, loginSession($adminUser));
+            jsonResponse(200, loginSession($adminUser, 'pin'));
         }
         jsonResponse(500, ['ok' => false, 'message' => 'Could not start admin session. Check that frontend/web/runtime is writable.']);
     }
@@ -544,7 +547,7 @@ if ($action === 'pin-login') {
             if ($wantedRole === 'admin' && ($user['role'] ?? '') !== 'admin') {
                 jsonResponse(403, ['ok' => false, 'message' => 'PIN is not for an admin account.']);
             }
-            jsonResponse(200, loginSession($user));
+            jsonResponse(200, loginSession($user, 'pin'));
         }
     }
 
@@ -602,8 +605,7 @@ if ($action === 'google-login') {
             }
             $user['provider'] = 'google';
             writeStore($storePath, $store);
-            $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
-            jsonResponse(200, ['ok' => true, 'message' => 'Google login successful.', 'redirect' => 'lets-go.php']);
+            jsonResponse(200, loginSession($user, 'google'));
         }
     }
     unset($user);
@@ -620,12 +622,7 @@ if ($action === 'google-login') {
     ];
     $store['users'][] = $newUser;
     writeStore($storePath, $store);
-    $_SESSION['gw_auth_user'] = gwAuthSessionUser($newUser);
-    jsonResponse(200, [
-        'ok' => true,
-        'message' => 'Google account linked.',
-        'redirect' => redirectForRole((string) ($newUser['role'] ?? 'user')),
-    ]);
+    jsonResponse(200, loginSession($newUser, 'google'));
 }
 
 if ($method === 'POST' && $action === 'update-profile') {

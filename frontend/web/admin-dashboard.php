@@ -26,8 +26,12 @@ foreach (['images/payments-bg.jpg', 'login-bg.jpg', 'images/login.jpg', 'images/
 $gaBgUrl = htmlspecialchars($gaBgUrl, ENT_QUOTES);
 $cssV = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
 $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
+$robotCssV = (string) (@filemtime(__DIR__ . '/ai-robot.css') ?: time());
+$robotJsV = (string) (@filemtime(__DIR__ . '/ai-robot.js') ?: time());
 $cssV = htmlspecialchars($cssV, ENT_QUOTES);
 $jsV = htmlspecialchars($jsV, ENT_QUOTES);
+$robotCssV = htmlspecialchars($robotCssV, ENT_QUOTES);
+$robotJsV = htmlspecialchars($robotJsV, ENT_QUOTES);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -41,6 +45,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="admin-dashboard.css?v=<?php echo $cssV; ?>" />
+  <link rel="stylesheet" href="ai-robot.css?v=<?php echo htmlspecialchars($robotCssV, ENT_QUOTES); ?>" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
 </head>
 <body class="ad-body">
@@ -386,5 +391,6 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   <script src="admin-dashboard.js?v=<?php echo $jsV; ?>"></script>
+  <script src="ai-robot.js?v=<?php echo htmlspecialchars($robotJsV, ENT_QUOTES); ?>"></script>
 </body>
 </html>
