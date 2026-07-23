@@ -76,7 +76,8 @@ $amountFmt = number_format((float) $tx['amount'], 0, '.', ',');
 $when = $tx['created_at']
     ? date('d/m/Y, H:i:s', (int) $tx['created_at'])
     : date('d/m/Y, H:i:s');
-$autoPrint = isset($_GET['print']) && (string) $_GET['print'] === '1';
+$autoPrint = (isset($_GET['print']) && (string) $_GET['print'] === '1')
+    || (isset($_GET['autoprint']) && (string) $_GET['autoprint'] === '1');
 $embed = isset($_GET['embed']) && (string) $_GET['embed'] === '1';
 
 function h(?string $v): string

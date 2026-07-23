@@ -229,27 +229,91 @@ class ClickPesaService extends Component
 
     public function listControlNumbers(int $limit = 100): array
     {
+        $this->processPendingPayouts(10);
+        $settings = ClickPesaSetting::current();
         $models = ClickPesaTransaction::find()
             ->where(['or', ['channel' => 'billpay'], ['not', ['control_number' => null]]])
             ->orderBy(['id' => SORT_DESC])
             ->limit($limit)
             ->all();
 
-        return [
-            'success' => true,
-            'items' => array_map(static fn(ClickPesaTransaction $tx): array => [
+        $items = [];
+        foreach ($models as $tx) {
+            $payout = ClickPesaPayout::findOne(['payment_id' => $tx->id]);
+            $withdraw = $this->resolveWithdrawInfo($tx, $payout, $settings);
+            $items[] = [
                 'id' => $tx->id,
                 'orderId' => $tx->order_id,
                 'customerName' => $tx->customer_name,
                 'controlNumber' => $tx->control_number,
+                'hasControlNumber' => trim((string) ($tx->control_number ?? '')) !== '',
                 'reference' => $tx->order_reference,
                 'amount' => (float) ($tx->expected_amount ?: $tx->amount),
                 'receivedAmount' => $tx->received_amount !== null ? (float) $tx->received_amount : null,
                 'status' => $tx->payment_status,
                 'description' => $tx->description,
                 'createdAt' => $tx->created_at ? date('c', (int) $tx->created_at) : null,
-                'invoiceUrl' => '/api/clickpesa/control-number/' . $tx->id . '/invoice',
-            ], $models),
+                'withdrawStatus' => $withdraw['withdrawStatus'],
+                'canWithdraw' => $withdraw['canWithdraw'],
+                'canResend' => strtoupper((string) $tx->payment_status) === ClickPesaTransaction::STATUS_PENDING,
+                'invoiceUrl' => 'admin-invoice.php?id=' . $tx->id,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'payoutSettings' => [
+                'enabled' => (bool) $settings->auto_payout_enabled,
+                'mode' => $settings->mode ?: ClickPesaSetting::MODE_TEST,
+                'manualApprovalRequired' => (bool) $settings->require_manual_approval,
+            ],
+            'items' => $items,
+        ];
+    }
+
+    /**
+     * Refresh a pending payment from ClickPesa and re-share control number details.
+     *
+     * @return array<string, mixed>
+     */
+    public function resendPaymentReminder(int $paymentId): array
+    {
+        $tx = ClickPesaTransaction::findOne($paymentId);
+        if ($tx === null) {
+            throw new NotFoundHttpException('Payment not found.');
+        }
+        if (strtoupper((string) $tx->payment_status) !== ClickPesaTransaction::STATUS_PENDING) {
+            throw new BadRequestHttpException('Only pending payments can be resent.');
+        }
+
+        $wasPaid = $tx->isPaymentSuccessful();
+        $this->getPaymentStatus((string) $tx->order_reference, true);
+        $tx->refresh();
+
+        if (!$wasPaid && $tx->isPaymentSuccessful()) {
+            $received = $this->extractValue(
+                json_decode((string) ($tx->raw_payload ?: '{}'), true) ?: [],
+                ['receivedAmount', 'collectedAmount', 'amount', 'data.amount']
+            );
+            if ($received !== null && (float) $received > 0) {
+                $tx->received_amount = (float) $received;
+            } elseif ($tx->received_amount === null) {
+                $tx->received_amount = (float) ($tx->expected_amount ?: $tx->amount);
+            }
+            $tx->paid_at = time();
+            $tx->save(false);
+
+            if ($this->maybeQueueAutomaticPayout($tx)) {
+                $this->processQueuedPayoutForPayment($tx);
+            }
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Payment status refreshed. Share the control number with the customer again if needed.',
+            'paymentStatus' => $tx->payment_status,
+            'controlNumber' => $tx->control_number,
+            'orderReference' => $tx->order_reference,
         ];
     }
 
@@ -385,21 +449,32 @@ class ClickPesaService extends Component
             throw new NotFoundHttpException('Control number not found.');
         }
 
+        $controlNumber = trim((string) ($tx->control_number ?? ''));
+        $createdAt = $tx->created_at ? date('Y-m-d H:i:s', (int) $tx->created_at) : date('Y-m-d H:i:s');
+        $paidAt = $tx->paid_at ? date('Y-m-d H:i:s', (int) $tx->paid_at) : null;
+
         return [
             'id' => $tx->id,
             'invoiceNumber' => 'INV-CP-' . str_pad((string) $tx->id, 6, '0', STR_PAD_LEFT),
             'orderId' => $tx->order_id ?: '—',
             'customerName' => $tx->customer_name ?: 'Customer',
             'customerPhone' => $tx->phone ? ClickPesaSetting::maskPhone((string) $tx->phone) : null,
+            'customerPhoneFormatted' => $tx->phone ? ClickPesaSetting::maskPhone((string) $tx->phone) : '—',
             'customerEmail' => null,
-            'controlNumber' => $tx->control_number,
-            'billReference' => $tx->order_reference,
+            'controlNumber' => $controlNumber !== '' ? $controlNumber : '—',
+            'hasControlNumber' => $controlNumber !== '',
+            'billReference' => $tx->order_reference ?: '—',
             'amount' => (float) ($tx->expected_amount ?: $tx->amount),
             'currency' => $tx->currency ?: $this->getConfig()['currency'],
             'paymentMode' => $tx->payment_mode ?: ClickPesaTransaction::MODE_EXACT,
             'description' => $tx->description ?: 'ClickPesa payment',
             'status' => $tx->payment_status,
-            'createdAt' => $tx->created_at ? date('Y-m-d H:i:s', (int) $tx->created_at) : date('Y-m-d H:i:s'),
+            'channel' => $tx->channel ?: 'billpay',
+            'createdAt' => $createdAt,
+            'createdAtFormatted' => $createdAt,
+            'paidAt' => $paidAt,
+            'paidAtFormatted' => $paidAt ?: '—',
+            'qrReference' => $tx->order_reference ?: '',
         ];
     }
 
@@ -483,23 +558,16 @@ class ClickPesaService extends Component
             throw new ConflictHttpException('Could not allocate a unique bill reference.');
         }
 
+        $customerName = !empty($data['customerName']) ? (string) $data['customerName'] : null;
+        $customerPhone = !empty($data['phone']) ? $this->normalizePhone((string) $data['phone']) : null;
+
+        // ClickPesa order control numbers reject customerName/customerPhone in the API body.
         $payload = [
             'billDescription' => $description,
             'billPaymentMode' => $paymentMode,
             'billAmount' => $amount,
             'billReference' => $billReference,
         ];
-
-        // Backward-compatible optional customer fields
-        if (!empty($data['customerName'])) {
-            $payload['customerName'] = (string) $data['customerName'];
-        }
-        if (!empty($data['phone'])) {
-            $payload['customerPhone'] = $this->normalizePhone((string) $data['phone']);
-        }
-        if (!empty($data['email'])) {
-            $payload['customerEmail'] = (string) $data['email'];
-        }
 
         $this->log('info', 'Creating BillPay control number', [
             'billReference' => $billReference,
@@ -528,8 +596,8 @@ class ClickPesaService extends Component
             'expected_amount' => $amount,
             'currency' => $this->getConfig()['currency'],
             'payment_mode' => $paymentMode,
-            'phone' => $payload['customerPhone'] ?? null,
-            'customer_name' => $payload['customerName'] ?? null,
+            'phone' => $customerPhone,
+            'customer_name' => $customerName,
             'description' => $description,
             'payment_status' => ClickPesaTransaction::STATUS_PENDING,
             'transaction_type' => ClickPesaTransaction::TYPE_COLLECTION,
@@ -1288,6 +1356,9 @@ class ClickPesaService extends Component
         $payoutQueued = false;
         if (!$alreadyPaid) {
             $payoutQueued = $this->maybeQueueAutomaticPayout($tx);
+            if ($payoutQueued) {
+                $this->processQueuedPayoutForPayment($tx);
+            }
         }
 
         return [
@@ -1416,9 +1487,13 @@ class ClickPesaService extends Component
         }
 
         $amount = $this->calculatePayoutAmount($tx, $settings);
-        if ($amount < (float) $settings->minimum_amount) {
-            $this->log('info', 'Auto payout below minimum', ['amount' => $amount]);
-            return false;
+        $mode = strtoupper((string) ($settings->mode ?: ClickPesaSetting::MODE_TEST));
+        $minimum = (float) $settings->minimum_amount;
+        if ($amount < $minimum) {
+            if ($mode !== ClickPesaSetting::MODE_LIVE_AUTO || $amount <= 0) {
+                $this->log('info', 'Auto payout below minimum', ['amount' => $amount, 'minimum' => $minimum]);
+                return false;
+            }
         }
 
         if (!$this->withinDailyLimit($settings, $amount)) {
@@ -1684,6 +1759,74 @@ class ClickPesaService extends Component
             $tx->save(false, ['inventory_updated', 'updated_at']);
         } catch (\Throwable $e) {
             $this->log('warning', 'Inventory update skipped', ['error' => $e->getMessage()]);
+        }
+    }
+
+    private function resolveWithdrawInfo(
+        ClickPesaTransaction $tx,
+        ?ClickPesaPayout $payout,
+        ClickPesaSetting $settings
+    ): array {
+        if (!$tx->isPaymentSuccessful()) {
+            return ['withdrawStatus' => '—', 'canWithdraw' => false];
+        }
+
+        $enabled = (bool) $settings->auto_payout_enabled;
+        $mode = strtoupper((string) ($settings->mode ?: ClickPesaSetting::MODE_TEST));
+        if (!$enabled || $mode === ClickPesaSetting::MODE_TEST) {
+            return ['withdrawStatus' => 'Payout off', 'canWithdraw' => false];
+        }
+
+        $payoutStatus = strtoupper((string) ($payout->payout_status ?? $tx->payout_status ?? ''));
+        if (in_array($payoutStatus, [ClickPesaPayout::STATUS_SUCCESS, 'COMPLETED', 'SETTLED'], true)) {
+            return ['withdrawStatus' => 'Withdrawn', 'canWithdraw' => false];
+        }
+        if (in_array($payoutStatus, [
+            ClickPesaPayout::STATUS_QUEUED,
+            ClickPesaPayout::STATUS_AWAITING_APPROVAL,
+            ClickPesaPayout::STATUS_PROCESSING,
+            ClickPesaPayout::STATUS_PENDING,
+            'PREVIEWED',
+        ], true)) {
+            return ['withdrawStatus' => 'Processing…', 'canWithdraw' => false];
+        }
+        if ($payoutStatus === ClickPesaPayout::STATUS_FAILED) {
+            return ['withdrawStatus' => 'Failed', 'canWithdraw' => $mode === ClickPesaSetting::MODE_MANUAL_APPROVAL];
+        }
+        if ($mode === ClickPesaSetting::MODE_LIVE_AUTO) {
+            return ['withdrawStatus' => $payoutStatus !== '' ? $payoutStatus : 'Auto queued', 'canWithdraw' => false];
+        }
+
+        return ['withdrawStatus' => 'Not withdrawn', 'canWithdraw' => true];
+    }
+
+    private function processQueuedPayoutForPayment(ClickPesaTransaction $tx): void
+    {
+        $settings = ClickPesaSetting::current();
+        if (($settings->mode ?: ClickPesaSetting::MODE_TEST) !== ClickPesaSetting::MODE_LIVE_AUTO) {
+            return;
+        }
+        if ((bool) $settings->require_manual_approval) {
+            return;
+        }
+
+        $payout = ClickPesaPayout::findOne(['payment_id' => $tx->id]);
+        if ($payout === null || $payout->isFinal()) {
+            return;
+        }
+
+        $phone = $settings->getDestinationPhone() ?: $this->getConfig()['autoPayoutPhone'];
+        if ($phone === null || trim($phone) === '') {
+            return;
+        }
+
+        try {
+            $this->processPayout($payout, $phone);
+        } catch (\Throwable $e) {
+            $this->log('error', 'Immediate auto payout failed', [
+                'paymentId' => $tx->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

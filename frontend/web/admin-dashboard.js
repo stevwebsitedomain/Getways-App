@@ -8,6 +8,8 @@
   let controlsPage = 1;
   let payoutsPage = 1;
   let usersPage = 1;
+  let recentPage = 1;
+  let latestRecentRows = [];
   let latestSettings = null;
   let analyticsPeriod = "all";
 
@@ -509,6 +511,37 @@
     }
   }
 
+  function isAutoPayoutActive() {
+    return Boolean(latestSettings?.enabled) && String(latestSettings?.mode || "").toUpperCase() === "LIVE_AUTO";
+  }
+
+  function isManualPayoutActive() {
+    return Boolean(latestSettings?.enabled) && !isAutoPayoutActive();
+  }
+
+  function renderRecentCollections() {
+    const recent = document.getElementById("ad-recent");
+    if (!recent) return;
+    const rows = latestRecentRows;
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    recentPage = Math.min(Math.max(1, recentPage), totalPages);
+    const slice = rows.slice((recentPage - 1) * PAGE_SIZE, recentPage * PAGE_SIZE);
+    recent.innerHTML = slice.length
+      ? slice.map((row) => `
+          <li>
+            <div>
+              <strong>${esc(row.orderReference || row.controlNumber || "—")}</strong>
+              <div style="color:#8b9aab;font-size:0.8rem">${statusBadge(row.status)} · ${fmtDate(row.createdAt)}</div>
+            </div>
+            <strong>${money(row.amount)}</strong>
+          </li>`).join("")
+      : "<li>No ClickPesa transactions were found for this period.</li>";
+    renderPager("ad-recent-pager", recentPage, rows.length, (page) => {
+      recentPage = page;
+      renderRecentCollections();
+    });
+  }
+
   async function loadStatement() {
     try {
       const result = await requestJson("analytics", {
@@ -523,23 +556,17 @@
       drawTrend(document.getElementById("ad-trend"), analytics.trendDays || []);
       drawPie(document.getElementById("ad-pie"), analytics);
       const recent = document.getElementById("ad-recent");
-      const recentRows = analytics.recentCollections || [];
-      recent.innerHTML = recentRows.length
-        ? recentRows.map((row) => `
-            <li>
-              <div>
-                <strong>${esc(row.orderReference || row.controlNumber || "—")}</strong>
-                <div style="color:#8b9aab;font-size:0.8rem">${statusBadge(row.status)} · ${fmtDate(row.createdAt)}</div>
-              </div>
-              <strong>${money(row.amount)}</strong>
-            </li>`).join("")
-        : "<li>No ClickPesa transactions were found for this period.</li>";
+      latestRecentRows = analytics.recentCollections || [];
+      recentPage = 1;
+      renderRecentCollections();
       setBanner("ad-statement-error", "");
       setBanner("ad-recent-error", "");
     } catch (error) {
       drawTrend(document.getElementById("ad-trend"), []);
       drawPie(document.getElementById("ad-pie"), {});
-      document.getElementById("ad-recent").innerHTML = "<li>No ClickPesa transactions were found for this period.</li>";
+      latestRecentRows = [];
+      recentPage = 1;
+      renderRecentCollections();
       setBanner("ad-statement-error", error.message, "error", { toast: true });
       clearBanner("ad-recent-error");
     }
@@ -609,7 +636,12 @@
     const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
     controlsPage = Math.min(Math.max(1, controlsPage), totalPages);
     const slice = rows.slice((controlsPage - 1) * PAGE_SIZE, controlsPage * PAGE_SIZE);
-    body.innerHTML = slice.length ? slice.map((row) => `
+    body.innerHTML = slice.length ? slice.map((row) => {
+      const status = String(row.status || "").toUpperCase();
+      const isPending = status === "PENDING";
+      const showResend = isPending && row.canResend !== false;
+      const showWithdraw = row.canWithdraw && isManualPayoutActive();
+      return `
         <tr>
           <td>${esc(row.orderId || "—")}</td>
           <td>${esc(row.customerName || "—")}</td>
@@ -622,18 +654,36 @@
           <td>
             <div class="ad-actions">
             ${row.hasControlNumber ? `<button type="button" class="ad-btn ad-btn--copy" data-copy="${esc(row.controlNumber)}"><i class="fa-regular fa-copy"></i><span>Copy</span></button>` : ""}
-            ${row.canWithdraw ? `<button type="button" class="ad-btn ad-btn--withdraw" data-withdraw="${row.id}"><i class="fa-solid fa-money-bill-wave"></i><span>Withdraw</span></button>` : ""}
+            ${showResend ? `<button type="button" class="ad-btn ad-btn--resend" data-resend="${row.id}"><i class="fa-solid fa-paper-plane"></i><span>Resend</span></button>` : ""}
+            ${showWithdraw ? `<button type="button" class="ad-btn ad-btn--withdraw" data-withdraw="${row.id}"><i class="fa-solid fa-money-bill-wave"></i><span>Withdraw</span></button>` : ""}
             ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--view" data-invoice="${esc(row.invoiceUrl)}"><i class="fa-solid fa-receipt"></i><span>View</span></button>` : ""}
-            ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--download" data-invoice-download="${esc(row.invoiceUrl)}"><i class="fa-solid fa-download"></i><span>PDF</span></button>` : ""}
+            ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--download" data-invoice-download="${esc(row.invoiceUrl)}"><i class="fa-solid fa-file-pdf"></i><span>PDF</span></button>` : ""}
             </div>
           </td>
-        </tr>`).join("") : `<tr><td colspan="9">No transactions yet.</td></tr>`;
+        </tr>`;
+    }).join("") : `<tr><td colspan="9">No transactions yet.</td></tr>`;
     bindCopyButtons();
     body.querySelectorAll("[data-invoice]").forEach((btn) => {
       btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice") || "", false));
     });
     body.querySelectorAll("[data-invoice-download]").forEach((btn) => {
       btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice-download") || "", true));
+    });
+    body.querySelectorAll("[data-resend]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const paymentId = Number(btn.getAttribute("data-resend"));
+        if (!paymentId) return;
+        btn.disabled = true;
+        try {
+          const result = await requestJson("resend-payment", { method: "POST", body: { id: paymentId } });
+          notify(result.message || "Payment status refreshed.", "success");
+          await Promise.all([loadControls(), loadStatement(), loadPayouts(), loadBalance()]);
+        } catch (error) {
+          notify(error.message || "Resend failed.", "error");
+        } finally {
+          btn.disabled = false;
+        }
+      });
     });
     body.querySelectorAll("[data-withdraw]").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -663,6 +713,9 @@
     try {
       const result = await requestJson("control-numbers");
       latestControlRows = result.items || [];
+      if (result.payoutSettings) {
+        latestSettings = { ...(latestSettings || {}), ...result.payoutSettings };
+      }
       controlsPage = 1;
       renderControlsTable();
       setBanner("ad-controls-error", "");
@@ -899,6 +952,88 @@
     }
   }
 
+  function bindGeneralAnalysis() {
+    const overlay = document.getElementById("ad-ga-overlay");
+    const openBtn = document.getElementById("ad-ga-open");
+    const closeBtn = document.getElementById("ad-ga-close");
+    if (!overlay) return;
+
+    const sectionMap = {
+      analytics: "ad-section-analytics",
+      "control-number": "ad-section-control-number",
+      transactions: "ad-section-transactions",
+      "payout-dest": "ad-section-payout-dest",
+      payouts: "ad-section-payouts",
+      users: "ad-section-users",
+      recent: "ad-section-recent",
+      autopay: "stat-auto-card",
+    };
+
+    function updateHubSummary() {
+      const balanceEl = document.getElementById("ad-ga-hub-balance");
+      const autoEl = document.getElementById("ad-ga-hub-auto");
+      const balance = document.getElementById("stat-balance")?.textContent || "—";
+      const autoOn = document.getElementById("stat-auto")?.textContent === "ON";
+      if (balanceEl) balanceEl.textContent = balance;
+      if (autoEl) {
+        autoEl.textContent = autoOn ? "Auto payout ON" : "Auto payout OFF";
+        autoEl.classList.toggle("is-on", autoOn);
+      }
+    }
+
+    function openOverlay() {
+      updateHubSummary();
+      overlay.hidden = false;
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("ad-ga-active");
+    }
+
+    function closeOverlay() {
+      overlay.hidden = true;
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("ad-ga-active");
+    }
+
+    function scrollToSection(key) {
+      const id = sectionMap[key];
+      if (!id) return;
+      closeOverlay();
+      window.setTimeout(() => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("ad-ga-highlight");
+        window.setTimeout(() => el.classList.remove("ad-ga-highlight"), 1400);
+      }, 120);
+    }
+
+    openBtn?.addEventListener("click", openOverlay);
+    closeBtn?.addEventListener("click", closeOverlay);
+    document.getElementById("ad-ga-hub")?.addEventListener("click", () => {
+      closeOverlay();
+      document.getElementById("ad-stats")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    overlay.querySelectorAll("[data-ga-target]").forEach((node) => {
+      node.addEventListener("click", (event) => {
+        if (node.classList.contains("ad-ga-chip--link")) return;
+        event.preventDefault();
+        const target = node.getAttribute("data-ga-target") || "";
+        const action = node.getAttribute("data-ga-action") || "scroll";
+        if (action === "sync") {
+          closeOverlay();
+          syncTransactions().catch(() => {});
+          return;
+        }
+        scrollToSection(target);
+      });
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !overlay.hidden) closeOverlay();
+    });
+  }
+
   function exportPayoutCsv() {
     if (!latestPayoutRows.length) return;
     const header = ["Payout Reference", "Destination", "Amount", "Fee", "Status", "Provider", "Error", "Updated"];
@@ -945,6 +1080,7 @@
   document.getElementById("ad-payout-form")?.addEventListener("submit", savePayoutDestination);
   document.getElementById("ad-payouts-refresh")?.insertAdjacentHTML("afterend", ' <button type="button" class="ad-refresh" id="ad-payouts-export">Export CSV</button>');
   document.getElementById("ad-payouts-export")?.addEventListener("click", exportPayoutCsv);
+  bindGeneralAnalysis();
 
   loadAll().catch((error) => {
     setBanner("ad-db-banner", error.message, "error", { toast: true });

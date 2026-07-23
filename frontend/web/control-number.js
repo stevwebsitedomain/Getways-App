@@ -19,10 +19,10 @@
 
   function statusBadge(st) {
     const s = String(st || "").toUpperCase();
-    let cls = "ad-badge--pending";
-    if (["SUCCESS", "PAID", "COMPLETED"].includes(s)) cls = "ad-badge--ok";
-    if (["FAILED", "FAILURE", "REFUNDED", "REVERSED"].includes(s)) cls = "ad-badge--fail";
-    return `<span class="ad-badge ${cls}">${esc(s || "—")}</span>`;
+    let cls = "bk-badge--pending";
+    if (["SUCCESS", "PAID", "COMPLETED"].includes(s)) cls = "bk-badge--ok";
+    if (["FAILED", "FAILURE", "REFUNDED", "REVERSED"].includes(s)) cls = "bk-badge--fail";
+    return `<span class="bk-badge ${cls}">${esc(s || "—")}</span>`;
   }
 
   async function requestJson(action, options = {}) {
@@ -69,6 +69,12 @@
     window.Swal.fire({ icon: "error", title: "Haijafanikiwa", text: message, confirmButtonColor: "#b91c1c" });
   }
 
+  function qrImageUrl(payload) {
+    const data = encodeURIComponent(String(payload || "").trim());
+    if (!data) return "";
+    return `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=8&ecc=H&data=${data}`;
+  }
+
   function buildPaperHtml(data) {
     const cn = esc(data.controlNumber || "—");
     const ref = esc(data.reference || "—");
@@ -78,6 +84,11 @@
     const isPaid = ["SUCCESS", "PAID", "COMPLETED", "SETTLED"].includes(status);
     const statusLabel = isPaid ? "IMELIPWA" : "BADO — INASUBIRI MALIPO";
     const statusColor = isPaid ? "#15803d" : "#b45309";
+    const shareUrl = data.receiptShareUrl || "";
+    const qrUrl = shareUrl ? qrImageUrl(shareUrl) : "";
+    const qrBlock = qrUrl
+      ? `<div class="ad-cn-qr-wrap"><img src="${qrUrl}" alt="Receipt QR" class="ad-cn-qr" /><p class="ad-cn-qr-caption">Skani kuona risiti kwenye simu</p></div>`
+      : "";
     return `
       <div class="ad-cn-paper">
         <div class="ad-cn-brand">Getway | BillPay</div>
@@ -85,6 +96,7 @@
         <hr class="ad-cn-dash" />
         <div class="ad-cn-number">${cn}</div>
         <p class="ad-cn-hint">Shiriki namba hii na mteja ili alipe.</p>
+        ${qrBlock}
         <hr class="ad-cn-dash" />
         <div class="ad-cn-row"><span>REFERENCE</span><span>${ref}</span></div>
         <div class="ad-cn-row"><span>AMOUNT</span><span>${amt}</span></div>
@@ -96,16 +108,20 @@
   async function showResult(data) {
     dismissWaitSwal();
     const cn = data.controlNumber || "";
+    const invoiceUrl = data.invoiceUrl || "";
     const msg = document.getElementById("control-number-message");
     if (msg) {
-      msg.className = "ad-msg is-ok";
+      msg.className = "form-message is-ok";
       msg.textContent = `Control number: ${cn}`;
     }
     if (!window.Swal) return;
     await window.Swal.fire({
       icon: "success",
       title: "Imefanikiwa!",
-      html: `${buildPaperHtml(data)}<div class="ad-cn-actions"><button type="button" class="ad-refresh" id="swal-copy-cn">Nakili Control Number</button></div>`,
+      html: `${buildPaperHtml(data)}<div class="ad-cn-actions">
+        <button type="button" class="ad-refresh" id="swal-copy-cn">Nakili Control Number</button>
+        ${invoiceUrl ? '<button type="button" class="ad-refresh" id="swal-view-invoice">Angalia Risiti</button>' : ""}
+      </div>`,
       confirmButtonText: "Funga",
       confirmButtonColor: "#16a34a",
       width: 400,
@@ -113,6 +129,7 @@
         document.getElementById("swal-copy-cn")?.addEventListener("click", async () => {
           await navigator.clipboard?.writeText(cn);
         });
+        document.getElementById("swal-view-invoice")?.addEventListener("click", () => openInvoice(invoiceUrl, false));
       },
     });
   }
@@ -128,16 +145,31 @@
     }
     pager.hidden = false;
     pager.innerHTML = `
-      <button type="button" class="ad-pager-btn" data-page="prev" ${txPage <= 1 ? "disabled" : ""}>Previous</button>
-      <span class="ad-pager-info">Page ${txPage} of ${totalPages}</span>
-      <button type="button" class="ad-pager-btn" data-page="next" ${txPage >= totalPages ? "disabled" : ""}>Next</button>`;
+      <button type="button" class="bk-pager-btn" data-page="prev" ${txPage <= 1 ? "disabled" : ""}>Prev</button>
+      <span class="bk-pager-info">${txPage} / ${totalPages}</span>
+      <button type="button" class="bk-pager-btn" data-page="next" ${txPage >= totalPages ? "disabled" : ""}>Next</button>`;
     pager.querySelector('[data-page="prev"]')?.addEventListener("click", () => { txPage -= 1; renderTable(); });
     pager.querySelector('[data-page="next"]')?.addEventListener("click", () => { txPage += 1; renderTable(); });
   }
 
+  function resolveInvoiceUrl(url) {
+    const raw = String(url || "").trim();
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw)) {
+      return raw.replace(/admin-invoice\.php/i, "control-number-invoice.php");
+    }
+    const normalized = raw.replace(/^admin-invoice\.php/i, "control-number-invoice.php");
+    if (normalized.startsWith("/")) {
+      return `${window.location.origin}${normalized}`;
+    }
+    const base = window.location.pathname.replace(/[^/]*$/, "");
+    return `${window.location.origin}${base}${normalized}`;
+  }
+
   function openInvoice(url, download) {
-    if (!url) return;
-    const target = download ? `${url}${url.includes("?") ? "&" : "?"}download=1` : url;
+    const resolved = resolveInvoiceUrl(url);
+    if (!resolved) return;
+    const target = download ? `${resolved}${resolved.includes("?") ? "&" : "?"}download=1` : resolved;
     window.open(target, "_blank", "noopener");
   }
 
@@ -148,19 +180,16 @@
     body.innerHTML = slice.length ? slice.map((row) => `
       <tr>
         <td>${esc(row.orderId || "—")}</td>
-        <td>${esc(row.customerName || "—")}</td>
         <td>${esc(row.controlNumber || "—")}</td>
-        <td>${esc(row.reference || "—")}</td>
         <td>${money(row.amount)}</td>
-        <td>${row.receivedAmount != null ? money(row.receivedAmount) : "—"}</td>
         <td>${statusBadge(row.status)}</td>
         <td>
-          <div class="ad-actions">
-            ${row.controlNumber ? `<button type="button" class="ad-btn ad-btn--copy" data-copy="${esc(row.controlNumber)}"><i class="fa-regular fa-copy"></i><span>Copy</span></button>` : ""}
-            ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--view" data-invoice="${esc(row.invoiceUrl)}"><i class="fa-solid fa-receipt"></i><span>View</span></button>` : ""}
+          <div class="bk-row-actions">
+            ${row.controlNumber ? `<button type="button" class="bk-row-btn" data-copy="${esc(row.controlNumber)}" title="Copy"><i class="fa-regular fa-copy"></i></button>` : ""}
+            ${row.invoiceUrl ? `<button type="button" class="bk-row-btn" data-invoice="${esc(row.invoiceUrl)}" title="View"><i class="fa-solid fa-receipt"></i></button>` : ""}
           </div>
         </td>
-      </tr>`).join("") : `<tr><td colspan="8">No transactions yet.</td></tr>`;
+      </tr>`).join("") : `<tr><td colspan="5" class="bk-empty">No transactions yet.</td></tr>`;
     body.querySelectorAll("[data-copy]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         await navigator.clipboard?.writeText(btn.getAttribute("data-copy") || "");
@@ -174,14 +203,14 @@
 
   async function loadTransactions() {
     const body = document.getElementById("cn-tx-body");
-    if (body) body.innerHTML = `<tr><td colspan="8">Loading…</td></tr>`;
+    if (body) body.innerHTML = `<tr><td colspan="5" class="bk-empty">Loading…</td></tr>`;
     try {
       const data = await requestJson("transactions");
       txRows = data.items || [];
       txPage = 1;
       renderTable();
     } catch (error) {
-      if (body) body.innerHTML = `<tr><td colspan="8">No transactions yet.</td></tr>`;
+      if (body) body.innerHTML = `<tr><td colspan="5" class="bk-empty">No transactions yet.</td></tr>`;
       const err = document.getElementById("cn-tx-error");
       if (err) {
         err.hidden = false;
@@ -198,7 +227,7 @@
       event.preventDefault();
       try {
         if (submitBtn) submitBtn.disabled = true;
-        showWaitSwal("Tafadhali subiri", "<p style='margin:0.35rem 0 0;font-weight:600;color:#475569'>Tunatengeneza control number kutoka ClickPesa…</p>");
+        showWaitSwal("Subiri", "<p style='margin:0.35rem 0 0;font-weight:600;color:#475569'>Tunatengeneza control number…</p>");
         const payload = Object.fromEntries(new FormData(form).entries());
         if (!String(payload.order_id || "").trim()) delete payload.order_id;
         if (!String(payload.description || "").trim()) payload.description = "BillPay payment";
@@ -210,7 +239,7 @@
         showError(error.message || "Failed to create control number.");
         const msg = document.getElementById("control-number-message");
         if (msg) {
-          msg.className = "ad-msg is-err";
+          msg.className = "form-message is-error";
           msg.textContent = error.message;
         }
       } finally {

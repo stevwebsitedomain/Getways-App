@@ -165,9 +165,16 @@
   }
 
   function isAutoPrintEnabled() {
+    return getAutoPrintPreference();
+  }
+
+  function getAutoPrintPreference() {
     try {
+      var params = new URLSearchParams(String(global.location.search || ""));
+      if (params.get("autoprint") === "0" || params.get("print") === "0") return false;
+      if (params.get("autoprint") === "1" || params.get("print") === "1") return true;
       var v = global.localStorage.getItem(AUTO_PRINT_KEY);
-      // Default ON — POS: print as soon as payment succeeds
+      // Default ON for POS — print when payment receipt appears
       return v === null || v === "1" || v === "true";
     } catch (_) {
       return true;
@@ -541,8 +548,32 @@
   }
 
   function autoPrintReceipt(data, options) {
-    if (!isAutoPrintEnabled()) return;
+    if (!getAutoPrintPreference()) return;
     openPrintWindow(data, options);
+  }
+
+  /** Hidden receipt page — works well with POS / thermal printers (receipt.php?print=1). */
+  function printViaReceiptPage(data) {
+    var url = qrPayload(data);
+    if (!/[?&]print=1(?:&|$)/.test(url)) {
+      url += (url.indexOf("?") >= 0 ? "&" : "?") + "print=1";
+    }
+    var prev = document.getElementById("gw-receipt-page-print-frame");
+    if (prev) prev.remove();
+    var iframe = document.createElement("iframe");
+    iframe.id = "gw-receipt-page-print-frame";
+    iframe.setAttribute("title", "Auto print receipt");
+    iframe.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:420px;height:900px;border:0;opacity:0;pointer-events:none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    global.setTimeout(function () {
+      try {
+        iframe.remove();
+      } catch (_) {
+        /* ignore */
+      }
+    }, 20000);
   }
 
   async function downloadPaperPng(data, options) {
@@ -682,7 +713,13 @@
               });
             })
             .then(function () {
-              autoPrintReceipt(receiptData, { ok: ok });
+              if (!getAutoPrintPreference()) return;
+              openPrintWindow(receiptData, { ok: ok });
+              global.setTimeout(function () {
+                if (!sawPrint) {
+                  printViaReceiptPage(receiptData);
+                }
+              }, 3000);
               global.setTimeout(function () {
                 if (!sawPrint && hint) {
                   hint.style.color = "#b45309";
@@ -693,7 +730,7 @@
                   printBtn.style.textDecoration = "underline";
                   printBtn.focus();
                 }
-              }, 2500);
+              }, 5500);
             });
         });
 
@@ -748,7 +785,9 @@
     qrPayload: qrPayload,
     openPrintWindow: openPrintWindow,
     autoPrintReceipt: autoPrintReceipt,
+    printViaReceiptPage: printViaReceiptPage,
     isAutoPrintEnabled: isAutoPrintEnabled,
+    getAutoPrintPreference: getAutoPrintPreference,
     setAutoPrintEnabled: setAutoPrintEnabled,
   };
 })(window);

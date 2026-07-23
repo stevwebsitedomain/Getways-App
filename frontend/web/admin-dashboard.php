@@ -15,6 +15,15 @@ try {
 
 $authUser = $_SESSION['gw_auth_user'] ?? [];
 $authName = htmlspecialchars(trim((string) ($authUser['fullName'] ?? 'Admin')), ENT_QUOTES);
+$gaBgUrl = 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80';
+foreach (['images/payments-bg.jpg', 'login-bg.jpg', 'images/login.jpg', 'images/get2.jpg'] as $gaBgRel) {
+    $gaBgPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $gaBgRel);
+    if (is_file($gaBgPath)) {
+        $gaBgUrl = $gaBgRel;
+        break;
+    }
+}
+$gaBgUrl = htmlspecialchars($gaBgUrl, ENT_QUOTES);
 $cssV = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
 $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
 $cssV = htmlspecialchars($cssV, ENT_QUOTES);
@@ -41,6 +50,10 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       <h1>Payout &amp; Collections</h1>
     </div>
     <div class="ad-top-actions">
+      <button type="button" class="ad-ga-open" id="ad-ga-open">
+        <i class="fa-solid fa-circle-nodes" aria-hidden="true"></i>
+        <span>General Analysis</span>
+      </button>
       <span class="ad-user"><?php echo $authName; ?></span>
       <a class="ad-link" href="part-two.php">User wallet</a>
       <a class="ad-link ad-link--danger" href="logout.php">Logout</a>
@@ -85,7 +98,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
     </section>
 
     <section class="ad-grid">
-      <div class="ad-card">
+      <div class="ad-card" id="ad-section-analytics">
         <div class="ad-card-head ad-card-head--stack">
           <div>
             <h2>Payment analysis</h2>
@@ -109,7 +122,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
         <div id="ad-pie" class="ad-pie" role="img" aria-label="Payment pie chart"></div>
       </div>
 
-      <div class="ad-card">
+      <div class="ad-card" id="ad-section-control-number">
         <h2>Create control number</h2>
         <p class="ad-note">Weka kiasi na maelezo tu. <strong>Control number</strong> itatengenezwa na ClickPesa BillPay — hauandiki mwenyewe.</p>
         <form id="ad-cn-form" class="ad-form">
@@ -130,7 +143,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       </div>
     </section>
 
-    <section class="ad-card">
+    <section class="ad-card" id="ad-section-transactions">
       <div class="ad-card-head">
         <h2>Transactions</h2>
         <div class="ad-top-actions">
@@ -173,7 +186,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       <nav class="ad-pager" id="ad-controls-pager" hidden aria-label="Transactions pages"></nav>
     </section>
 
-    <section class="ad-card">
+    <section class="ad-card" id="ad-section-payout-dest">
       <div class="ad-card-head">
         <h2>Payout destination</h2>
       </div>
@@ -192,7 +205,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       <p id="ad-payout-msg" class="ad-msg"></p>
     </section>
 
-    <section class="ad-card">
+    <section class="ad-card" id="ad-section-payouts">
       <div class="ad-card-head">
         <h2>Automatic payouts</h2>
         <button type="button" class="ad-refresh" id="ad-payouts-refresh">Refresh</button>
@@ -221,7 +234,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       <nav class="ad-pager" id="ad-payouts-pager" hidden aria-label="Payout pages"></nav>
     </section>
 
-    <section class="ad-card">
+    <section class="ad-card" id="ad-section-users">
       <div class="ad-card-head">
         <h2>Registered users</h2>
         <button type="button" class="ad-refresh" id="ad-users-refresh">Refresh</button>
@@ -246,15 +259,130 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       <nav class="ad-pager" id="ad-users-pager" hidden aria-label="Users pages"></nav>
     </section>
 
-    <section class="ad-card">
+    <section class="ad-card" id="ad-section-recent">
       <div class="ad-card-head">
         <h2>Recent collections</h2>
         <small id="ad-recent-period" class="ad-period-sub">All time</small>
       </div>
       <p id="ad-recent-error" class="ad-db-banner" hidden></p>
       <ul class="ad-recent" id="ad-recent"></ul>
+      <nav class="ad-pager" id="ad-recent-pager" hidden aria-label="Recent collections pages"></nav>
     </section>
   </main>
+
+  <div id="ad-ga-overlay" class="ad-ga" hidden aria-hidden="true" style="--ad-ga-bg: url('<?php echo $gaBgUrl; ?>');">
+    <div class="ad-ga-bg" aria-hidden="true"></div>
+    <header class="ad-ga-top">
+      <button type="button" class="ad-ga-back" id="ad-ga-close" aria-label="Back to dashboard">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        Back
+      </button>
+      <h2>General Analysis</h2>
+      <span class="ad-ga-top-spacer" aria-hidden="true"></span>
+    </header>
+
+    <div class="ad-ga-stage">
+      <div class="ad-ga-glow ad-ga-glow--a" aria-hidden="true"></div>
+      <div class="ad-ga-glow ad-ga-glow--b" aria-hidden="true"></div>
+
+      <div class="ad-ga-orbit-system">
+        <svg class="ad-ga-spokes" viewBox="0 0 400 400" aria-hidden="true">
+          <circle cx="200" cy="200" r="148" class="ad-ga-orbit-line" />
+          <g class="ad-ga-spoke-group">
+            <line x1="200" y1="200" x2="200" y2="52" class="ad-ga-spoke" />
+            <line x1="200" y1="200" x2="328" y2="126" class="ad-ga-spoke" />
+            <line x1="200" y1="200" x2="328" y2="274" class="ad-ga-spoke" />
+            <line x1="200" y1="200" x2="200" y2="348" class="ad-ga-spoke" />
+            <line x1="200" y1="200" x2="72" y2="274" class="ad-ga-spoke" />
+            <line x1="200" y1="200" x2="72" y2="126" class="ad-ga-spoke" />
+          </g>
+        </svg>
+
+        <div class="ad-ga-orbit" id="ad-ga-orbit">
+          <button type="button" class="ad-ga-satellite ad-ga-satellite--money" data-ga-target="transactions" data-ga-action="scroll" style="--angle: 0deg" aria-label="Transactions">
+            <span class="ad-ga-satellite-inner">
+              <span class="ad-ga-icon-ring">
+                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-dollar-sign"></i></span>
+              </span>
+              <span class="ad-ga-sat-label">Transactions</span>
+            </span>
+          </button>
+          <button type="button" class="ad-ga-satellite ad-ga-satellite--lock" data-ga-target="payout-dest" data-ga-action="scroll" style="--angle: 60deg" aria-label="Payout security">
+            <span class="ad-ga-satellite-inner">
+              <span class="ad-ga-icon-ring">
+                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-lock"></i></span>
+              </span>
+              <span class="ad-ga-sat-label">Security</span>
+            </span>
+          </button>
+          <button type="button" class="ad-ga-satellite ad-ga-satellite--wifi" data-ga-target="sync" data-ga-action="sync" style="--angle: 120deg" aria-label="Sync ClickPesa">
+            <span class="ad-ga-satellite-inner">
+              <span class="ad-ga-icon-ring">
+                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-wifi"></i></span>
+              </span>
+              <span class="ad-ga-sat-label">Sync</span>
+            </span>
+          </button>
+          <button type="button" class="ad-ga-satellite ad-ga-satellite--chart" data-ga-target="analytics" data-ga-action="scroll" style="--angle: 180deg" aria-label="Payment analysis">
+            <span class="ad-ga-satellite-inner">
+              <span class="ad-ga-icon-ring">
+                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-chart-line"></i></span>
+              </span>
+              <span class="ad-ga-sat-label">Analysis</span>
+            </span>
+          </button>
+          <button type="button" class="ad-ga-satellite ad-ga-satellite--cloud" data-ga-target="autopay" data-ga-action="scroll" style="--angle: 240deg" aria-label="Autopay">
+            <span class="ad-ga-satellite-inner">
+              <span class="ad-ga-icon-ring">
+                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-cloud"></i></span>
+              </span>
+              <span class="ad-ga-sat-label">Autopay</span>
+            </span>
+          </button>
+          <button type="button" class="ad-ga-satellite ad-ga-satellite--bank" data-ga-target="control-number" data-ga-action="scroll" style="--angle: 300deg" aria-label="Control number">
+            <span class="ad-ga-satellite-inner">
+              <span class="ad-ga-icon-ring">
+                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-building-columns"></i></span>
+              </span>
+              <span class="ad-ga-sat-label">Control #</span>
+            </span>
+          </button>
+        </div>
+
+        <button type="button" class="ad-ga-hub" id="ad-ga-hub" aria-label="Admin hub overview">
+          <span class="ad-ga-hub-glow" aria-hidden="true"></span>
+          <span class="ad-ga-hub-ring ad-ga-hub-ring--outer" aria-hidden="true"></span>
+          <span class="ad-ga-hub-ring ad-ga-hub-ring--inner" aria-hidden="true"></span>
+          <span class="ad-ga-hub-core">
+            <span class="ad-ga-hub-brand" aria-hidden="true">
+              <i class="fa-solid fa-building-columns"></i>
+              <i class="fa-solid fa-dollar-sign ad-ga-hub-dollar"></i>
+            </span>
+            <strong>Getway Admin</strong>
+            <small id="ad-ga-hub-balance">Loading...</small>
+            <span class="ad-ga-hub-pill" id="ad-ga-hub-auto">Auto payout OFF</span>
+          </span>
+        </button>
+      </div>
+
+      <p class="ad-ga-hint">Bofya ikoni ili kufungua sehemu husika · Ikoni zinazunguka kiotomatiki</p>
+
+      <div class="ad-ga-extra">
+        <button type="button" class="ad-ga-chip" data-ga-target="payouts" data-ga-action="scroll">
+          <i class="fa-solid fa-money-bill-transfer"></i> Payouts
+        </button>
+        <button type="button" class="ad-ga-chip" data-ga-target="users" data-ga-action="scroll">
+          <i class="fa-solid fa-users"></i> Users
+        </button>
+        <button type="button" class="ad-ga-chip" data-ga-target="recent" data-ga-action="scroll">
+          <i class="fa-solid fa-receipt"></i> Collections
+        </button>
+        <a class="ad-ga-chip ad-ga-chip--link" href="autopay.php">
+          <i class="fa-solid fa-bolt"></i> Autopay page
+        </a>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   <script src="admin-dashboard.js?v=<?php echo $jsV; ?>"></script>

@@ -7,6 +7,7 @@ header('Cache-Control: no-store');
 
 require_once __DIR__ . '/auth-init.php';
 gwAuthStartSession();
+require_once __DIR__ . '/invoice-share.php';
 
 function userJson(int $code, array $payload): never
 {
@@ -104,6 +105,94 @@ function normalizePhone(string $phone): string
     return preg_replace('/[^\d+]/', '', trim($phone)) ?? '';
 }
 
+/**
+ * @return \yii\web\Application
+ */
+function userYiiApp(): \yii\web\Application
+{
+    static $app = null;
+    if ($app instanceof \yii\web\Application) {
+        return $app;
+    }
+
+    defined('YII_DEBUG') or define('YII_DEBUG', true);
+    defined('YII_ENV') or define('YII_ENV', 'dev');
+
+    require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+    require_once dirname(__DIR__, 2) . '/vendor/yiisoft/yii2/Yii.php';
+    require_once dirname(__DIR__, 2) . '/common/config/bootstrap.php';
+    require_once dirname(__DIR__) . '/config/bootstrap.php';
+
+    $config = yii\helpers\ArrayHelper::merge(
+        require dirname(__DIR__, 2) . '/common/config/main.php',
+        require dirname(__DIR__, 2) . '/common/config/main-local.php',
+        require dirname(__DIR__) . '/config/main.php',
+        require dirname(__DIR__) . '/config/main-local.php'
+    );
+
+    if (isset($config['components']['session'])) {
+        $config['components']['session']['autoStart'] = false;
+    }
+    if (isset($config['components']['user'])) {
+        $config['components']['user']['enableSession'] = false;
+        $config['components']['user']['enableAutoLogin'] = false;
+    }
+
+    $app = new yii\web\Application($config);
+
+    return $app;
+}
+
+/** @return \common\services\ClickPesaService */
+function userClickPesa(): \common\services\ClickPesaService
+{
+    return Yii::$container->get(\common\services\ClickPesaService::class);
+}
+
+/**
+ * @param array<string,mixed> $row
+ * @return array<string,mixed>
+ */
+function userNormalizeInvoiceRow(array $row): array
+{
+    $id = (int) ($row['id'] ?? 0);
+    if ($id <= 0 && preg_match('/[?&]id=(\d+)/', (string) ($row['invoiceUrl'] ?? ''), $matches) === 1) {
+        $id = (int) $matches[1];
+    }
+    if ($id > 0) {
+        $row['invoiceUrl'] = invoiceShareUrl($id, 'user');
+        $row['receiptShareUrl'] = invoiceFullShareUrl($id, 'user');
+    }
+
+    return $row;
+}
+
+/**
+ * @param array<string,mixed> $result
+ * @return array<string,mixed>
+ */
+function userNormalizeControlNumberResult(array $result): array
+{
+    if (!empty($result['id'])) {
+        $id = (int) $result['id'];
+        $result['invoiceUrl'] = invoiceShareUrl($id, 'user');
+        $result['receiptShareUrl'] = invoiceFullShareUrl($id, 'user');
+    }
+
+    return $result;
+}
+
+/**
+ * @param array<string,mixed> $body
+ * @return array<string,mixed>
+ */
+function userRemoteControlNumberBody(array $body): array
+{
+    unset($body['customerName'], $body['customerPhone'], $body['phone']);
+
+    return $body;
+}
+
 if ($action === 'transactions' && $method === 'GET') {
     $remote = userFetchRemote('control-numbers', 'GET');
     if ($remote === null) {
@@ -128,25 +217,41 @@ if ($action === 'transactions' && $method === 'GET') {
         }));
     }
 
+    $items = array_map('userNormalizeInvoiceRow', $items);
+
     userJson(200, ['ok' => true, 'success' => true, 'items' => $items, 'source' => 'render-user-proxy']);
 }
 
 if ($action === 'create-control-number' && $method === 'POST') {
     $body = readJsonBody();
-    $body['customerName'] = (string) ($user['fullName'] ?? 'Customer');
-    if (!empty($user['phone'])) {
-        $body['phone'] = (string) $user['phone'];
-    }
+    $customerName = (string) ($user['fullName'] ?? 'Customer');
+    $customerPhone = !empty($user['phone']) ? (string) $user['phone'] : '';
+    $userId = isset($user['id']) && $user['id'] !== '' ? (int) $user['id'] : null;
 
-    $remote = userFetchRemote('create-control-number', 'POST', $body);
-    if ($remote === null) {
-        userJson(503, ['ok' => false, 'success' => false, 'message' => 'Could not create control number.']);
-    }
-    if (($remote['success'] ?? true) === false) {
-        userJson((int) ($remote['remoteStatus'] ?? 502), $remote);
-    }
+    try {
+        userYiiApp();
+        $result = userClickPesa()->createControlNumber([
+            'order_id' => $body['order_id'] ?? $body['orderId'] ?? '',
+            'amount' => $body['amount'] ?? 0,
+            'description' => $body['description'] ?? '',
+            'payment_mode' => $body['payment_mode'] ?? 'EXACT',
+            'customerName' => $customerName,
+            'phone' => $customerPhone,
+        ], $userId);
+        userJson(200, ['ok' => true, 'success' => true, 'source' => 'local-clickpesa'] + userNormalizeControlNumberResult($result));
+    } catch (yii\web\HttpException $e) {
+        userJson($e->statusCode, ['ok' => false, 'success' => false, 'message' => $e->getMessage()]);
+    } catch (Throwable $e) {
+        $remote = userFetchRemote('create-control-number', 'POST', userRemoteControlNumberBody($body));
+        if ($remote === null) {
+            userJson(503, ['ok' => false, 'success' => false, 'message' => $e->getMessage() ?: 'Could not create control number.']);
+        }
+        if (($remote['success'] ?? true) === false) {
+            userJson((int) ($remote['remoteStatus'] ?? 502), $remote);
+        }
 
-    userJson(200, ['ok' => true, 'success' => true] + $remote);
+        userJson(200, ['ok' => true, 'success' => true, 'source' => 'render-user-proxy'] + userNormalizeControlNumberResult($remote));
+    }
 }
 
 userJson(400, ['ok' => false, 'success' => false, 'message' => 'Unknown action.']);

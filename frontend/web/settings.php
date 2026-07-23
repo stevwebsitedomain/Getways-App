@@ -11,16 +11,17 @@ if ($authInitial === '') {
     $authInitial = 'U';
 }
 $cssVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
+$bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
 $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
 $settingsJsVersion = (string) (@filemtime(__DIR__ . '/settings.js') ?: time());
-$phoneTopbarTitle = 'Profile & Settings';
+$phoneTopbarTitle = 'Profile';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Getway | System | Settings</title>
+  <title>Getway | Profile</title>
   <link rel="icon" type="image/png" href="images/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -30,70 +31,66 @@ $phoneTopbarTitle = 'Profile & Settings';
   />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="part-two.css?v=<?= urlencode($cssVersion) ?>" />
+  <link rel="stylesheet" href="wallet-banking-theme.css?v=<?= urlencode($bkVersion) ?>" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
-  <style>
-    body.settings-page { background: #f3f6fb; min-height: 100vh; }
-    body.settings-page .settings-content { padding: 0 0 24px; }
-    body.settings-page .tis-card { margin-bottom: 14px; }
-  </style>
 </head>
-<body class="tis-shell tis-wallet-dash layout-phone w-home-sample settings-page">
+<body class="tis-shell tis-wallet-dash layout-phone w-home-sample bk-theme">
   <main class="tis-wrap w-shell">
     <div class="w-app">
-      <section class="w-phone-topbar w-searchable" aria-label="App quick header">
-        <a href="part-two.php" class="w-phone-icon-btn w-phone-icon-link" aria-label="Back to home">
-          <i class="fa-solid fa-arrow-left"></i>
-        </a>
-        <div class="w-phone-greet">
-          <p data-i18n="welcome">Welcome</p>
-          <h1><?= htmlspecialchars($phoneTopbarTitle, ENT_QUOTES) ?></h1>
-        </div>
-        <div class="w-phone-top-actions">
-          <a href="settings.php" class="w-phone-profile-btn" aria-label="Profile" title="<?= htmlspecialchars($authName, ENT_QUOTES) ?>">
-            <?php if ($authAvatar !== ''): ?>
-              <img class="w-phone-profile-avatar" src="<?= htmlspecialchars($authAvatar, ENT_QUOTES) ?>" alt="" />
-            <?php else: ?>
-              <span class="w-phone-profile-avatar w-phone-profile-avatar--fallback" aria-hidden="true"><i class="fa-solid fa-user"></i></span>
-            <?php endif; ?>
-          </a>
-          <a href="logout.php" class="w-phone-icon-btn w-phone-icon-link" aria-label="Logout">
-            <i class="fa-solid fa-right-from-bracket"></i>
-          </a>
-        </div>
-      </section>
+<?php require __DIR__ . '/wallet-phone-topbar.php'; ?>
 
       <div class="settings-content w-page-content">
-        <section class="tis-card">
-          <h2><i class="fa-solid fa-user"></i> Profile</h2>
-          <div class="w-profile-block">
-            <div class="w-profile-avatar-wrap">
-              <img
-                id="profile-avatar-preview"
-                class="w-profile-avatar w-profile-avatar--photo<?= $authAvatar === '' ? ' is-hidden' : '' ?>"
-                src="<?= $authAvatar !== '' ? htmlspecialchars($authAvatar, ENT_QUOTES) : '' ?>"
-                alt="Profile picture"
-              />
-              <div id="profile-avatar-fallback" class="w-profile-avatar-fallback<?= $authAvatar !== '' ? ' is-hidden' : '' ?>" aria-hidden="<?= $authAvatar !== '' ? 'true' : 'false' ?>">
-                <i class="fa-solid fa-user" aria-hidden="true"></i>
-              </div>
+        <!-- Profile hero (Screen 2) -->
+        <section class="bk-profile-hero w-searchable">
+          <div class="bk-profile-avatar-wrap">
+            <img
+              id="profile-avatar-preview"
+              class="bk-profile-avatar-lg<?= $authAvatar === '' ? ' is-hidden' : '' ?>"
+              src="<?= $authAvatar !== '' ? htmlspecialchars($authAvatar, ENT_QUOTES) : '' ?>"
+              alt="Profile picture"
+            />
+            <div id="profile-avatar-fallback" class="bk-profile-avatar-lg bk-profile-avatar-lg--fallback<?= $authAvatar !== '' ? ' is-hidden' : '' ?>" aria-hidden="<?= $authAvatar !== '' ? 'true' : 'false' ?>">
+              <?= htmlspecialchars($authInitial, ENT_QUOTES) ?>
             </div>
-            <label class="w-profile-upload">
-              <input type="file" id="profile-avatar-input" accept="image/*" hidden />
-              <span><i class="fa-solid fa-camera"></i> Change profile picture</span>
+            <label class="bk-profile-edit-btn" for="profile-avatar-input" aria-label="Change profile picture">
+              <i class="fa-solid fa-pen"></i>
             </label>
+            <input type="file" id="profile-avatar-input" accept="image/*" hidden />
           </div>
+          <h2 class="bk-profile-name"><?= htmlspecialchars($authName, ENT_QUOTES) ?></h2>
+        </section>
+
+        <!-- Profile menu (Screen 2) -->
+        <nav class="bk-profile-menu w-searchable" aria-label="Profile options">
+          <a href="tel:+255000000000" class="bk-profile-menu-item">
+            <i class="fa-solid fa-phone"></i>
+            <span data-i18n="call_bank">Call to the bank</span>
+          </a>
+          <a href="create-payment.php" class="bk-profile-menu-item">
+            <i class="fa-solid fa-calendar-check"></i>
+            <span data-i18n="bank_appointment">Bank appointment consultation</span>
+          </a>
+          <a href="#profile-form" class="bk-profile-menu-item">
+            <i class="fa-solid fa-id-card"></i>
+            <span data-i18n="personal_info">Personal information</span>
+          </a>
+        </nav>
+
+        <!-- Personal info form -->
+        <section class="tis-card w-searchable" style="margin-top: 16px;">
+          <h2><i class="fa-solid fa-user"></i> <span data-i18n="personal_info">Personal information</span></h2>
           <form id="profile-form" class="tis-form" style="margin-top: 14px;">
             <label for="profile-name">Full name</label>
             <input type="text" id="profile-name" name="fullName" value="<?= htmlspecialchars($authName, ENT_QUOTES) ?>" required minlength="2" />
-            <button class="btn-primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
+            <button class="btn-primary bk-btn-primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
           </form>
           <p id="profile-message" class="form-message"></p>
         </section>
 
-        <section class="tis-card">
-          <h2><i class="fa-solid fa-gear"></i> Settings</h2>
-          <p class="empty-state" style="margin-top: 4px;">Layout controls are moved here for mobile.</p>
+        <!-- Settings -->
+        <section class="tis-card w-searchable" style="margin-top: 14px;">
+          <h2><i class="fa-solid fa-gear"></i> <span data-i18n="settings">Settings</span></h2>
 
           <div class="section-heading">
             <h3><i class="fa-solid fa-mobile-screen-button"></i> Layout</h3>
@@ -103,12 +100,12 @@ $phoneTopbarTitle = 'Profile & Settings';
             <button type="button" class="w-toggle-btn" data-layout="desktop">Desktop</button>
           </div>
 
-          <div class="section-heading">
-            <h3><i class="fa-solid fa-table-list"></i> Records Shortcut</h3>
+          <div class="section-heading" style="margin-top:16px;">
+            <h3><i class="fa-solid fa-language"></i> Language</h3>
           </div>
-          <div class="w-toggle" role="group" aria-label="Records">
-            <button type="button" class="w-toggle-btn is-active" data-mode="tzs">TZS</button>
-            <a href="payment-details.php?type=success" class="w-toggle-btn w-toggle-link">Records</a>
+          <div class="w-toggle" role="group" aria-label="Language">
+            <button type="button" class="w-toggle-btn is-active" data-language-option="en">English</button>
+            <button type="button" class="w-toggle-btn" data-language-option="sw">Kiswahili</button>
           </div>
 
           <div class="section-heading" style="margin-top:16px;">
@@ -121,7 +118,7 @@ $phoneTopbarTitle = 'Profile & Settings';
       </div>
     </div>
 
-<?php $activeNav = 'more'; require __DIR__ . '/wallet-bottom-nav.php'; ?>
+<?php $activeNav = 'profile'; require __DIR__ . '/wallet-bottom-nav.php'; ?>
   </main>
 
   <script src="tis-api-base.js"></script>

@@ -3,11 +3,25 @@
 declare(strict_types=1);
 
 /**
- * Admin receipt / invoice page.
- * Fetches transaction data from Render admin API (no local MySQL required).
+ * Receipt / invoice page for control numbers.
+ * Admin entry: admin-invoice.php
+ * User entry: control-number-invoice.php
  */
 
-require_once __DIR__ . '/admin-guard.php';
+$invoiceReceiptMode = defined('INVOICE_RECEIPT_MODE') ? (string) INVOICE_RECEIPT_MODE : 'admin';
+$shareTokenEarly = trim((string) ($_GET['t'] ?? $_GET['share'] ?? ''));
+$idEarly = (int) ($_GET['id'] ?? 0);
+$invoicePublicShare = (defined('INVOICE_PUBLIC_SHARE_REQUEST') && INVOICE_PUBLIC_SHARE_REQUEST)
+    || ($shareTokenEarly !== '' && $idEarly > 0);
+if (!$invoicePublicShare) {
+    if ($invoiceReceiptMode === 'user') {
+        require_once __DIR__ . '/auth-guard.php';
+    } else {
+        require_once __DIR__ . '/admin-guard.php';
+    }
+}
+
+require_once __DIR__ . '/invoice-share.php';
 
 function adminInvoiceUpstream(): string
 {
@@ -68,6 +82,72 @@ function adminInvoiceFetchRemote(int $id): ?array
     return $decoded;
 }
 
+/**
+ * @return \yii\web\Application
+ */
+function invoiceYiiApp(): \yii\web\Application
+{
+    static $app = null;
+    if ($app instanceof \yii\web\Application) {
+        return $app;
+    }
+
+    defined('YII_DEBUG') or define('YII_DEBUG', true);
+    defined('YII_ENV') or define('YII_ENV', 'dev');
+
+    require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+    require_once dirname(__DIR__, 2) . '/vendor/yiisoft/yii2/Yii.php';
+    require_once dirname(__DIR__, 2) . '/common/config/bootstrap.php';
+    require_once dirname(__DIR__) . '/config/bootstrap.php';
+
+    $config = yii\helpers\ArrayHelper::merge(
+        require dirname(__DIR__, 2) . '/common/config/main.php',
+        require dirname(__DIR__, 2) . '/common/config/main-local.php',
+        require dirname(__DIR__) . '/config/main.php',
+        require dirname(__DIR__) . '/config/main-local.php'
+    );
+
+    if (isset($config['components']['session'])) {
+        $config['components']['session']['autoStart'] = false;
+    }
+    if (isset($config['components']['user'])) {
+        $config['components']['user']['enableSession'] = false;
+        $config['components']['user']['enableAutoLogin'] = false;
+    }
+
+    $app = new yii\web\Application($config);
+
+    return $app;
+}
+
+/**
+ * @return array<string,mixed>|null
+ */
+function invoiceLoadLocal(int $id): ?array
+{
+    try {
+        invoiceYiiApp();
+        $invoice = Yii::$container->get(\common\services\ClickPesaService::class)->getInvoiceData($id);
+
+        return ['success' => true, 'invoice' => $invoice];
+    } catch (Throwable) {
+        return null;
+    }
+}
+
+/**
+ * @return array<string,mixed>|null
+ */
+function invoiceLoadById(int $id): ?array
+{
+    $local = invoiceLoadLocal($id);
+    if (is_array($local['invoice'] ?? null)) {
+        return $local;
+    }
+
+    return adminInvoiceFetchRemote($id);
+}
+
 function h(?string $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
@@ -78,26 +158,36 @@ function moneyLabel(float $amount, string $currency): string
     return h($currency) . ' ' . number_format($amount, 0, '.', ',');
 }
 
-function buildReceiptQrUrl(array $invoice): string
+function buildReceiptQrPayload(array $invoice, string $mode = 'admin'): string
 {
     $id = (int) ($invoice['id'] ?? 0);
+    if ($id > 0) {
+        return invoiceFullShareUrl($id, $mode);
+    }
+
     $ref = trim((string) ($invoice['qrReference'] ?? $invoice['billReference'] ?? ''));
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
     $scriptDir = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/admin-invoice.php')));
     $base = rtrim($scheme . '://' . $host . $scriptDir, '/');
-    $verifyUrl = $base . '/admin-invoice.php?id=' . $id;
+    $page = $mode === 'user' ? 'control-number-invoice.php' : 'admin-invoice.php';
+    $verifyUrl = $base . '/' . $page . '?id=' . $id;
     if ($ref !== '') {
         $verifyUrl .= '&ref=' . rawurlencode($ref);
     }
 
-    return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&ecc=H&data=' . rawurlencode($verifyUrl);
+    return $verifyUrl;
+}
+
+function buildReceiptQrUrl(array $invoice, string $mode = 'admin'): string
+{
+    return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&ecc=H&data=' . rawurlencode(buildReceiptQrPayload($invoice, $mode));
 }
 
 /**
  * @param array<string,mixed> $invoice
  */
-function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
+function buildAdminReceiptHtml(array $invoice, bool $forPdf = false, string $backUrl = 'admin-dashboard.php', string $backLabel = 'Dashboard', string $receiptMode = 'admin', bool $autoPrint = false): string
 {
     $businessName = 'Getway';
     $businessAddress = 'Dar es Salaam, Tanzania';
@@ -112,14 +202,15 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
     $orderId = h((string) ($invoice['orderId'] ?? '—'));
     $reference = h((string) ($invoice['billReference'] ?? '—'));
     $controlNumber = h((string) ($invoice['controlNumber'] ?? '—'));
-    $hasControlNumber = (bool) ($invoice['hasControlNumber'] ?? false);
+    $hasControlNumber = trim((string) ($invoice['controlNumber'] ?? '')) !== '' && trim((string) ($invoice['controlNumber'] ?? '')) !== '—';
     $description = h((string) ($invoice['description'] ?? 'Payment'));
     $channel = h((string) ($invoice['channel'] ?? 'clickpesa'));
     $paidAt = h((string) ($invoice['paidAtFormatted'] ?? '—'));
     $createdAt = h((string) ($invoice['createdAtFormatted'] ?? '—'));
     $amount = moneyLabel((float) ($invoice['amount'] ?? 0), (string) ($invoice['currency'] ?? 'TZS'));
-    $qrUrl = buildReceiptQrUrl($invoice);
-    $qrHtml = '<div class="qr-wrap"><img src="' . h($qrUrl) . '" alt="QR code" class="qr-img" /><p class="qr-caption">Skani kuthibitisha muamala</p></div>';
+    $qrUrl = buildReceiptQrUrl($invoice, $receiptMode);
+    $qrCaption = 'Skani kuona risiti kwenye simu';
+    $qrHtml = '<div class="qr-wrap"><img src="' . h($qrUrl) . '" alt="QR code" class="qr-img" /><p class="qr-caption">' . h($qrCaption) . '</p></div>';
 
     $controlBlock = $hasControlNumber
         ? '<div class="row"><span class="lbl">Control No.</span><span class="val">' . $controlNumber . '</span></div>'
@@ -278,16 +369,22 @@ function buildAdminReceiptHtml(array $invoice, bool $forPdf = false): string
       </div>
     </div>
     ' . ($forPdf ? '' : '<div class="actions">
-      <a class="btn primary" href="?id=' . (int) ($invoice['id'] ?? 0) . '&amp;download=1"><i class="fa-solid fa-download"></i> Pakua PDF</a>
+      <a class="btn primary" href="?id=' . (int) ($invoice['id'] ?? 0) . '&amp;download=1"><i class="fa-solid fa-file-pdf"></i> Pakua PDF</a>
       <button type="button" class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Chapisha</button>
-      <a class="btn" href="admin-dashboard.php"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+      <a class="btn" href="' . h($backUrl) . '"><i class="fa-solid fa-arrow-left"></i> ' . h($backLabel) . '</a>
     </div>') . '
   </div>
+' . ($autoPrint ? '<script>
+window.addEventListener("load", function () {
+  setTimeout(function () { window.print(); }, 500);
+});
+</script>' : '') . '
 </body>
 </html>';
 }
 
 $id = (int) ($_GET['id'] ?? 0);
+$shareToken = trim((string) ($_GET['t'] ?? $_GET['share'] ?? ''));
 if ($id <= 0) {
     http_response_code(400);
     header('Content-Type: text/html; charset=UTF-8');
@@ -295,18 +392,30 @@ if ($id <= 0) {
     exit;
 }
 
-$payload = adminInvoiceFetchRemote($id);
+$backUrl = $invoiceReceiptMode === 'user' ? 'control-number.php' : 'admin-dashboard.php';
+$backLabel = $invoiceReceiptMode === 'user' ? 'Control Number' : 'Dashboard';
+
+$payload = invoiceLoadById($id);
 $invoice = is_array($payload['invoice'] ?? null) ? $payload['invoice'] : null;
+
+if ($invoicePublicShare && !invoiceShareTokenValid($id, $shareToken)) {
+    http_response_code(403);
+    header('Content-Type: text/html; charset=UTF-8');
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8" /><title>Receipt error</title></head><body style="font-family:sans-serif;padding:24px"><h1>Invalid receipt link</h1><p>This QR code or receipt link is not valid.</p></body></html>';
+    exit;
+}
 
 if ($invoice === null) {
     http_response_code(404);
     header('Content-Type: text/html; charset=UTF-8');
     $message = h((string) ($payload['message'] ?? 'Receipt not found or remote service unavailable.'));
-    echo '<!DOCTYPE html><html><head><meta charset="UTF-8" /><title>Receipt error</title></head><body style="font-family:sans-serif;padding:24px"><h1>Could not load receipt</h1><p>' . $message . '</p><p><a href="admin-dashboard.php">Back to dashboard</a></p></body></html>';
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8" /><title>Receipt error</title></head><body style="font-family:sans-serif;padding:24px"><h1>Could not load receipt</h1><p>' . $message . '</p><p><a href="' . h($backUrl) . '">Back</a></p></body></html>';
     exit;
 }
 
 $download = isset($_GET['download']) && (string) $_GET['download'] !== '0';
+$autoPrint = (isset($_GET['print']) && (string) $_GET['print'] !== '0')
+    || (isset($_GET['autoprint']) && (string) $_GET['autoprint'] !== '0');
 
 if ($download) {
     require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -316,7 +425,7 @@ if ($download) {
         @mkdir($tempDir, 0775, true);
     }
 
-    $html = buildAdminReceiptHtml($invoice, true);
+    $html = buildAdminReceiptHtml($invoice, true, $backUrl, $backLabel, $invoiceReceiptMode);
     $pdf = new \Mpdf\Mpdf([
         'tempDir' => $tempDir,
         'format' => 'A4',
@@ -338,4 +447,4 @@ if ($download) {
 
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: no-store');
-echo buildAdminReceiptHtml($invoice, false);
+echo buildAdminReceiptHtml($invoice, false, $backUrl, $backLabel, $invoiceReceiptMode, $autoPrint);

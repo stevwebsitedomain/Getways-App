@@ -1,8 +1,10 @@
 const dns = require("dns");
 const mysql = require("mysql2/promise");
 
-const DEFAULT_DB_HOST = "sdb-71.hosting.stackcp.net";
-const DEFAULT_DB_PORT = 3306;
+const DEFAULT_DB_HOST = "sakura.proxy.rlwy.net";
+const DEFAULT_DB_PORT = 27413;
+const RAILWAY_PUBLIC_HOST = "sakura.proxy.rlwy.net";
+const RAILWAY_PUBLIC_PORT = 27413;
 
 let pool;
 
@@ -24,23 +26,41 @@ function sanitizeEnvValue(value, fallback = "") {
   return String(value).trim().replace(/^['"]+|['"]+$/g, "");
 }
 
+function applyRailwayPublicProxy(config) {
+  if (
+    config.host === "mysql.railway.internal" ||
+    config.host.endsWith(".railway.internal")
+  ) {
+    console.warn(
+      `DB_HOST "${config.host}" only works inside Railway; using public proxy ${RAILWAY_PUBLIC_HOST}:${RAILWAY_PUBLIC_PORT}`
+    );
+    return {
+      ...config,
+      host: RAILWAY_PUBLIC_HOST,
+      port: RAILWAY_PUBLIC_PORT,
+    };
+  }
+
+  return config;
+}
+
 function getDbConfig() {
   const dbHost = sanitizeDbHost(process.env.DB_HOST);
   const dbPort = Number(sanitizeEnvValue(process.env.DB_PORT, String(DEFAULT_DB_PORT)));
-  const dbUser = sanitizeEnvValue(process.env.DB_USER, "admin-48da");
+  const dbUser = sanitizeEnvValue(process.env.DB_USER, "root");
   const dbPassword =
     process.env.DB_PASSWORD != null
       ? sanitizeEnvValue(process.env.DB_PASSWORD)
-      : "Getway2026";
-  const dbName = sanitizeEnvValue(process.env.DB_NAME, "Getway-app-35303539c325");
+      : "ZFntrMWVmvQszgDhmtXMHzqKMCeriUFZ";
+  const dbName = sanitizeEnvValue(process.env.DB_NAME, "railway");
 
-  return {
+  return applyRailwayPublicProxy({
     host: dbHost,
     port: dbPort,
     user: dbUser,
     password: dbPassword,
     database: dbName,
-  };
+  });
 }
 
 function logDatabaseConfig(config) {

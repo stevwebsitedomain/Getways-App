@@ -1,11 +1,11 @@
 <?php
-/** @var string $activeNav One of: home|history|pay|autopay|search|more */
+/** @var string $activeNav One of: home|history|pay|autopay|services|profile|settings */
 $activeNav = $activeNav ?? 'home';
 ?>
     <nav class="w-bottom-nav" aria-label="Primary">
       <a href="part-two.php" class="w-nav-item<?= $activeNav === 'home' ? ' is-active' : '' ?>"<?= $activeNav === 'home' ? ' aria-current="page"' : '' ?>>
-        <span class="w-nav-ico"><i class="fa-solid fa-house"></i></span>
-        <span class="w-nav-txt" data-i18n="home">Home</span>
+        <span class="w-nav-ico"><i class="fa-solid fa-chart-column"></i></span>
+        <span class="w-nav-txt" data-i18n="dashboard">Dashboard</span>
       </a>
       <a href="payment-details.php?type=success" class="w-nav-item<?= $activeNav === 'history' ? ' is-active' : '' ?>"<?= $activeNav === 'history' ? ' aria-current="page"' : '' ?>>
         <span class="w-nav-ico"><i class="fa-solid fa-clock-rotate-left"></i></span>
@@ -19,12 +19,12 @@ $activeNav = $activeNav ?? 'home';
         <span class="w-nav-ico"><i class="fa-solid fa-bolt"></i></span>
         <span class="w-nav-txt" data-i18n="autopay">AutoPay</span>
       </a>
-      <a href="#" class="w-nav-item<?= $activeNav === 'search' ? ' is-active' : '' ?>" data-search-toggle>
-        <span class="w-nav-ico"><i class="fa-solid fa-magnifying-glass"></i></span>
-        <span class="w-nav-txt" data-i18n="search">Search</span>
-      </a>
-      <a href="settings.php" class="w-nav-item<?= $activeNav === 'more' ? ' is-active' : '' ?>"<?= $activeNav === 'more' ? ' aria-current="page"' : '' ?>>
+      <a href="settings.php" class="w-nav-item<?= $activeNav === 'profile' ? ' is-active' : '' ?>"<?= $activeNav === 'profile' ? ' aria-current="page"' : '' ?>>
         <span class="w-nav-ico"><i class="fa-solid fa-user"></i></span>
+        <span class="w-nav-txt" data-i18n="profile">Profile</span>
+      </a>
+      <a href="settings.php" class="w-nav-item<?= $activeNav === 'settings' ? ' is-active' : '' ?>"<?= $activeNav === 'settings' ? ' aria-current="page"' : '' ?>>
+        <span class="w-nav-ico"><i class="fa-solid fa-gear"></i></span>
         <span class="w-nav-txt" data-i18n="settings">Settings</span>
       </a>
     </nav>

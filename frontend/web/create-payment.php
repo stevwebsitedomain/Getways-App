@@ -1,14 +1,16 @@
 <?php
 require __DIR__ . '/auth-guard.php';
 $cssVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
+$bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
 $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
+$phoneTopbarTitle = 'Transfer money';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Getway | System | Create Payment</title>
+  <title>Getway | Transfer</title>
   <link rel="icon" type="image/png" href="images/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,48 +20,51 @@ $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
   />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="part-two.css?v=<?= urlencode($cssVersion) ?>" />
+  <link rel="stylesheet" href="wallet-banking-theme.css?v=<?= urlencode($bkVersion) ?>" />
   <link
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
   />
 </head>
-<body class="tis-shell tis-wallet-dash layout-phone create-pay-page w-home-sample">
+<body class="tis-shell tis-wallet-dash layout-phone create-pay-page w-home-sample bk-theme">
 <?php $activeTopNav = 'pay'; require __DIR__ . '/wallet-top-nav.php'; ?>
 
   <main class="tis-wrap w-shell">
     <div class="w-app">
-      <header class="w-header">
-        <div class="w-header-center">
-          <label class="w-visually-hidden" for="wallet-global-search">Search this page</label>
-          <div class="w-header-search">
-            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-            <input
-              type="search"
-              id="wallet-global-search"
-              placeholder="Search form, inventory, payments…"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
-        </div>
-      </header>
+<?php require __DIR__ . '/wallet-phone-topbar.php'; ?>
 
       <div class="w-page-content">
         <section class="tis-grid">
-          <article class="tis-card w-searchable cp-form-card">
-            <h2><i class="fa-solid fa-file-invoice-dollar"></i> Create Payment</h2>
+          <article class="bk-transfer-card w-searchable cp-form-card">
+            <h2><i class="fa-solid fa-right-left"></i> Transfer money</h2>
             <form id="payment-form" class="tis-form">
-              <label for="customerName"><i class="fa-solid fa-user"></i> Customer Name</label>
-              <input type="text" id="customerName" value="Customer" required />
+              <div class="bk-form-field">
+                <label for="custom-product-amount"><i class="fa-solid fa-money-bill-wave"></i> Amount (TZS)</label>
+                <input type="number" id="custom-product-amount" min="0" step="1" value="0" placeholder="0" />
+              </div>
 
-              <label for="customerEmail"><i class="fa-solid fa-envelope"></i> Customer Email</label>
-              <input type="email" id="customerEmail" value="customer@example.com" required />
+              <div class="bk-form-field">
+                <label for="customerPhone"><i class="fa-solid fa-phone"></i> From (Your phone)</label>
+                <input type="text" id="customerPhone" value="255765149991" required />
+              </div>
 
-              <label for="customerPhone"><i class="fa-solid fa-phone"></i> Customer Phone</label>
-              <input type="text" id="customerPhone" value="255765149991" required />
+              <div class="bk-form-field">
+                <label for="customerName"><i class="fa-solid fa-user"></i> To (Recipient)</label>
+                <input type="text" id="customerName" value="Customer" required />
+              </div>
 
-              <label for="description"><i class="fa-solid fa-pen-to-square"></i> Description</label>
-              <input type="text" id="description" value="Inventory Payment" required />
+              <label for="customerEmail" class="w-visually-hidden">Customer Email</label>
+              <input type="hidden" id="customerEmail" value="customer@example.com" />
+
+              <div class="bk-form-field">
+                <label for="description"><i class="fa-solid fa-pen-to-square"></i> Description</label>
+                <input type="text" id="description" value="Inventory Payment" required />
+              </div>
+
+              <div class="bk-form-field">
+                <label for="custom-product-name"><i class="fa-solid fa-signature"></i> Product name</label>
+                <input type="text" id="custom-product-name" placeholder="Example: Sugar 1kg" autocomplete="off" />
+              </div>
 
               <div class="section-heading">
                 <h3><i class="fa-solid fa-boxes-stacked"></i> Inventory Items</h3>
@@ -67,27 +72,15 @@ $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
               </div>
               <div id="inventory-list" class="inventory-list"></div>
 
-              <div class="custom-product-inline">
-                <h3><i class="fa-solid fa-money-bill-wave"></i> Enter payment amount</h3>
-                <p class="empty-state" style="margin-top: 0; margin-bottom: 0.5rem">
-                  Enter amount (TZS) and customer phone, then tap Pay Now to continue to ClickPesa.
-                </p>
-                <label for="custom-product-name"><i class="fa-solid fa-signature"></i> Product name</label>
-                <input type="text" id="custom-product-name" placeholder="Example: Sugar 1kg" autocomplete="off" />
-
-                <label for="custom-product-amount"><i class="fa-solid fa-money-bill-wave"></i> Amount to pay (TZS)</label>
-                <input type="number" id="custom-product-amount" min="0" step="1" value="0" placeholder="0" />
-
-                <p class="form-message" id="custom-product-hint" style="margin-top: 0.5rem"></p>
-              </div>
+              <p class="form-message" id="custom-product-hint" style="margin-top: 0.5rem"></p>
 
               <div class="total-row">
                 <span>Order Total</span>
                 <strong id="order-total">TZS 0</strong>
               </div>
 
-              <button id="pay-now-btn" class="btn-primary" type="submit">
-                <i class="fa-solid fa-credit-card"></i> PAY NOW (Create Checkout)
+              <button id="pay-now-btn" class="bk-btn-primary" type="submit">
+                <i class="fa-solid fa-right-left"></i> Transfer
               </button>
             </form>
             <p id="form-message" class="form-message"></p>

@@ -1,14 +1,16 @@
 <?php
 require __DIR__ . '/auth-guard.php';
 $cssVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
+$bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
 $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
+$phoneTopbarTitle = 'Transactions';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Getway | System | Payment Details</title>
+  <title>Getway | Transactions</title>
   <link rel="icon" type="image/png" href="images/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,33 +20,32 @@ $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
   />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="part-two.css?v=<?= urlencode($cssVersion) ?>" />
+  <link rel="stylesheet" href="wallet-banking-theme.css?v=<?= urlencode($bkVersion) ?>" />
   <link
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
   />
 </head>
-<body class="tis-shell tis-wallet-dash layout-phone w-home-sample">
+<body class="tis-shell tis-wallet-dash layout-phone w-home-sample bk-theme">
 <?php $activeTopNav = 'history'; require __DIR__ . '/wallet-top-nav.php'; ?>
 
   <main class="tis-wrap w-shell">
     <div class="w-app">
-      <header class="w-header">
-        <div class="w-header-center">
-          <label class="w-visually-hidden" for="wallet-global-search">Search this page</label>
-          <div class="w-header-search">
-            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-            <input
-              type="search"
-              id="wallet-global-search"
-              placeholder="Search refs, amounts, table, actions…"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
-        </div>
-      </header>
+<?php require __DIR__ . '/wallet-phone-topbar.php'; ?>
 
       <div class="w-page-content">
+        <!-- Search bar (Screen 12) -->
+        <div class="bk-search-bar w-searchable">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input
+            type="search"
+            id="wallet-global-search"
+            placeholder="Search transactions…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+
         <div class="records-pick w-searchable" role="navigation" aria-label="Payment record types">
           <a
             href="payment-details.php?type=success"
@@ -81,7 +82,7 @@ $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
         <section class="tis-grid w-searchable">
           <article class="tis-card dashboard-card-only">
             <div class="details-header">
-              <h2 id="details-title"><i class="fa-solid fa-table-list"></i> Payment Details</h2>
+              <h2 id="details-title"><i class="fa-solid fa-clock-rotate-left"></i> Transaction History</h2>
               <span id="details-badge" class="details-badge">Loading...</span>
             </div>
 

@@ -300,3 +300,12 @@ updateTotalView();
 if (amountEl) amountEl.addEventListener("input", updateTotalView);
 if (formEl) formEl.addEventListener("submit", createAutoPay);
 
+(function initAutoPrintFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("autoprint") === "1" || params.get("print") === "1") {
+    window.GetwayReceipt?.setAutoPrintEnabled?.(true);
+  }
+  if (params.get("autoprint") === "0" || params.get("print") === "0") {
+    window.GetwayReceipt?.setAutoPrintEnabled?.(false);
+  }
+})();
