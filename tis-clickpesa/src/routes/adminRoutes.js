@@ -8,6 +8,7 @@ const {
   payouts,
   invoice,
   withdraw,
+  resendPayment,
   createControlNumber,
 } = require("../controllers/adminController");
 
@@ -21,6 +22,8 @@ router.get("/control-numbers", controlNumbers);
 router.get("/invoice/:id", invoice);
 router.post("/withdraw/:id", withdraw);
 router.post("/withdraw", withdraw);
+router.post("/resend-payment/:id", resendPayment);
+router.post("/resend-payment", resendPayment);
 router.post("/create-control-number", createControlNumber);
 router.get("/payouts", payouts);
 

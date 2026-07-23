@@ -495,6 +495,7 @@ async function listControlNumbers(limit = 100) {
         withdrawStatus: withdraw.withdrawStatus,
         canWithdraw: withdraw.canWithdraw,
         payoutStatus: payout?.payout_status || tx.payout_status || null,
+        canResend: String(tx.payment_status || "").toUpperCase() === "PENDING",
         invoiceUrl: `admin-invoice.php?id=${tx.id}`,
       };
     })
@@ -773,6 +774,54 @@ async function withdrawPayment(paymentId) {
   return payoutService.withdrawPayment(paymentId);
 }
 
+async function resendPaymentReminder(paymentId) {
+  const db = getPool();
+  const [rows] = await db.query("SELECT * FROM clickpesa_transactions WHERE id = ? LIMIT 1", [paymentId]);
+  const tx = rows[0];
+  if (!tx) {
+    const error = new Error("Payment not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+  if (String(tx.payment_status || "").toUpperCase() !== "PENDING") {
+    const error = new Error("Only pending payments can be resent.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const wasPaid = isSuccessfulStatus(tx.payment_status);
+  const channel = String(tx.channel || "default").toLowerCase() === "autopay" ? "autopay" : "default";
+  const { queryPaymentStatus } = require("./clickpesaService");
+  const remote = await queryPaymentStatus(tx.order_reference, channel);
+  const mappedStatus = mapPaymentStatus(remote.status);
+  const now = Math.floor(Date.now() / 1000);
+
+  await db.query(
+    `UPDATE clickpesa_transactions SET
+      payment_status = ?,
+      raw_payload = ?,
+      updated_at = ?
+     WHERE id = ?`,
+    [mappedStatus, JSON.stringify(remote.raw || remote), now, tx.id]
+  );
+
+  if (!wasPaid && isSuccessfulStatus(mappedStatus)) {
+    const { finalizeSuccessfulPayment } = require("./payoutService");
+    await finalizeSuccessfulPayment(tx.order_reference, Number(remote.amount || 0), remote.phone || "");
+  }
+
+  const [updatedRows] = await db.query("SELECT * FROM clickpesa_transactions WHERE id = ? LIMIT 1", [tx.id]);
+  const updated = updatedRows[0] || tx;
+
+  return {
+    success: true,
+    message: "Payment status refreshed. Share the control number with the customer again if needed.",
+    paymentStatus: updated.payment_status,
+    controlNumber: resolveControlNumber(updated) || updated.control_number,
+    orderReference: updated.order_reference,
+  };
+}
+
 function normalizeBillReference(value) {
   return String(value || "")
     .replace(/[^A-Za-z0-9]/g, "")
@@ -890,21 +939,16 @@ async function createControlNumber(data = {}) {
     billReference = generateBillReference(orderId);
   }
 
+  const customerName = data.customerName ? String(data.customerName) : null;
+  const customerPhone = data.phone ? normalizePhone(data.phone) : null;
+
+  // ClickPesa order control numbers reject customerName/customerPhone in the API body.
   const payload = {
     billDescription: description,
     billPaymentMode: paymentMode,
     billAmount: amount,
     billReference,
   };
-  if (data.customerName) {
-    payload.customerName = String(data.customerName);
-  }
-  if (data.phone) {
-    payload.customerPhone = normalizePhone(data.phone);
-  }
-  if (data.email) {
-    payload.customerEmail = String(data.email);
-  }
 
   const response = await createOrderControlNumber(payload);
   const controlNumber = extractBillPayNumber(response);
@@ -928,8 +972,8 @@ async function createControlNumber(data = {}) {
       amount,
       amount,
       paymentMode,
-      payload.customerPhone || null,
-      payload.customerName || null,
+      customerPhone,
+      customerName,
       description,
       JSON.stringify(payload),
       JSON.stringify(response),
@@ -964,6 +1008,7 @@ module.exports = {
   getInvoiceData,
   createControlNumber,
   withdrawPayment,
+  resendPaymentReminder,
   getAutoPayoutSettings,
   updateAutoPayoutSettings,
   getOrCreateSettingsRow,

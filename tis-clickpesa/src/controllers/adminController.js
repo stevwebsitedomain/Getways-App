@@ -156,6 +156,33 @@ async function withdraw(req, res, next) {
   }
 }
 
+async function resendPayment(req, res, next) {
+  try {
+    if (!isAuthorized(req)) {
+      return unauthorized(res);
+    }
+    const paymentId = Number(req.params.id || req.body?.id || 0);
+    if (!Number.isFinite(paymentId) || paymentId <= 0) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        message: "Payment id is required.",
+      });
+    }
+    const data = await adminService.resendPaymentReminder(paymentId);
+    return res.json({ ok: true, success: true, ...data });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        ok: false,
+        success: false,
+        message: error.message,
+      });
+    }
+    return next(error);
+  }
+}
+
 async function createControlNumber(req, res, next) {
   try {
     if (!isAuthorized(req)) {
@@ -184,5 +211,6 @@ module.exports = {
   payouts,
   invoice,
   withdraw,
+  resendPayment,
   createControlNumber,
 };
