@@ -23,7 +23,7 @@
   let cachedFemaleVoice = null;
   let speakChain = Promise.resolve();
   let speakGen = 0;
-  let lipTimer = null;
+  let lipTimeouts = [];
 
   const MODES = {
     overview: { icon: "fa-gauge-high", labelSw: "Muhtasari", labelEn: "Overview" },
@@ -36,7 +36,7 @@
   function robotFaceHtml(uid) {
     const id = String(uid || "r").replace(/[^a-z0-9]/gi, "");
     return `
-      <div class="gw-robot-face" data-expression="neutral">
+      <div class="gw-robot-face" data-expression="neutral" data-mouth="rest">
         <svg class="gw-robot-svg" viewBox="0 0 200 240" aria-hidden="true">
           <defs>
             <linearGradient id="gwMetal-${id}" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -131,20 +131,62 @@
     faces?.forEach((f) => f.setAttribute("data-expression", expr));
   }
 
-  function startLipSync() {
+  function setMouthViseme(viseme) {
+    const shape = viseme || "rest";
+    root?.querySelectorAll(".gw-robot-face").forEach((f) => {
+      f.setAttribute("data-mouth", shape);
+    });
+  }
+
+  function charToViseme(ch) {
+    const c = String(ch || "").toLowerCase();
+    if (!c || c === " ") return "rest";
+    if (/[.,!?;:\-]/.test(c)) return "rest";
+    if (/[mbp]/.test(c)) return "mb";
+    if (/[fv]/.test(c)) return "ff";
+    if (/[oôóòö]/.test(c)) return "oh";
+    if (/[uûúùw]/.test(c)) return "uu";
+    if (/[eéèêë]/.test(c)) return "ee";
+    if (/[iîíìy]/.test(c)) return "ee";
+    if (/[aáàâä]/.test(c)) return "aa";
+    if (/[h]/.test(c)) return "aa";
+    if (/[lr]/.test(c)) return "small";
+    if (/[tdszcjnxkg]/.test(c)) return "th";
+    return "small";
+  }
+
+  function charDuration(ch, rate) {
+    const base = 88 / rate;
+    if (ch === " ") return base * 0.45;
+    if (/[.,!?;:]/.test(ch)) return base * 1.1;
+    if (/[mbp]/.test(ch)) return base * 0.65;
+    if (/[aáàâeéèêiîíìoôóòuûúù]/i.test(ch)) return base * 1.05;
+    return base * 0.82;
+  }
+
+  function scheduleLipSync(text, rate) {
     stopLipSync();
-    lipTimer = window.setInterval(() => {
-      root?.querySelectorAll(".gw-robot-face").forEach((f) => {
-        f.classList.toggle("gw-mouth-open");
-      });
-    }, 110);
+    const chars = Array.from(String(text || ""));
+    if (!chars.length) return;
+
+    let elapsed = 0;
+    chars.forEach((ch) => {
+      const viseme = charToViseme(ch);
+      const delay = elapsed;
+      const id = window.setTimeout(() => {
+        if (speaking) setMouthViseme(viseme);
+      }, delay);
+      lipTimeouts.push(id);
+      elapsed += charDuration(ch, rate || 0.9);
+    });
+
+    lipTimeouts.push(window.setTimeout(() => setMouthViseme("rest"), elapsed + 60));
   }
 
   function stopLipSync() {
-    if (lipTimer) {
-      window.clearInterval(lipTimer);
-      lipTimer = null;
-    }
+    lipTimeouts.forEach((id) => window.clearTimeout(id));
+    lipTimeouts = [];
+    setMouthViseme("rest");
     root?.querySelectorAll(".gw-robot-face").forEach((f) => {
       f.classList.remove("gw-mouth-open");
     });
@@ -159,8 +201,7 @@
       if (active) f.setAttribute("data-expression", "speaking");
       else if (!listening) f.setAttribute("data-expression", "neutral");
     });
-    if (active) startLipSync();
-    else stopLipSync();
+    if (!active) stopLipSync();
   }
 
   function getVoiceLang() {
@@ -239,9 +280,10 @@
 
         const utter = new SpeechSynthesisUtterance(text);
         const voice = pickFemaleVoice();
+        const rate = 0.9;
         utter.voice = voice;
         utter.lang = voice?.lang || getVoiceLang();
-        utter.rate = 0.9;
+        utter.rate = rate;
         utter.pitch = 1.15;
         utter.volume = 1;
 
@@ -250,10 +292,23 @@
             resolve();
             return;
           }
+          stopLipSync();
           speaking = false;
           updateSpeakingUI(false);
           if (!listening) setExpression(emotion || "neutral");
           resolve();
+        };
+
+        utter.onstart = () => {
+          scheduleLipSync(text, rate);
+        };
+
+        utter.onboundary = (event) => {
+          if (!speaking || event.name !== "word") return;
+          const idx = event.charIndex ?? 0;
+          const len = event.charLength || 1;
+          const slice = text.slice(idx, idx + len);
+          if (slice) scheduleLipSync(slice, rate * 1.08);
         };
 
         utter.onend = finish;

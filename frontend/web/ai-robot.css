@@ -63,12 +63,59 @@
 .gw-robot-mouth-wrap {
   transform-box: fill-box;
   transform-origin: 100px 155px;
+  transition: transform 0.07s cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 .gw-robot-mouth-hole,
-.gw-robot-tongue {
-  transition: ry 0.08s ease, opacity 0.08s ease;
+.gw-robot-tongue,
+.gw-robot-lip-top,
+.gw-robot-lip-bottom {
+  transition:
+    rx 0.07s ease,
+    ry 0.07s ease,
+    opacity 0.07s ease,
+    transform 0.07s ease,
+    stroke-width 0.07s ease;
 }
+
+/* ── Human-like viseme mouth shapes ── */
+.gw-robot-face[data-mouth="rest"] .gw-robot-mouth-wrap { transform: scaleY(0.42) scaleX(1); }
+.gw-robot-face[data-mouth="rest"] .gw-robot-mouth-hole { rx: 11; ry: 1; }
+.gw-robot-face[data-mouth="rest"] .gw-robot-tongue { opacity: 0; ry: 1; }
+
+.gw-robot-face[data-mouth="mb"] .gw-robot-mouth-wrap { transform: scaleY(0.28) scaleX(1.02); }
+.gw-robot-face[data-mouth="mb"] .gw-robot-mouth-hole { rx: 12; ry: 0.6; }
+.gw-robot-face[data-mouth="mb"] .gw-robot-lip-top { transform: translateY(1px); }
+
+.gw-robot-face[data-mouth="ff"] .gw-robot-mouth-wrap { transform: scaleY(0.55) scaleX(1.08); }
+.gw-robot-face[data-mouth="ff"] .gw-robot-mouth-hole { rx: 10; ry: 2.8; }
+.gw-robot-face[data-mouth="ff"] .gw-robot-lip-bottom { transform: translateY(1px); }
+
+.gw-robot-face[data-mouth="small"] .gw-robot-mouth-wrap { transform: scaleY(0.62) scaleX(1); }
+.gw-robot-face[data-mouth="small"] .gw-robot-mouth-hole { rx: 10; ry: 3.5; }
+.gw-robot-face[data-mouth="small"] .gw-robot-tongue { opacity: 0.25; ry: 2; }
+
+.gw-robot-face[data-mouth="th"] .gw-robot-mouth-wrap { transform: scaleY(0.68) scaleX(0.96); }
+.gw-robot-face[data-mouth="th"] .gw-robot-mouth-hole { rx: 9; ry: 4; }
+.gw-robot-face[data-mouth="th"] .gw-robot-tongue { opacity: 0.45; ry: 3.2; }
+
+.gw-robot-face[data-mouth="ee"] .gw-robot-mouth-wrap { transform: scaleY(0.58) scaleX(1.22); }
+.gw-robot-face[data-mouth="ee"] .gw-robot-mouth-hole { rx: 14; ry: 4.2; }
+.gw-robot-face[data-mouth="ee"] .gw-robot-lip-top { transform: translateY(-1px); }
+.gw-robot-face[data-mouth="ee"] .gw-robot-lip-bottom { transform: translateY(2px); }
+
+.gw-robot-face[data-mouth="aa"] .gw-robot-mouth-wrap { transform: scaleY(1.18) scaleX(1.06); }
+.gw-robot-face[data-mouth="aa"] .gw-robot-mouth-hole { rx: 13; ry: 8.5; }
+.gw-robot-face[data-mouth="aa"] .gw-robot-tongue { opacity: 0.55; ry: 5; }
+.gw-robot-face[data-mouth="aa"] .gw-robot-lip-bottom { transform: translateY(5px); }
+
+.gw-robot-face[data-mouth="oh"] .gw-robot-mouth-wrap { transform: scaleY(1.05) scaleX(0.82); }
+.gw-robot-face[data-mouth="oh"] .gw-robot-mouth-hole { rx: 8; ry: 7.5; }
+.gw-robot-face[data-mouth="oh"] .gw-robot-tongue { opacity: 0.4; ry: 4; }
+
+.gw-robot-face[data-mouth="uu"] .gw-robot-mouth-wrap { transform: scaleY(0.72) scaleX(0.68); }
+.gw-robot-face[data-mouth="uu"] .gw-robot-mouth-hole { rx: 5.5; ry: 5; }
+.gw-robot-face[data-mouth="uu"] .gw-robot-lip-top { transform: translateY(2px); }
 
 .gw-robot-face.is-speaking .gw-robot-iris,
 .gw-robot-face[data-expression="speaking"] .gw-robot-iris {
@@ -80,33 +127,6 @@
   20% { transform: translate(3px, -2px); }
   45% { transform: translate(-3px, 1px); }
   70% { transform: translate(2px, 3px); }
-}
-
-.gw-robot-face.is-speaking .gw-robot-mouth-wrap,
-.gw-robot-face.gw-mouth-open .gw-robot-mouth-wrap,
-.gw-robot-face[data-expression="speaking"] .gw-robot-mouth-wrap {
-  animation: gwAgentMouthTalk 0.13s ease-in-out infinite alternate;
-}
-
-@keyframes gwAgentMouthTalk {
-  from { transform: scaleY(0.45); }
-  to { transform: scaleY(1.2); }
-}
-
-.gw-robot-face.is-speaking .gw-robot-mouth-hole,
-.gw-robot-face.gw-mouth-open .gw-robot-mouth-hole {
-  ry: 7;
-}
-
-.gw-robot-face.is-speaking .gw-robot-tongue,
-.gw-robot-face.gw-mouth-open .gw-robot-tongue {
-  opacity: 0.55;
-  ry: 4;
-}
-
-.gw-robot-face.is-speaking .gw-robot-lip-bottom,
-.gw-robot-face.gw-mouth-open .gw-robot-lip-bottom {
-  transform: translateY(2px);
 }
 
 .gw-robot-face[data-expression="listening"] .gw-robot-iris {
