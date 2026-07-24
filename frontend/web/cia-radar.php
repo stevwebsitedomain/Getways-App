@@ -106,12 +106,12 @@ $ciaPageKicker = 'CIA Perimeter Detection';
       </label>
       <label class="cia-cam-field">
         <span>Camera IP / Host (optional for scan)</span>
-        <input type="text" id="cia-cam-ip" placeholder="e.g. 192.168.0.250" autocomplete="off" />
+        <input type="text" id="cia-cam-ip" value="192.168.0.250" placeholder="e.g. 192.168.0.250" autocomplete="off" />
       </label>
       <div class="cia-cam-auth">
         <label class="cia-cam-field">
           <span>Username</span>
-          <input type="text" id="cia-cam-user" placeholder="admin" autocomplete="username" />
+          <input type="text" id="cia-cam-user" value="admin" placeholder="admin" autocomplete="username" />
         </label>
         <label class="cia-cam-field">
           <span>Password</span>
@@ -120,7 +120,7 @@ $ciaPageKicker = 'CIA Perimeter Detection';
       </div>
       <label class="cia-cam-field">
         <span>Manual stream URL (optional)</span>
-        <input type="url" id="cia-cam-url" placeholder="rtsp://192.168.0.250:554/stream1" />
+        <input type="url" id="cia-cam-url" placeholder="rtsp://192.168.0.250:554/live/ch00_0" />
       </label>
       <div class="cia-cam-actions">
         <button type="button" class="cia-btn cia-btn--primary" id="cia-cam-scan"><i class="fa-solid fa-wifi"></i> Scan Network</button>
@@ -132,7 +132,7 @@ $ciaPageKicker = 'CIA Perimeter Detection';
     <ul class="cia-cam-results" id="cia-cam-results" hidden></ul>
     <div class="cia-cam-preview-wrap">
       <img id="cia-cam-preview" alt="Camera preview" hidden />
-      <p class="cia-cam-hint" id="cia-cam-hint">Scan network to find V380 camera automatically, or search by IP.</p>
+      <p class="cia-cam-hint" id="cia-cam-hint">Your V380 is at 192.168.0.250 — click <strong>Connect</strong> or <strong>Search IP</strong>.</p>
     </div>
   </aside>
   </div>

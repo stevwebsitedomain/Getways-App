@@ -191,7 +191,10 @@
     const remaining = fixData.remaining ?? 0;
     if (fixed || remaining !== count) {
       let fixMsg = "";
-      if (fixed) fixMsg += t(`Nimerekebisha: ${fixed}.`, `I fixed: ${fixed}.`);
+      if (fixData.advice) {
+        fixMsg += t(` Ushauri wa AI: ${fixData.advice}.`, ` AI advice: ${fixData.advice}.`);
+      }
+      if (fixed) fixMsg += t(` Nimerekebisha: ${fixed}.`, ` I fixed: ${fixed}.`);
       if (remaining > 0) fixMsg += t(` Bado makosa ${remaining}.`, ` ${remaining} error(s) remain.`);
       else fixMsg += t(" Sasa mfumo uko sawa.", " System is OK now.");
       if (fixMsg.trim()) await speak(fixMsg, remaining > 0 ? "angry" : "happy");
@@ -763,6 +766,9 @@
         `Tahadhari ${agentCodename}! Makosa yamegunduliwa.`,
         `Alert ${agentCodename}! Errors detected.`
       );
+      if (data.advice) {
+        msg += t(` Ushauri wa AI: ${data.advice}.`, ` AI advice: ${data.advice}.`);
+      }
       if (fixed) {
         msg += t(` Nimerekebisha: ${fixed}.`, ` I fixed: ${fixed}.`);
       } else {

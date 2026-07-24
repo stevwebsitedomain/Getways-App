@@ -141,7 +141,7 @@ function camProxyBuildUrl(string $scheme, string $host, int $port, string $path,
     return "{$scheme}://{$auth}{$host}{$portPart}{$path}";
 }
 
-function camProxyTcpOpen(string $host, int $port, float $timeout = 2.0): bool
+function camProxyTcpOpen(string $host, int $port, float $timeout = 1.0): bool
 {
     $errno = 0;
     $errstr = '';
@@ -538,32 +538,63 @@ if ($action === 'scan') {
     $brand = strtolower(trim((string) ($_GET['brand'] ?? 'v380')));
     $user = trim((string) ($_GET['user'] ?? ''));
     $pass = trim((string) ($_GET['pass'] ?? ''));
+    $priorityIp = camProxyNormalizeIp((string) ($_GET['priority_ip'] ?? ''));
 
-    $hosts = [];
-    for ($i = $start; $i <= $end; $i++) {
-        $ip = "{$subnet}.{$i}";
+    $scanOne = static function (string $ip) use ($user, $pass, $brand): ?array {
         $openPorts = [];
         foreach ([554, 80, 8080, 8000] as $port) {
-            if (camProxyTcpOpen($ip, $port, 0.12)) {
+            if (camProxyTcpOpen($ip, $port, 1.0)) {
                 $openPorts[] = $port;
             }
         }
         if ($openPorts === []) {
-            continue;
+            return null;
         }
 
         $streams = camProxyStreamsForIp($ip, $user, $pass, $brand, $openPorts);
         if ($streams === []) {
-            continue;
+            return null;
         }
 
-        $hosts[] = [
+        return [
             'ip' => $ip,
             'open_ports' => $openPorts,
             'brand_guess' => in_array(554, $openPorts, true) ? 'V380 / RTSP Camera' : 'IP Camera',
             'cameras' => $streams,
             'best_url' => $streams[0]['url'] ?? null,
         ];
+    };
+
+    $hosts = [];
+    $seenIps = [];
+
+    if ($priorityIp !== '') {
+        $host = $scanOne($priorityIp);
+        if ($host !== null) {
+            $hosts[] = $host;
+            $seenIps[$priorityIp] = true;
+        }
+    }
+
+    for ($i = $start; $i <= $end; $i++) {
+        $ip = "{$subnet}.{$i}";
+        if (isset($seenIps[$ip])) {
+            continue;
+        }
+        $host = $scanOne($ip);
+        if ($host !== null) {
+            $hosts[] = $host;
+        }
+    }
+
+    $hints = [];
+    if ($hosts === []) {
+        $hints[] = 'Camera IP from your settings: 192.168.0.250 — enter it above and click Search IP or Connect.';
+        $hints[] = 'PC and camera must be on same Wi‑Fi/LAN (192.168.0.x). Gateway: 192.168.0.1';
+        $hints[] = 'V380 password is often set in the phone app (not empty). Try username admin.';
+        if ($priorityIp !== '') {
+            $hints[] = "Could not reach {$priorityIp} on ports 554/80/8080/8000 from this server.";
+        }
     }
 
     camProxyJson(200, [
@@ -574,6 +605,11 @@ if ($action === 'scan') {
         'hosts' => $hosts,
         'ffmpeg_available' => camProxyFfmpegPath() !== '',
         'brand' => $brand,
+        'priority_ip' => $priorityIp,
+        'hints' => $hints,
+        'message' => $hosts === []
+            ? "No camera found on {$subnet}.x"
+            : 'Camera(s) found on network.',
     ]);
 }
 

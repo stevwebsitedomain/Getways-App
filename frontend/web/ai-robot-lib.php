@@ -450,7 +450,134 @@ function gwRobotTailFile(string $path, int $bytes = 4096): string
 }
 
 /**
- * @return array{fixed: list<string>, failed: list<string>}
+ * Use OpenAI to diagnose remaining errors and apply safe fixes.
+ *
+ * @param list<array<string, mixed>> $openErrors
+ * @return array{fixed: list<string>, failed: list<string>, advice: string}
+ */
+function gwRobotLlmAutoFix(array $openErrors, string $lang = 'sw'): array
+{
+    $result = ['fixed' => [], 'failed' => [], 'advice' => ''];
+    if (!gwRobotLlmEnabled() || $openErrors === [] || !function_exists('curl_init')) {
+        return $result;
+    }
+
+    $apiKey = gwRobotEnv('AGENT_AI_API_KEY');
+    if ($apiKey === '') {
+        $apiKey = gwRobotEnv('OPENAI_API_KEY');
+    }
+    if ($apiKey === '') {
+        return $result;
+    }
+
+    $summary = [];
+    foreach (array_slice($openErrors, 0, 8) as $err) {
+        $summary[] = [
+            'source' => (string) ($err['source'] ?? ''),
+            'message' => (string) ($err['message'] ?? ''),
+            'severity' => (string) ($err['severity'] ?? 'error'),
+        ];
+    }
+
+    $baseUrl = rtrim(gwRobotEnv('AGENT_AI_BASE_URL', 'https://api.openai.com/v1'), '/');
+    $model = gwRobotEnv('AGENT_AI_MODEL', 'gpt-4o-mini');
+    $projectRoot = dirname(__DIR__, 2);
+
+    $system = $lang === 'sw'
+        ? 'Wewe ni mfumo wa kurekebisha makosa wa Getway wallet (PHP/XAMPP). Rudisha JSON tu: {"advice":"maelezo mafupi kwa mtumiaji","actions":[{"type":"mkdir","path":"runtime/sessions"},{"type":"create_file","path":"runtime/auth-users.json","content":"{\"users\":[]}"},{"type":"chmod","path":"runtime","mode":"0775"}]}. Aina salama tu: mkdir, create_file, chmod. Usitoe amri za shell.'
+        : 'You fix Getway wallet system errors (PHP/XAMPP). Return JSON only: {"advice":"short user message","actions":[{"type":"mkdir","path":"runtime/sessions"}]}. Safe types only: mkdir, create_file, chmod. No shell commands.';
+
+    $payload = [
+        'model' => $model,
+        'messages' => [
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user', 'content' => 'Open errors: ' . json_encode($summary, JSON_UNESCAPED_UNICODE)],
+        ],
+        'max_tokens' => 500,
+        'temperature' => 0.2,
+        'response_format' => ['type' => 'json_object'],
+    ];
+
+    $ch = curl_init($baseUrl . '/chat/completions');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey,
+        ],
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        CURLOPT_TIMEOUT => 35,
+    ]);
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if (!is_string($response) || $httpCode < 200 || $httpCode >= 300) {
+        return $result;
+    }
+
+    $data = json_decode($response, true);
+    $content = trim((string) ($data['choices'][0]['message']['content'] ?? ''));
+    $plan = json_decode($content, true);
+    if (!is_array($plan)) {
+        return $result;
+    }
+
+    $result['advice'] = trim((string) ($plan['advice'] ?? ''));
+    $actions = $plan['actions'] ?? [];
+    if (!is_array($actions)) {
+        return $result;
+    }
+
+    foreach ($actions as $action) {
+        if (!is_array($action)) {
+            continue;
+        }
+        $type = strtolower(trim((string) ($action['type'] ?? '')));
+        $relPath = trim((string) ($action['path'] ?? ''), " \t\n\r\0\x0B/\\");
+        if ($relPath === '' || str_contains($relPath, '..')) {
+            continue;
+        }
+        $fullPath = $projectRoot . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relPath);
+        $runtimeRoot = realpath(gwAuthRuntimeDir()) ?: gwAuthRuntimeDir();
+        $allowedRoot = realpath($projectRoot) ?: $projectRoot;
+
+        if ($type === 'mkdir') {
+            if (!str_starts_with(str_replace('\\', '/', $fullPath), str_replace('\\', '/', $allowedRoot))) {
+                continue;
+            }
+            if (!is_dir($fullPath)) {
+                @mkdir($fullPath, 0775, true);
+            }
+            if (is_dir($fullPath)) {
+                $result['fixed'][] = 'AI created folder: ' . $relPath;
+            }
+        } elseif ($type === 'create_file') {
+            if (!str_starts_with(str_replace('\\', '/', dirname($fullPath)), str_replace('\\', '/', $runtimeRoot))
+                && !str_starts_with(str_replace('\\', '/', $fullPath), str_replace('\\', '/', $runtimeRoot))) {
+                continue;
+            }
+            $contentBody = (string) ($action['content'] ?? '{"users":[]}');
+            if (@file_put_contents($fullPath, $contentBody) !== false) {
+                $result['fixed'][] = 'AI created file: ' . $relPath;
+            }
+        } elseif ($type === 'chmod') {
+            if (!str_starts_with(str_replace('\\', '/', $fullPath), str_replace('\\', '/', $allowedRoot))) {
+                continue;
+            }
+            $mode = octdec((string) ($action['mode'] ?? '0775'));
+            if (@chmod($fullPath, $mode)) {
+                $result['fixed'][] = 'AI fixed permissions: ' . $relPath;
+            }
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * @return array{fixed: list<string>, failed: list<string>, advice?: string}
  */
 function gwRobotAutoFix(string $errorId = ''): array
 {
@@ -528,6 +655,23 @@ function gwRobotAutoFix(string $errorId = ''): array
 
     gwRobotWriteJson($path, $data);
 
+    $openAfter = gwRobotGetOpenErrors();
+    $advice = '';
+    if ($errorId === '' && $openAfter !== [] && gwRobotLlmEnabled()) {
+        $llmFix = gwRobotLlmAutoFix($openAfter, 'sw');
+        if ($llmFix['fixed'] !== []) {
+            $fixed = array_merge($fixed, $llmFix['fixed']);
+            gwRobotScanSystemErrors();
+        }
+        if ($llmFix['advice'] !== '') {
+            $advice = $llmFix['advice'];
+            $fixed[] = 'AI: ' . $advice;
+        }
+        if ($llmFix['failed'] !== []) {
+            $failed = array_merge($failed, $llmFix['failed']);
+        }
+    }
+
     if ($errorId === '') {
         $openCount = count(gwRobotGetOpenErrors());
         if ($openCount === 0 && empty($fixed)) {
@@ -535,7 +679,11 @@ function gwRobotAutoFix(string $errorId = ''): array
         }
     }
 
-    return ['fixed' => $fixed, 'failed' => $failed];
+    $out = ['fixed' => $fixed, 'failed' => $failed];
+    if ($advice !== '') {
+        $out['advice'] = $advice;
+    }
+    return $out;
 }
 
 function gwRobotFormatDuration(string $isoTime): string

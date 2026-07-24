@@ -100,6 +100,7 @@ if ($action === 'fix' && $method === 'POST') {
         'ok' => true,
         'fixed' => $result['fixed'],
         'failed' => $result['failed'],
+        'advice' => $result['advice'] ?? '',
         'remaining' => count(gwRobotGetOpenErrors()),
     ]);
 }

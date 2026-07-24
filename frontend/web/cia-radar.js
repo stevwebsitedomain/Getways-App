@@ -571,11 +571,34 @@
     }
   }
 
+  function buildV380RtspUrl(ip, user, pass) {
+    const auth =
+      user !== ""
+        ? `${encodeURIComponent(user)}:${encodeURIComponent(pass)}@`
+        : pass !== ""
+          ? `:${encodeURIComponent(pass)}@`
+          : "";
+    return `rtsp://${auth}${ip}:554/live/ch00_0`;
+  }
+
+  async function connectCameraByIp() {
+    const ip = $("cia-cam-ip")?.value.trim();
+    if (!ip) {
+      alert("Enter camera IP.");
+      return false;
+    }
+    const user = $("cia-cam-user")?.value.trim() || "admin";
+    const pass = $("cia-cam-pass")?.value || "";
+    const url = buildV380RtspUrl(ip, user, pass);
+    if ($("cia-cam-url")) $("cia-cam-url").value = url;
+    return connectExternalCamera(url);
+  }
+
   async function searchCameras() {
     const ip = $("cia-cam-ip")?.value.trim();
     if (!ip) {
       alert("Enter camera IP or use Scan Network.");
-      return;
+      return false;
     }
     const user = $("cia-cam-user")?.value.trim() || "";
     const pass = $("cia-cam-pass")?.value || "";
@@ -589,9 +612,11 @@
       const params = new URLSearchParams({ action: "probe", ip, user, pass, brand });
       const res = await fetch(`${CAMERA_PROXY}?${params}`, { credentials: "same-origin" });
       const data = await res.json();
-      renderCameraList(data, false);
+      const foundUrl = renderCameraList(data, false);
+      return !!foundUrl;
     } catch (_) {
       alert("Camera search failed. Check IP and network.");
+      return false;
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -633,6 +658,7 @@
           pass,
           brand,
         });
+        if (ipHint) params.set("priority_ip", ipHint);
         const res = await fetch(`${CAMERA_PROXY}?${params}`, { credentials: "same-origin" });
         const data = await res.json();
         if (data.hosts?.length) allHosts.push(...data.hosts);
@@ -641,9 +667,14 @@
       const firstUrl = renderCameraList(
         {
           hosts: allHosts,
+          hints: allHosts.length ? [] : [
+            "Try Search IP with 192.168.0.250",
+            "Enter V380 app password (username admin)",
+            "Same Wi‑Fi as camera — gateway 192.168.0.1",
+          ],
           message: allHosts.length
             ? `Found ${allHosts.length} camera(s) on network.`
-            : `No V380 camera found on ${subnet}.x — check camera is on same Wi‑Fi.`,
+            : `No V380 camera found on ${subnet}.x — trying direct connect...`,
         },
         true
       );
@@ -653,6 +684,17 @@
         const ok = await connectExternalCamera(firstUrl);
         if (progress) {
           progress.textContent = ok ? "V380 connected automatically." : "Found camera — click a stream to connect.";
+        }
+      } else if (ipHint) {
+        if (progress) progress.textContent = `Trying direct connect to ${ipHint}...`;
+        const probed = await searchCameras();
+        if (!probed) {
+          const ok = await connectCameraByIp();
+          if (progress) {
+            progress.textContent = ok
+              ? `Connected to ${ipHint} via RTSP.`
+              : `Could not connect to ${ipHint}. Check password in V380 app.`;
+          }
         }
       } else if (progress) {
         progress.textContent = `Scan complete. No camera on ${subnet}.x`;
@@ -955,7 +997,10 @@
         alert("Enter camera IP or manual stream URL.");
         return;
       }
-      await searchCameras();
+      const found = await searchCameras();
+      if (!found) {
+        await connectCameraByIp();
+      }
     });
 
     $("cia-filter-date")?.addEventListener("change", () => refreshEvents());
