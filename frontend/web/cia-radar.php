@@ -98,7 +98,7 @@ $ciaPageKicker = 'CIA Perimeter Detection';
     <div class="cia-cam-form">
       <label class="cia-cam-field">
         <span>Camera IP / Host</span>
-        <input type="text" id="cia-cam-ip" placeholder="e.g. 192.168.1.100" autocomplete="off" />
+        <input type="text" id="cia-cam-ip" placeholder="e.g. 192.168.0.250" autocomplete="off" />
       </label>
       <div class="cia-cam-auth">
         <label class="cia-cam-field">
@@ -112,7 +112,7 @@ $ciaPageKicker = 'CIA Perimeter Detection';
       </div>
       <label class="cia-cam-field">
         <span>Manual stream URL (optional)</span>
-        <input type="url" id="cia-cam-url" placeholder="http://IP:port/video.mjpg" />
+        <input type="url" id="cia-cam-url" placeholder="rtsp://192.168.0.250:554/stream1" />
       </label>
       <div class="cia-cam-actions">
         <button type="button" class="cia-btn cia-btn--primary" id="cia-cam-search"><i class="fa-solid fa-magnifying-glass"></i> Search</button>

@@ -421,8 +421,21 @@
     els.camStatus.classList.toggle("is-on", !!on);
   }
 
+  function getCameraAuthParams() {
+    const params = new URLSearchParams();
+    const user = $("cia-cam-user")?.value.trim() || "";
+    const pass = $("cia-cam-pass")?.value || "";
+    if (user) params.set("user", user);
+    if (pass) params.set("pass", pass);
+    return params;
+  }
+
   function proxySnapshotUrl(cameraUrl) {
-    return `${CAMERA_PROXY}?action=snapshot&camera=${encodeURIComponent(cameraUrl)}&t=${Date.now()}`;
+    const params = getCameraAuthParams();
+    params.set("action", "snapshot");
+    params.set("camera", cameraUrl);
+    params.set("t", String(Date.now()));
+    return `${CAMERA_PROXY}?${params}`;
   }
 
   function stopExternalPoll() {
@@ -489,16 +502,41 @@
       const list = els.camResults;
       if (!list) return;
       list.innerHTML = "";
+      if (data.hints?.length) {
+        const hint = document.createElement("li");
+        hint.innerHTML = `<span class="cia-cam-hint">${data.hints.join("<br>")}</span>`;
+        list.appendChild(hint);
+      }
       if (!data.cameras?.length) {
         list.hidden = false;
-        list.innerHTML = `<li><span class="cia-cam-hint">${data.message || "No camera found."}</span></li>`;
+        const empty = document.createElement("li");
+        empty.innerHTML = `<span class="cia-cam-hint">${data.message || "No camera found."}</span>`;
+        list.appendChild(empty);
+        if (data.open_ports?.length) {
+          const ports = document.createElement("li");
+          ports.innerHTML = `<span class="cia-cam-hint">Open ports: ${data.open_ports.join(", ")}</span>`;
+          list.appendChild(ports);
+        }
         return;
+      }
+      if (data.message) {
+        const msg = document.createElement("li");
+        msg.innerHTML = `<span class="cia-cam-hint"><strong>${data.message}</strong></span>`;
+        list.appendChild(msg);
+      }
+      if (data.rtsp_detected && !data.ffmpeg_available) {
+        const ff = document.createElement("li");
+        ff.innerHTML = '<span class="cia-cam-hint" style="color:#fbbf24">RTSP camera detected. Install <strong>ffmpeg</strong> on this PC to connect, or enable HTTP stream in camera app.</span>';
+        list.appendChild(ff);
       }
       data.cameras.forEach((cam) => {
         const li = document.createElement("li");
         const b = document.createElement("button");
         b.type = "button";
         b.textContent = cam.label || cam.display_url;
+        if (cam.needs_auth) {
+          b.textContent += " — enter password & connect";
+        }
         b.addEventListener("click", () => connectExternalCamera(cam.url));
         li.appendChild(b);
         list.appendChild(li);
