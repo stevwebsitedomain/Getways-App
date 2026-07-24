@@ -188,6 +188,14 @@
     try {
       const data = await apiFetch("status");
       updateStatusUI(data);
+
+      if (data?.agent && !data.agent.authorized && data?.isAdmin) {
+        try {
+          await apiFetch("bind-agent", { method: "POST", body: {} });
+          return refreshStatus();
+        } catch (_) {}
+      }
+
       return data;
     } catch (err) {
       reportClientError(err.message || "Status failed", "api");
@@ -211,8 +219,10 @@
     setSpeechText(t("Ninasikiliza...", "Listening..."));
     try {
       const data = await apiFetch("chat", { method: "POST", body: { message } });
+      if (data.authorized) isAuthorized = true;
       await speak(data.text || "", data.emotion || "neutral");
       if (!data.authorized) setExpression("angry");
+      else setExpression(data.emotion || "happy");
     } catch (err) {
       await speak(t("Imeshindwa kujibu.", "Could not respond."), "angry");
     }

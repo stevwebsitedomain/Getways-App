@@ -66,7 +66,7 @@ if ($action === 'report-error' && $method === 'POST') {
 
 $user = robotRequireAuth();
 $role = strtolower((string) ($user['role'] ?? 'user'));
-$isAdmin = $role === 'admin';
+$isAdmin = gwRobotUserIsAdmin($user);
 
 if (!isset($_SESSION['gw_login_at']) || $_SESSION['gw_login_at'] === '') {
     $_SESSION['gw_login_at'] = gmdate('c');
@@ -129,7 +129,25 @@ if ($action === 'chat' && $method === 'POST') {
     ]);
 }
 
+if ($action === 'bind-agent' && $method === 'POST') {
+    if (!gwRobotUserIsAdmin($user)) {
+        robotJson(403, [
+            'ok' => false,
+            'message' => $lang === 'sw'
+                ? 'Ni admin pekee anaweza kuunganishwa kama Special Agent namba 3.'
+                : 'Only admin can bind as Special Agent number 3.',
+        ]);
+    }
+    $profile = gwRobotBindAgent($user);
+    robotJson(200, [
+        'ok' => true,
+        'authorized' => true,
+        'codename' => (string) ($profile['codename'] ?? 'Special Agent namba 3'),
+    ]);
+}
+
 $agentInfo = gwRobotCheckAgent($user);
+gwRobotPruneOpenErrors();
 
 // Default: status
 $logins = gwRobotGetRecentLogins(5);

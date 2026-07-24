@@ -100,6 +100,17 @@ function gwRobotLogError(string $source, string $message, string $severity = 'er
     $data = gwRobotReadJson($path);
     $events = $data['events'];
 
+    foreach ($events as $event) {
+        if (!is_array($event) || ($event['type'] ?? '') !== 'error') {
+            continue;
+        }
+        if (($event['status'] ?? 'open') === 'open'
+            && ($event['source'] ?? '') === $source
+            && ($event['message'] ?? '') === $message) {
+            return;
+        }
+    }
+
     $event = [
         'type' => 'error',
         'id' => bin2hex(random_bytes(8)),
@@ -152,6 +163,33 @@ function gwRobotGetOpenErrors(): array
         }
     }
     return $open;
+}
+
+function gwRobotPruneOpenErrors(): void
+{
+    $path = gwRobotErrorsPath();
+    $data = gwRobotReadJson($path);
+    $seen = [];
+    $pruned = [];
+
+    foreach ($data['events'] as $event) {
+        if (!is_array($event) || ($event['type'] ?? '') !== 'error') {
+            continue;
+        }
+        if (($event['status'] ?? 'open') !== 'open') {
+            $pruned[] = $event;
+            continue;
+        }
+        $key = ($event['source'] ?? '') . '|' . ($event['message'] ?? '');
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $pruned[] = $event;
+    }
+
+    $data['events'] = array_slice($pruned, 0, 40);
+    gwRobotWriteJson($path, $data);
 }
 
 /**
@@ -353,6 +391,73 @@ function gwRobotAgentPath(): string
 }
 
 /**
+ * @param array<string, mixed> $user
+ */
+function gwRobotUserIsAdmin(array $user): bool
+{
+    if (strtolower((string) ($user['role'] ?? '')) === 'admin') {
+        return true;
+    }
+
+    $storePath = __DIR__ . DIRECTORY_SEPARATOR . 'runtime' . DIRECTORY_SEPARATOR . 'auth-users.json';
+    if (!is_file($storePath)) {
+        return false;
+    }
+    $raw = file_get_contents($storePath);
+    if (!is_string($raw) || $raw === '') {
+        return false;
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data) || !isset($data['users']) || !is_array($data['users'])) {
+        return false;
+    }
+
+    $userId = (string) ($user['id'] ?? '');
+    $phone = (string) ($user['phone'] ?? '');
+    $email = strtolower(trim((string) ($user['email'] ?? '')));
+
+    foreach ($data['users'] as $stored) {
+        if (!is_array($stored)) {
+            continue;
+        }
+        $storedId = (string) ($stored['id'] ?? '');
+        $storedPhone = (string) ($stored['phone'] ?? '');
+        $storedEmail = strtolower(trim((string) ($stored['email'] ?? '')));
+        $storedRole = strtolower((string) ($stored['role'] ?? ''));
+        $storedUsername = strtolower((string) ($stored['username'] ?? ''));
+
+        $matches = ($userId !== '' && $storedId === $userId)
+            || ($phone !== '' && $storedPhone !== '' && $storedPhone === $phone)
+            || ($email !== '' && $storedEmail !== '' && $storedEmail === $email);
+        if (!$matches) {
+            continue;
+        }
+        if ($storedRole === 'admin' || $storedUsername === 'admin') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @param array<string, mixed> $user
+ * @return array<string, mixed>
+ */
+function gwRobotBindAgent(array $user): array
+{
+    $profile = gwRobotGetAgentProfile();
+    $profile['authorizedUserId'] = (string) ($user['id'] ?? '');
+    $profile['realName'] = (string) ($user['fullName'] ?? '');
+    $profile['phone'] = (string) ($user['phone'] ?? '');
+    $profile['email'] = (string) ($user['email'] ?? '');
+    $profile['codename'] = 'Special Agent namba 3';
+    $profile['boundAt'] = gmdate('c');
+    gwRobotSaveAgentProfile($profile);
+    return $profile;
+}
+
+/**
  * @return array<string, mixed>
  */
 function gwRobotGetAgentProfile(): array
@@ -407,11 +512,29 @@ function gwRobotCheckAgent(array $user): array
     $codename = (string) ($profile['codename'] ?? 'Special Agent namba 3');
     $authorizedId = (string) ($profile['authorizedUserId'] ?? '');
 
-    if ($authorizedId === '' && strtolower((string) ($user['role'] ?? '')) === 'admin') {
-        $profile['authorizedUserId'] = $userId;
-        $profile['realName'] = (string) ($user['fullName'] ?? '');
-        $profile['boundAt'] = gmdate('c');
-        gwRobotSaveAgentProfile($profile);
+    if (gwRobotUserIsAdmin($user)) {
+        if ($authorizedId !== $userId) {
+            $profile = gwRobotBindAgent($user);
+            $authorizedId = (string) ($profile['authorizedUserId'] ?? '');
+        }
+        return [
+            'authorized' => true,
+            'bound' => true,
+            'codename' => $codename,
+            'profile' => $profile,
+        ];
+    }
+
+    $profilePhone = (string) ($profile['phone'] ?? '');
+    $profileEmail = strtolower(trim((string) ($profile['email'] ?? '')));
+    $userPhone = (string) ($user['phone'] ?? '');
+    $userEmail = strtolower(trim((string) ($user['email'] ?? '')));
+    $identityMatch = ($authorizedId !== '' && $authorizedId === $userId)
+        || ($profilePhone !== '' && $profilePhone === $userPhone)
+        || ($profileEmail !== '' && $profileEmail === $userEmail);
+
+    if ($identityMatch && $userId !== '' && $authorizedId !== $userId) {
+        $profile = gwRobotBindAgent($user);
         $authorizedId = $userId;
     }
 
@@ -454,9 +577,24 @@ function gwRobotChat(string $message, array $user, string $lang = 'sw'): array
     $lower = mb_strtolower($msg, 'UTF-8');
 
     if (!$agent['authorized']) {
+        if (gwRobotMessageMatches($lower, [
+            'special agent namba 3',
+            'special agent number 3',
+            'mimi ni special agent',
+            'i am special agent',
+            'agent namba 3',
+            'agent number 3',
+        ])) {
+            gwRobotBindAgent($user);
+            $text = $lang === 'sw'
+                ? "Nimekutambua {$codename}! Sasa tunaweza kuongea. Niulize chochote."
+                : "I recognize you, {$codename}! We can talk now. Ask me anything.";
+            return ['text' => $text, 'emotion' => 'happy', 'authorized' => true];
+        }
+
         $text = $lang === 'sw'
-            ? "Sikubali. Mimi huongei na mtu yeyote isipokuwa {$codename}. Wewe si yeye. Nenda zako."
-            : "Access denied. I only speak with {$codename}. You are not authorized.";
+            ? "Sikubali. Mimi huongei na mtu yeyote isipokuwa {$codename}. Sema 'Mimi ni Special Agent namba 3' kuthibitisha."
+            : "Access denied. I only speak with {$codename}. Say 'I am Special Agent number 3' to verify.";
         return ['text' => $text, 'emotion' => 'angry', 'authorized' => false];
     }
 
