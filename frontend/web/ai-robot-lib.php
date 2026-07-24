@@ -510,12 +510,11 @@ function gwRobotCheckAgent(array $user): array
     $profile = gwRobotGetAgentProfile();
     $userId = (string) ($user['id'] ?? '');
     $codename = (string) ($profile['codename'] ?? 'Special Agent namba 3');
-    $authorizedId = (string) ($profile['authorizedUserId'] ?? '');
 
-    if (gwRobotUserIsAdmin($user)) {
+    if ($userId !== '') {
+        $authorizedId = (string) ($profile['authorizedUserId'] ?? '');
         if ($authorizedId !== $userId) {
             $profile = gwRobotBindAgent($user);
-            $authorizedId = (string) ($profile['authorizedUserId'] ?? '');
         }
         return [
             'authorized' => true,
@@ -525,22 +524,9 @@ function gwRobotCheckAgent(array $user): array
         ];
     }
 
-    $profilePhone = (string) ($profile['phone'] ?? '');
-    $profileEmail = strtolower(trim((string) ($profile['email'] ?? '')));
-    $userPhone = (string) ($user['phone'] ?? '');
-    $userEmail = strtolower(trim((string) ($user['email'] ?? '')));
-    $identityMatch = ($authorizedId !== '' && $authorizedId === $userId)
-        || ($profilePhone !== '' && $profilePhone === $userPhone)
-        || ($profileEmail !== '' && $profileEmail === $userEmail);
-
-    if ($identityMatch && $userId !== '' && $authorizedId !== $userId) {
-        $profile = gwRobotBindAgent($user);
-        $authorizedId = $userId;
-    }
-
     return [
-        'authorized' => $authorizedId !== '' && $authorizedId === $userId,
-        'bound' => $authorizedId !== '',
+        'authorized' => false,
+        'bound' => false,
         'codename' => $codename,
         'profile' => $profile,
     ];
@@ -575,28 +561,6 @@ function gwRobotChat(string $message, array $user, string $lang = 'sw'): array
     $codename = $agent['codename'];
     $msg = trim($message);
     $lower = mb_strtolower($msg, 'UTF-8');
-
-    if (!$agent['authorized']) {
-        if (gwRobotMessageMatches($lower, [
-            'special agent namba 3',
-            'special agent number 3',
-            'mimi ni special agent',
-            'i am special agent',
-            'agent namba 3',
-            'agent number 3',
-        ])) {
-            gwRobotBindAgent($user);
-            $text = $lang === 'sw'
-                ? "Nimekutambua {$codename}! Sasa tunaweza kuongea. Niulize chochote."
-                : "I recognize you, {$codename}! We can talk now. Ask me anything.";
-            return ['text' => $text, 'emotion' => 'happy', 'authorized' => true];
-        }
-
-        $text = $lang === 'sw'
-            ? "Sikubali. Mimi huongei na mtu yeyote isipokuwa {$codename}. Sema 'Mimi ni Special Agent namba 3' kuthibitisha."
-            : "Access denied. I only speak with {$codename}. Say 'I am Special Agent number 3' to verify.";
-        return ['text' => $text, 'emotion' => 'angry', 'authorized' => false];
-    }
 
     $profile = $agent['profile'];
     $emotion = 'neutral';

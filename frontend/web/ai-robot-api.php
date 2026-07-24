@@ -130,14 +130,6 @@ if ($action === 'chat' && $method === 'POST') {
 }
 
 if ($action === 'bind-agent' && $method === 'POST') {
-    if (!gwRobotUserIsAdmin($user)) {
-        robotJson(403, [
-            'ok' => false,
-            'message' => $lang === 'sw'
-                ? 'Ni admin pekee anaweza kuunganishwa kama Special Agent namba 3.'
-                : 'Only admin can bind as Special Agent number 3.',
-        ]);
-    }
     $profile = gwRobotBindAgent($user);
     robotJson(200, [
         'ok' => true,

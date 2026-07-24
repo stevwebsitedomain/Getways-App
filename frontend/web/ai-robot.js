@@ -253,7 +253,7 @@
       const data = await apiFetch("status");
       updateStatusUI(data);
 
-      if (data?.agent && !data.agent.authorized && data?.isAdmin) {
+      if (data?.agent && !data.agent.authorized) {
         try {
           await apiFetch("bind-agent", { method: "POST", body: {} });
           return refreshStatus();
