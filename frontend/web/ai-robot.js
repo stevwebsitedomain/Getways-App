@@ -20,6 +20,9 @@
   let recognition = null;
   let isAuthorized = false;
   let agentCodename = "Special Agent namba 3";
+  let cachedFemaleVoice = null;
+  let speakChain = Promise.resolve();
+  let speakGen = 0;
 
   const MODES = {
     overview: { icon: "fa-gauge-high", labelSw: "Muhtasari", labelEn: "Overview" },
@@ -105,46 +108,107 @@
     return getLang() === "sw" ? "sw-TZ" : "en-US";
   }
 
+  function isFemaleVoiceName(name) {
+    const n = String(name || "").toLowerCase();
+    if (/male|david|mark|james|daniel|george|richard|guy|ryan|aaron|fred|tom\b/.test(n)) {
+      return false;
+    }
+    return /female|woman|zira|samantha|aria|jenny|sonia|hazel|susan|linda|karen|heera|natasha|paulina|helen|maria|catherine|lucia|moira|fiona|tessa|ayanda|imani|google.*english.*female|microsoft.*zira/.test(n);
+  }
+
+  function pickFemaleVoice() {
+    if (!synth) return null;
+    const voices = synth.getVoices();
+    if (!voices.length) return null;
+
+    if (cachedFemaleVoice && voices.some((v) => v.name === cachedFemaleVoice.name)) {
+      return cachedFemaleVoice;
+    }
+
+    const langPrefix = getLang() === "sw" ? "sw" : "en";
+    const langVoices = voices.filter((v) => (v.lang || "").toLowerCase().startsWith(langPrefix));
+    const pools = [langVoices, voices.filter((v) => (v.lang || "").toLowerCase().startsWith("en")), voices];
+
+    for (const pool of pools) {
+      const female = pool.find((v) => isFemaleVoiceName(v.name));
+      if (female) {
+        cachedFemaleVoice = female;
+        return female;
+      }
+    }
+
+    const soft = voices.find((v) => /zira|jenny|aria|sonia|samantha/i.test(v.name || ""));
+    cachedFemaleVoice = soft || langVoices[0] || voices[0] || null;
+    return cachedFemaleVoice;
+  }
+
+  function warmupVoice() {
+    if (!synth) return;
+    pickFemaleVoice();
+    synth.getVoices();
+  }
+
   function stopSpeaking() {
-    synth?.cancel();
+    speakGen += 1;
+    if (synth) {
+      synth.cancel();
+      if (typeof synth.resume === "function") synth.resume();
+    }
     speaking = false;
     updateSpeakingUI(false);
   }
 
-  function speak(text, emotion) {
-    if (!text) return Promise.resolve();
+  function speakOnce(text, emotion) {
+    if (!text || !synth) return Promise.resolve();
+
+    const myGen = ++speakGen;
+    synth.cancel();
+    if (typeof synth.resume === "function") synth.resume();
+
+    speaking = true;
+    updateSpeakingUI(true);
     setSpeechText(text);
     if (emotion) setExpression(emotion);
 
-    if (!synth) return Promise.resolve();
-
-    stopSpeaking();
-    speaking = true;
-    updateSpeakingUI(true);
-
     return new Promise((resolve) => {
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = getVoiceLang();
-      utter.rate = 0.92;
-      utter.pitch = 1.05;
+      window.setTimeout(() => {
+        if (myGen !== speakGen) {
+          resolve();
+          return;
+        }
 
-      const voices = synth.getVoices();
-      const pref = voices.find((v) => v.lang.startsWith(getLang() === "sw" ? "sw" : "en"));
-      if (pref) utter.voice = pref;
+        const utter = new SpeechSynthesisUtterance(text);
+        const voice = pickFemaleVoice();
+        utter.voice = voice;
+        utter.lang = voice?.lang || getVoiceLang();
+        utter.rate = 0.9;
+        utter.pitch = 1.15;
+        utter.volume = 1;
 
-      utter.onend = () => {
-        speaking = false;
-        updateSpeakingUI(false);
-        if (!listening) setExpression(emotion || "neutral");
-        resolve();
-      };
-      utter.onerror = () => {
-        speaking = false;
-        updateSpeakingUI(false);
-        resolve();
-      };
-      synth.speak(utter);
+        const finish = () => {
+          if (myGen !== speakGen) {
+            resolve();
+            return;
+          }
+          speaking = false;
+          updateSpeakingUI(false);
+          if (!listening) setExpression(emotion || "neutral");
+          resolve();
+        };
+
+        utter.onend = finish;
+        utter.onerror = finish;
+        synth.speak(utter);
+      }, 80);
     });
+  }
+
+  function speak(text, emotion) {
+    if (!text) return Promise.resolve();
+    speakChain = speakChain
+      .then(() => speakOnce(text, emotion))
+      .catch(() => {});
+    return speakChain;
   }
 
   function setSpeechText(text) {
@@ -235,13 +299,22 @@
       if (!speakResult) return data;
 
       const fixed = (data.fixed || []).join(". ");
-      let msg = fixed
-        ? t(`${agentCodename}, nimerekebisha: ${fixed}`, `${agentCodename}, fixed: ${fixed}`)
-        : t(`${agentCodename}, hakuna makosa.`, `${agentCodename}, no errors.`);
-      if (data.remaining > 0) {
-        msg += t(` Bado ${data.remaining}.`, ` ${data.remaining} left.`);
+      const remaining = data.remaining ?? 0;
+      let msg = t(
+        `Tahadhari ${agentCodename}! Makosa yamegunduliwa.`,
+        `Alert ${agentCodename}! Errors detected.`
+      );
+      if (fixed) {
+        msg += t(` Nimerekebisha: ${fixed}.`, ` I fixed: ${fixed}.`);
+      } else {
+        msg += t(" Nimeangalia mfumo.", " I checked the system.");
       }
-      await speak(msg, data.remaining > 0 ? "angry" : "happy");
+      if (remaining > 0) {
+        msg += t(` Bado ${remaining}.`, ` ${remaining} remaining.`);
+      } else {
+        msg += t(" Sasa kila kitu kiko sawa.", " Everything is OK now.");
+      }
+      await speak(msg, remaining > 0 ? "angry" : "happy");
       return data;
     } catch (err) {
       reportClientError(err.message || "Fix failed", "api");
@@ -256,15 +329,10 @@
     const count = data.errorCount ?? 0;
     if (count > 0 && count !== lastSpokenErrorCount) {
       lastSpokenErrorCount = count;
-      const msg = t(
-        `Tahadhari ${agentCodename}! Makosa ${count} yamegunduliwa kwenye mfumo. Nitairekebisha sasa.`,
-        `Alert ${agentCodename}! ${count} error(s) detected. Fixing now.`
-      );
-      setExpression("angry");
-      setSpeechText(msg);
       if (isAuthorized || panelOpen) {
-        await speak(msg, "angry");
-        await autoFixErrors(true);
+        if (!speaking && !listening) {
+          await autoFixErrors(true);
+        }
       }
     }
     if (count === 0) lastSpokenErrorCount = 0;
@@ -433,8 +501,8 @@
     setupErrorCapture();
 
     if (synth) {
-      synth.getVoices();
-      window.speechSynthesis?.addEventListener?.("voiceschanged", () => synth.getVoices());
+      warmupVoice();
+      window.speechSynthesis?.addEventListener?.("voiceschanged", warmupVoice);
     }
   }
 
@@ -489,7 +557,7 @@
 
     monitorTimer = setInterval(async () => {
       await refreshStatus();
-      if (currentMode === "monitor" && !speaking && !listening) {
+      if (currentMode === "monitor" && !speaking && !listening && panelOpen) {
         await speakMode("monitor");
       }
     }, MONITOR_INTERVAL);
