@@ -73,7 +73,12 @@ function camProxyFfmpegPath(): string
     if ($fromEnv !== '' && is_file($fromEnv)) {
         return $fromEnv;
     }
-    $candidates = ['ffmpeg', 'C:\\ffmpeg\\bin\\ffmpeg.exe', 'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe'];
+    $candidates = [
+        'ffmpeg',
+        dirname(__DIR__, 2) . '\\ffmpeg\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe',
+        'C:\\ffmpeg\\bin\\ffmpeg.exe',
+        'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
+    ];
     foreach ($candidates as $bin) {
         if ($bin === 'ffmpeg') {
             $out = shell_exec('where ffmpeg 2>nul');

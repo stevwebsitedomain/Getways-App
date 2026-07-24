@@ -147,6 +147,33 @@ function gwRobotLlmChat(string $message, array $user, string $lang = 'sw'): ?arr
     curl_close($ch);
 
     if (!is_string($response) || $response === '' || $httpCode < 200 || $httpCode >= 300) {
+        $apiError = '';
+        if (is_string($response) && $response !== '') {
+            $errData = json_decode($response, true);
+            if (is_array($errData)) {
+                $apiError = trim((string) ($errData['error']['message'] ?? ''));
+            }
+        }
+        if ($apiError !== '') {
+            $hint = $lang === 'sw'
+                ? "{$codename}, OpenAI imerudisha hitilafu: {$apiError}"
+                : "{$codename}, OpenAI returned an error: {$apiError}";
+            if (str_contains(strtolower($apiError), 'quota') || str_contains(strtolower($apiError), 'billing')) {
+                $hint .= $lang === 'sw'
+                    ? ' Angalia billing kwenye platform.openai.com.'
+                    : ' Check billing at platform.openai.com.';
+            } elseif (str_contains(strtolower($apiError), 'incorrect api key')) {
+                $hint .= $lang === 'sw'
+                    ? ' Sasisha AGENT_AI_API_KEY kwenye .env.'
+                    : ' Update AGENT_AI_API_KEY in .env.';
+            }
+            return [
+                'text' => $hint,
+                'emotion' => 'neutral',
+                'authorized' => true,
+                'source' => 'llm_error',
+            ];
+        }
         return null;
     }
 

@@ -58,3 +58,7 @@ sync_config.jsonc
 /radar-service/data/
 **/__pycache__/
 *.py[cod]
+
+# ffmpeg binaries (large; use RADAR_FFMPEG_PATH in .env)
+/ffmpeg/
+/ffmpeg-*.tar.xz
