@@ -329,11 +329,7 @@
     const count = data.errorCount ?? 0;
     if (count > 0 && count !== lastSpokenErrorCount) {
       lastSpokenErrorCount = count;
-      if (isAuthorized || panelOpen) {
-        if (!speaking && !listening) {
-          await autoFixErrors(true);
-        }
-      }
+      await autoFixErrors(false);
     }
     if (count === 0) lastSpokenErrorCount = 0;
   }
@@ -369,10 +365,16 @@
       if (!speaking) setExpression("neutral");
     };
 
-    rec.onerror = () => {
+    rec.onerror = (event) => {
       listening = false;
-      setExpression("angry");
-      speak(t("Sikukusikia vizuri. Jaribu tena.", "I did not hear you. Try again."), "angry");
+      root?.querySelector(".gw-robot-mic-btn")?.classList.remove("is-listening");
+      setExpression("neutral");
+      const code = event?.error || "";
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setSpeechText(t("Ruhusu microphone kwenye browser yako.", "Allow microphone in your browser."));
+      } else if (code !== "aborted" && code !== "no-speech") {
+        setSpeechText(t("Sikukusikia. Bonyeza Talk ujaribu tena.", "I did not hear you. Press Talk to try again."));
+      }
     };
 
     rec.onresult = (event) => {
@@ -383,24 +385,35 @@
     return rec;
   }
 
-  function toggleListening() {
+  function openPanel() {
+    if (!panelOpen) {
+      panelOpen = true;
+      root?.classList.add("is-open");
+    }
+  }
+
+  function startTalk() {
+    openPanel();
+    setMode("chat");
+    setExpression("happy");
+    stopSpeaking();
+
     if (!recognition) {
       recognition = initSpeechRecognition();
     }
     if (!recognition) {
-      speak(t("Kivinjari chako hakiungi mkono sauti.", "Your browser does not support voice."), "angry");
+      setSpeechText(t("Kivinjari chako hakiungi mkono sauti.", "Your browser does not support voice."));
       return;
     }
     if (listening) {
-      recognition.stop();
       return;
     }
-    stopSpeaking();
+
     try {
       recognition.lang = getLang() === "sw" ? "sw-TZ" : "en-US";
       recognition.start();
     } catch (_) {
-      speak(t("Jaribu tena.", "Try again."), "neutral");
+      setSpeechText(t("Bonyeza Talk tena kuanza kuzungumza.", "Press Talk again to start speaking."));
     }
   }
 
@@ -460,7 +473,7 @@
               <span class="gw-robot-dot"></span>
               <span class="gw-robot-status-text">${t("Inapakia...", "Loading...")}</span>
             </div>
-            <div class="gw-robot-speech">${t("Bonyeza roboti au maikrofoni kuzungumza.", "Click robot or mic to talk.")}</div>
+            <div class="gw-robot-speech">${t("Bonyeza Talk kuzungumza na Kaka.", "Press Talk to speak with Kaka.")}</div>
             <div class="gw-robot-actions">
               <button type="button" class="gw-robot-mic-btn">
                 <i class="fa-solid fa-microphone"></i>
@@ -513,20 +526,16 @@
     const micBtn = root.querySelector(".gw-robot-mic-btn");
     const fixBtn = root.querySelector(".gw-robot-fix-btn");
 
-    fab.addEventListener("click", async () => {
+    fab.addEventListener("click", () => {
       if (!panelOpen) {
-        panelOpen = true;
-        root.classList.add("is-open");
-        setExpression("happy");
-        if (currentMode === "chat") {
-          toggleListening();
-        } else {
-          await speakMode(currentMode);
-        }
+        startTalk();
         return;
       }
-      if (speaking) stopSpeaking();
-      else toggleListening();
+      if (speaking) {
+        stopSpeaking();
+        return;
+      }
+      startTalk();
     });
 
     closeBtn.addEventListener("click", () => {
@@ -537,16 +546,26 @@
       setExpression("neutral");
     });
 
-    speakBtn.addEventListener("click", () => speakMode(currentMode));
-    micBtn.addEventListener("click", () => toggleListening());
-    fixBtn.addEventListener("click", () => autoFixErrors(true));
+    speakBtn.addEventListener("click", () => {
+      openPanel();
+      speakMode(currentMode);
+    });
+    micBtn.addEventListener("click", () => startTalk());
+    fixBtn.addEventListener("click", () => {
+      openPanel();
+      autoFixErrors(true);
+    });
 
     root.querySelectorAll(".gw-robot-mode").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const mode = btn.dataset.mode;
         setMode(mode);
-        if (mode === "chat") toggleListening();
-        else await speakMode(mode);
+        openPanel();
+        if (mode === "chat") {
+          startTalk();
+        } else {
+          await speakMode(mode);
+        }
       });
     });
   }
@@ -557,9 +576,6 @@
 
     monitorTimer = setInterval(async () => {
       await refreshStatus();
-      if (currentMode === "monitor" && !speaking && !listening && panelOpen) {
-        await speakMode("monitor");
-      }
     }, MONITOR_INTERVAL);
 
     errorTimer = setInterval(() => checkErrorsAndSpeak().catch(() => {}), ERROR_CHECK_INTERVAL);
@@ -577,7 +593,7 @@
   window.GwAiRobot = {
     speak: (mode) => speakMode(mode || currentMode),
     chat: (msg) => sendChat(msg),
-    listen: () => toggleListening(),
+    listen: () => startTalk(),
     refresh: refreshStatus,
     fix: () => autoFixErrors(true),
     setMode,
