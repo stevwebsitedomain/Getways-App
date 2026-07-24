@@ -31,7 +31,10 @@ $radarApi = ciaSettingsEnv('RADAR_SERVICE_URL', 'http://127.0.0.1:8765');
 $cssVersion = (string) (@filemtime(__DIR__ . '/cia-radar.css') ?: time());
 $jsVersion = (string) (@filemtime(__DIR__ . '/cia-radar.js') ?: time());
 $bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
+$ptVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
 $radarMode = ciaSettingsEnv('RADAR_MODE', 'mock');
+$phoneTopbarTitle = 'Detection Settings';
+$phoneTopbarBack = 'cia-radar.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -40,15 +43,24 @@ $radarMode = ciaSettingsEnv('RADAR_MODE', 'mock');
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>CIA | Detection Settings</title>
   <link rel="icon" type="image/png" href="images/favicon.png" />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="part-two.css?v=<?= urlencode($ptVersion) ?>" />
   <link rel="stylesheet" href="wallet-banking-theme.css?v=<?= urlencode($bkVersion) ?>" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="cia-radar.css?v=<?= urlencode($cssVersion) ?>" />
 </head>
-<body class="tis-shell tis-wallet-dash cia-radar-page cia-settings-page">
+<body class="tis-shell tis-wallet-dash layout-phone w-home-sample bk-theme cia-radar-page cia-settings-page">
 <?php $activeTopNav = 'cia'; require __DIR__ . '/wallet-top-nav.php'; ?>
 
-<main class="cia-wrap cia-wrap--settings">
+<main class="tis-wrap w-shell">
+  <div class="w-app">
+<?php require __DIR__ . '/wallet-phone-topbar.php'; ?>
+
+<div class="cia-wrap cia-wrap--settings">
   <header class="cia-settings-header">
     <div>
       <p class="cia-kicker">Sub-Command</p>
@@ -119,6 +131,9 @@ $radarMode = ciaSettingsEnv('RADAR_MODE', 'mock');
       Recordings stored locally only. Max range comes from sensor profile (MR24HPC1 default 5m). Camera classifies objects; radar supplies distance/angle when hardware connected.
     </p>
   </section>
+</div>
+
+  </div>
 </main>
 
 <?php $activeNav = 'cia'; require __DIR__ . '/wallet-bottom-nav.php'; ?>

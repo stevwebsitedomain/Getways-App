@@ -35,7 +35,10 @@ $radarApi = ciaRadarEnv('RADAR_SERVICE_URL', 'http://127.0.0.1:8765');
 $cssVersion = (string) (@filemtime(__DIR__ . '/cia-radar.css') ?: time());
 $jsVersion = (string) (@filemtime(__DIR__ . '/cia-radar.js') ?: time());
 $bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
+$ptVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
 $radarMode = ciaRadarEnv('RADAR_MODE', 'mock');
+$phoneTopbarTitle = 'CIA Radar';
+$phoneTopbarBack = 'part-two.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -46,15 +49,24 @@ $radarMode = ciaRadarEnv('RADAR_MODE', 'mock');
   <link rel="icon" type="image/png" href="images/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=Orbitron:wght@500;700;800&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="part-two.css?v=<?= urlencode($ptVersion) ?>" />
   <link rel="stylesheet" href="wallet-banking-theme.css?v=<?= urlencode($bkVersion) ?>" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="cia-radar.css?v=<?= urlencode($cssVersion) ?>" />
 </head>
-<body class="tis-shell tis-wallet-dash cia-radar-page">
+<body class="tis-shell tis-wallet-dash layout-phone w-home-sample bk-theme cia-radar-page">
 <?php $activeTopNav = 'cia'; require __DIR__ . '/wallet-top-nav.php'; ?>
 
-<main class="cia-wrap cia-wrap--tactical">
+<main class="tis-wrap w-shell">
+  <div class="w-app">
+<?php require __DIR__ . '/wallet-phone-topbar.php'; ?>
+
+<div class="cia-wrap cia-wrap--tactical">
   <section class="cia-tactical-screen" id="cia-radar-panel" aria-label="Radar display">
     <div class="cia-flight-bar">
       <span class="cia-flight-label">RADAR FLIGHT DATA:</span>
@@ -124,6 +136,9 @@ $radarMode = ciaRadarEnv('RADAR_MODE', 'mock');
       </div>
     </section>
   </aside>
+</div>
+
+  </div>
 </main>
 
 <div class="cia-marker-detail" id="cia-marker-detail" hidden></div>

@@ -14,21 +14,28 @@
   min-height: 100vh;
 }
 
-.cia-wrap {
-  max-width: 1400px;
+.cia-radar-page .tis-wrap.w-shell {
   margin: 0 auto;
-  padding: 84px 12px 96px;
+  padding-top: 0;
+  padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+}
+
+.cia-wrap {
+  width: 100%;
+  max-width: min(var(--w-phone-col, 420px), calc(100vw - 20px));
+  margin: 0 auto;
+  padding: 0 0 12px;
 }
 
 .cia-wrap--tactical {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-  gap: 14px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
 }
 
 .cia-wrap--settings {
-  max-width: 760px;
+  max-width: min(var(--w-phone-col, 420px), calc(100vw - 20px));
 }
 
 .cia-kicker {
@@ -63,7 +70,8 @@
   box-shadow: 0 0 40px rgba(57, 255, 20, 0.08), inset 0 0 60px rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
-  min-height: min(78vh, 720px);
+  width: 100%;
+  min-height: 0;
 }
 
 .cia-tactical-screen.is-flash {
@@ -140,20 +148,26 @@
 
 .cia-radar-viewport {
   position: relative;
-  flex: 1;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   padding: 8px;
+  aspect-ratio: 1;
+  max-height: min(72vw, 340px);
+  margin: 0 auto;
+  width: 100%;
+  overflow: hidden;
   background:
     linear-gradient(var(--cia-red-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--cia-red-grid) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-size: 18px 18px;
   background-color: #000;
 }
 
 #cia-radar-canvas {
-  width: min(100%, 640px);
+  width: min(88%, 300px);
   height: auto;
+  aspect-ratio: 1;
   display: block;
   border-radius: 50%;
   box-shadow: 0 0 0 2px rgba(57, 255, 20, 0.2), 0 0 50px rgba(57, 255, 20, 0.12);
@@ -174,7 +188,7 @@
 
 .cia-tactical-bar {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   border-top: 2px solid rgba(57, 255, 20, 0.3);
 }
 
@@ -462,12 +476,33 @@
   margin-top: 12px;
 }
 
+@media (min-width: 900px) {
+  .cia-radar-page .cia-wrap--tactical {
+    max-width: 860px;
+    display: grid;
+    grid-template-columns: minmax(0, 380px) minmax(260px, 1fr);
+    align-items: start;
+  }
+
+  .cia-radar-viewport {
+    max-height: 360px;
+  }
+
+  #cia-radar-canvas {
+    width: min(92%, 320px);
+  }
+
+  .cia-tactical-bar {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
 @media (max-width: 960px) {
-  .cia-wrap--tactical { grid-template-columns: 1fr; }
-  .cia-tactical-bar { grid-template-columns: repeat(3, 1fr); }
   .cia-settings--grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 520px) {
   .cia-tactical-bar { grid-template-columns: repeat(2, 1fr); }
+  .cia-radar-viewport { max-height: min(78vw, 300px); }
+  #cia-radar-canvas { width: min(86%, 260px); }
 }
