@@ -97,7 +97,15 @@ $ciaPageKicker = 'CIA Perimeter Detection';
     </div>
     <div class="cia-cam-form">
       <label class="cia-cam-field">
-        <span>Camera IP / Host</span>
+        <span>Camera brand</span>
+        <select id="cia-cam-brand">
+          <option value="v380" selected>V380 / V380 Hik</option>
+          <option value="hikvision">Hikvision</option>
+          <option value="generic">Generic / Other</option>
+        </select>
+      </label>
+      <label class="cia-cam-field">
+        <span>Camera IP / Host (optional for scan)</span>
         <input type="text" id="cia-cam-ip" placeholder="e.g. 192.168.0.250" autocomplete="off" />
       </label>
       <div class="cia-cam-auth">
@@ -115,14 +123,16 @@ $ciaPageKicker = 'CIA Perimeter Detection';
         <input type="url" id="cia-cam-url" placeholder="rtsp://192.168.0.250:554/stream1" />
       </label>
       <div class="cia-cam-actions">
-        <button type="button" class="cia-btn cia-btn--primary" id="cia-cam-search"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+        <button type="button" class="cia-btn cia-btn--primary" id="cia-cam-scan"><i class="fa-solid fa-wifi"></i> Scan Network</button>
+        <button type="button" class="cia-btn" id="cia-cam-search"><i class="fa-solid fa-magnifying-glass"></i> Search IP</button>
         <button type="button" class="cia-btn" id="cia-cam-connect"><i class="fa-solid fa-plug"></i> Connect</button>
       </div>
+      <p class="cia-cam-scan-progress" id="cia-cam-scan-progress" hidden>Scanning network...</p>
     </div>
     <ul class="cia-cam-results" id="cia-cam-results" hidden></ul>
     <div class="cia-cam-preview-wrap">
       <img id="cia-cam-preview" alt="Camera preview" hidden />
-      <p class="cia-cam-hint" id="cia-cam-hint">Search camera IP on your network, then connect to start auto motion detection.</p>
+      <p class="cia-cam-hint" id="cia-cam-hint">Scan network to find V380 camera automatically, or search by IP.</p>
     </div>
   </aside>
   </div>

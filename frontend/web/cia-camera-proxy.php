@@ -270,6 +270,97 @@ function camProxyFetchBinary(string $url, string $user = '', string $pass = '', 
     return ['ok' => true, 'body' => $body, 'content_type' => $ctype ?: 'image/jpeg'];
 }
 
+function camProxyBrandRtspPaths(string $brand): array
+{
+    $brand = strtolower(trim($brand));
+    if (in_array($brand, ['v380', 'v380hik', 'v380-hik'], true)) {
+        return [
+            '/live/ch00_0',
+            '/live/ch00_1',
+            '/live/ch0',
+            '/live/ch1',
+            '/stream1',
+            '/stream2',
+            '/11',
+            '/12',
+            '/1',
+            '/user=admin&password=&channel=1&stream=0.sdp',
+            '/cam/realmonitor?channel=1&subtype=0',
+            '/h264/ch1/main/av_stream',
+        ];
+    }
+    if (in_array($brand, ['hikvision', 'hik'], true)) {
+        return [
+            '/Streaming/Channels/101',
+            '/ISAPI/Streaming/channels/101',
+            '/h264/ch1/main/av_stream',
+            '/cam/realmonitor?channel=1&subtype=0',
+        ];
+    }
+    return [
+        '/stream1',
+        '/stream2',
+        '/live/ch0',
+        '/live/ch00_0',
+        '/11',
+        '/cam/realmonitor?channel=1&subtype=0',
+        '/h264/ch1/main/av_stream',
+    ];
+}
+
+function camProxyStreamsForIp(string $ip, string $user, string $pass, string $brand, array $openPorts): array
+{
+    $streams = [];
+    $rtspPaths = camProxyBrandRtspPaths($brand);
+
+    if (in_array(554, $openPorts, true)) {
+        foreach ($rtspPaths as $path) {
+            $url = camProxyBuildUrl('rtsp', $ip, 554, $path, $user, $pass);
+            $label = in_array(strtolower($brand), ['v380', 'v380hik', 'v380-hik'], true)
+                ? "V380 · {$path}"
+                : "RTSP · {$path}";
+            $streams[] = [
+                'label' => $label,
+                'url' => $url,
+                'display_url' => "rtsp://{$ip}:554{$path}",
+                'is_rtsp' => true,
+                'confidence' => 'high',
+            ];
+            if (count($streams) >= 4) {
+                break;
+            }
+        }
+    }
+
+    if (in_array(80, $openPorts, true) || in_array(8080, $openPorts, true)) {
+        $httpPort = in_array(80, $openPorts, true) ? 80 : 8080;
+        foreach (['/video.mjpg', '/cgi-bin/snapshot.cgi', '/snap.jpg'] as $path) {
+            $url = camProxyBuildUrl('http', $ip, $httpPort, $path, $user, $pass);
+            $probe = camProxyProbeUrl($url, $user, $pass, 2);
+            if (in_array($probe['status'], ['ok', 'maybe', 'auth'], true)) {
+                $streams[] = [
+                    'label' => "HTTP :{$httpPort} · {$path}",
+                    'url' => $url,
+                    'display_url' => "http://{$ip}:{$httpPort}{$path}",
+                    'is_rtsp' => false,
+                    'confidence' => $probe['status'] === 'ok' ? 'high' : 'low',
+                ];
+                break;
+            }
+        }
+    }
+
+    return $streams;
+}
+
+function camProxySubnetFromIp(string $ip): string
+{
+    if (preg_match('/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/', trim($ip), $m)) {
+        return $m[1];
+    }
+    return '192.168.0';
+}
+
 $action = (string) ($_GET['action'] ?? 'probe');
 
 if ($action === 'probe') {
@@ -280,6 +371,7 @@ if ($action === 'probe') {
 
     $user = trim((string) ($_GET['user'] ?? ''));
     $pass = trim((string) ($_GET['pass'] ?? ''));
+    $brand = strtolower(trim((string) ($_GET['brand'] ?? 'v380')));
 
     $paths = [
         '/video.mjpg',
@@ -378,22 +470,11 @@ if ($action === 'probe') {
     }
 
     if (count($found) === 0 && camProxyTcpOpen($ip, 554, 1.5)) {
-        $rtspPaths = [
-            '/stream1',
-            '/stream2',
-            '/live/ch0',
-            '/h264/ch1/main/av_stream',
-            '/cam/realmonitor?channel=1&subtype=0',
-            '/cam/realmonitor?channel=1&subtype=1',
-            '/11',
-            '/1',
-            '/onvif1',
-            '/user=admin&password=&channel=1&stream=0.sdp',
-        ];
+        $rtspPaths = camProxyBrandRtspPaths($brand);
         foreach ($rtspPaths as $path) {
             $url = camProxyBuildUrl('rtsp', $ip, 554, $path, $user, $pass);
             $found[] = [
-                'label' => 'RTSP :554 · ' . $path . ' (needs ffmpeg)',
+                'label' => (in_array($brand, ['v380', 'v380hik', 'v380-hik'], true) ? 'V380 ' : 'RTSP ') . ":554 · {$path}",
                 'url' => $url,
                 'display_url' => "rtsp://{$ip}:554{$path}",
                 'port' => 554,
@@ -439,6 +520,55 @@ if ($action === 'probe') {
         'tried' => $tried,
         'message' => $message,
         'hints' => $hints,
+    ]);
+}
+
+if ($action === 'scan') {
+    $subnet = (string) ($_GET['subnet'] ?? '192.168.0');
+    if (!preg_match('/^\d{1,3}\.\d{1,3}\.\d{1,3}$/', $subnet)) {
+        $subnet = '192.168.0';
+    }
+    $start = max(1, min(254, (int) ($_GET['start'] ?? 1)));
+    $end = max($start, min(254, (int) ($_GET['end'] ?? ($start + 29))));
+    $brand = strtolower(trim((string) ($_GET['brand'] ?? 'v380')));
+    $user = trim((string) ($_GET['user'] ?? ''));
+    $pass = trim((string) ($_GET['pass'] ?? ''));
+
+    $hosts = [];
+    for ($i = $start; $i <= $end; $i++) {
+        $ip = "{$subnet}.{$i}";
+        $openPorts = [];
+        foreach ([554, 80, 8080, 8000] as $port) {
+            if (camProxyTcpOpen($ip, $port, 0.12)) {
+                $openPorts[] = $port;
+            }
+        }
+        if ($openPorts === []) {
+            continue;
+        }
+
+        $streams = camProxyStreamsForIp($ip, $user, $pass, $brand, $openPorts);
+        if ($streams === []) {
+            continue;
+        }
+
+        $hosts[] = [
+            'ip' => $ip,
+            'open_ports' => $openPorts,
+            'brand_guess' => in_array(554, $openPorts, true) ? 'V380 / RTSP Camera' : 'IP Camera',
+            'cameras' => $streams,
+            'best_url' => $streams[0]['url'] ?? null,
+        ];
+    }
+
+    camProxyJson(200, [
+        'ok' => true,
+        'subnet' => $subnet,
+        'start' => $start,
+        'end' => $end,
+        'hosts' => $hosts,
+        'ffmpeg_available' => camProxyFfmpegPath() !== '',
+        'brand' => $brand,
     ]);
 }
 

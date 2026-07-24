@@ -443,6 +443,81 @@
     state.externalPollTimer = null;
   }
 
+  function getCameraBrand() {
+    return $("cia-cam-brand")?.value || "v380";
+  }
+
+  function deriveSubnet(ip) {
+    const m = String(ip || "").trim().match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/);
+    return m ? m[1] : "192.168.0";
+  }
+
+  function renderCameraList(data, autoConnect = false) {
+    const list = els.camResults;
+    if (!list) return null;
+    list.innerHTML = "";
+    list.hidden = false;
+
+    if (data.hints?.length) {
+      const hint = document.createElement("li");
+      hint.innerHTML = `<span class="cia-cam-hint">${data.hints.join("<br>")}</span>`;
+      list.appendChild(hint);
+    }
+    if (data.message) {
+      const msg = document.createElement("li");
+      msg.innerHTML = `<span class="cia-cam-hint"><strong>${data.message}</strong></span>`;
+      list.appendChild(msg);
+    }
+    if (data.rtsp_detected && !data.ffmpeg_available) {
+      const ff = document.createElement("li");
+      ff.innerHTML = '<span class="cia-cam-hint" style="color:#fbbf24">V380 uses RTSP — install <strong>ffmpeg</strong> for live view.</span>';
+      list.appendChild(ff);
+    }
+
+    let firstUrl = null;
+
+    const addCameraBtn = (cam, ipLabel) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = ipLabel ? `${ipLabel} — ${cam.label || cam.display_url}` : cam.label || cam.display_url;
+      if (cam.needs_auth) b.textContent += " (needs password)";
+      b.addEventListener("click", () => {
+        if (ipLabel) $("cia-cam-ip").value = ipLabel;
+        connectExternalCamera(cam.url);
+      });
+      li.appendChild(b);
+      list.appendChild(li);
+      if (!firstUrl) firstUrl = cam.url;
+    };
+
+    if (data.hosts?.length) {
+      data.hosts.forEach((host) => {
+        const head = document.createElement("li");
+        head.innerHTML = `<span class="cia-cam-hint"><strong>${host.ip}</strong> · ${host.brand_guess || "Camera"} · ports ${(host.open_ports || []).join(", ")}</span>`;
+        list.appendChild(head);
+        (host.cameras || []).forEach((cam) => addCameraBtn(cam, host.ip));
+        if (!firstUrl && host.best_url) firstUrl = host.best_url;
+        if (host.ip) $("cia-cam-ip").value = host.ip;
+      });
+    } else {
+      (data.cameras || []).forEach((cam) => addCameraBtn(cam, null));
+    }
+
+    if (!data.cameras?.length && !data.hosts?.length) {
+      const empty = document.createElement("li");
+      empty.innerHTML = `<span class="cia-cam-hint">${data.message || "No camera found."}</span>`;
+      list.appendChild(empty);
+      if (data.open_ports?.length) {
+        const ports = document.createElement("li");
+        ports.innerHTML = `<span class="cia-cam-hint">Open ports: ${data.open_ports.join(", ")}</span>`;
+        list.appendChild(ports);
+      }
+    }
+
+    return firstUrl;
+  }
+
   async function connectExternalCamera(cameraUrl, save = true) {
     const url = String(cameraUrl || "").trim();
     if (!url) return false;
@@ -459,7 +534,21 @@
     setCameraStatus("Connecting...", false);
     try {
       const test = await fetch(proxySnapshotUrl(url), { credentials: "same-origin" });
-      if (!test.ok) throw new Error("Camera unreachable");
+      if (!test.ok) {
+        const err = await test.json().catch(() => ({}));
+        if (url.startsWith("rtsp://") && String(err.message || "").toLowerCase().includes("ffmpeg")) {
+          if (els.camHint) {
+            els.camHint.hidden = false;
+            els.camHint.textContent = "V380 RTSP linked. Install ffmpeg to see live video and motion detection.";
+          }
+          state.sensorActive = true;
+          setCameraStatus("RTSP linked", true);
+          if (els.sensorStatus) els.sensorStatus.textContent = "V380 camera (needs ffmpeg)";
+          if (!state.sensorLoopRunning) autoSensorLoop();
+          return true;
+        }
+        throw new Error(err.message || "Camera unreachable");
+      }
       if (els.camPreview) {
         els.camPreview.src = proxySnapshotUrl(url);
         els.camPreview.hidden = false;
@@ -485,69 +574,96 @@
   async function searchCameras() {
     const ip = $("cia-cam-ip")?.value.trim();
     if (!ip) {
-      alert("Enter camera IP address first.");
+      alert("Enter camera IP or use Scan Network.");
       return;
     }
     const user = $("cia-cam-user")?.value.trim() || "";
     const pass = $("cia-cam-pass")?.value || "";
+    const brand = getCameraBrand();
     const btn = $("cia-cam-search");
     if (btn) {
       btn.disabled = true;
       btn.textContent = "Searching...";
     }
     try {
-      const params = new URLSearchParams({ action: "probe", ip, user, pass });
+      const params = new URLSearchParams({ action: "probe", ip, user, pass, brand });
       const res = await fetch(`${CAMERA_PROXY}?${params}`, { credentials: "same-origin" });
       const data = await res.json();
-      const list = els.camResults;
-      if (!list) return;
-      list.innerHTML = "";
-      if (data.hints?.length) {
-        const hint = document.createElement("li");
-        hint.innerHTML = `<span class="cia-cam-hint">${data.hints.join("<br>")}</span>`;
-        list.appendChild(hint);
-      }
-      if (!data.cameras?.length) {
-        list.hidden = false;
-        const empty = document.createElement("li");
-        empty.innerHTML = `<span class="cia-cam-hint">${data.message || "No camera found."}</span>`;
-        list.appendChild(empty);
-        if (data.open_ports?.length) {
-          const ports = document.createElement("li");
-          ports.innerHTML = `<span class="cia-cam-hint">Open ports: ${data.open_ports.join(", ")}</span>`;
-          list.appendChild(ports);
-        }
-        return;
-      }
-      if (data.message) {
-        const msg = document.createElement("li");
-        msg.innerHTML = `<span class="cia-cam-hint"><strong>${data.message}</strong></span>`;
-        list.appendChild(msg);
-      }
-      if (data.rtsp_detected && !data.ffmpeg_available) {
-        const ff = document.createElement("li");
-        ff.innerHTML = '<span class="cia-cam-hint" style="color:#fbbf24">RTSP camera detected. Install <strong>ffmpeg</strong> on this PC to connect, or enable HTTP stream in camera app.</span>';
-        list.appendChild(ff);
-      }
-      data.cameras.forEach((cam) => {
-        const li = document.createElement("li");
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = cam.label || cam.display_url;
-        if (cam.needs_auth) {
-          b.textContent += " — enter password & connect";
-        }
-        b.addEventListener("click", () => connectExternalCamera(cam.url));
-        li.appendChild(b);
-        list.appendChild(li);
-      });
-      list.hidden = false;
+      renderCameraList(data, false);
     } catch (_) {
       alert("Camera search failed. Check IP and network.");
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Search';
+        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Search IP';
+      }
+    }
+  }
+
+  async function scanNetwork() {
+    const ipHint = $("cia-cam-ip")?.value.trim();
+    const subnet = deriveSubnet(ipHint);
+    const user = $("cia-cam-user")?.value.trim() || "";
+    const pass = $("cia-cam-pass")?.value || "";
+    const brand = getCameraBrand();
+    const scanBtn = $("cia-cam-scan");
+    const progress = $("cia-cam-scan-progress");
+    const allHosts = [];
+
+    if (scanBtn) scanBtn.disabled = true;
+    if (progress) {
+      progress.hidden = false;
+      progress.textContent = `Scanning ${subnet}.x for V380 cameras...`;
+    }
+    if (els.camResults) {
+      els.camResults.hidden = false;
+      els.camResults.innerHTML = '<li><span class="cia-cam-hint">Scanning local network...</span></li>';
+    }
+
+    try {
+      for (let start = 1; start <= 254; start += 30) {
+        const end = Math.min(start + 29, 254);
+        if (progress) progress.textContent = `Scanning ${subnet}.${start} – ${subnet}.${end}...`;
+        const params = new URLSearchParams({
+          action: "scan",
+          subnet,
+          start: String(start),
+          end: String(end),
+          user,
+          pass,
+          brand,
+        });
+        const res = await fetch(`${CAMERA_PROXY}?${params}`, { credentials: "same-origin" });
+        const data = await res.json();
+        if (data.hosts?.length) allHosts.push(...data.hosts);
+      }
+
+      const firstUrl = renderCameraList(
+        {
+          hosts: allHosts,
+          message: allHosts.length
+            ? `Found ${allHosts.length} camera(s) on network.`
+            : `No V380 camera found on ${subnet}.x — check camera is on same Wi‑Fi.`,
+        },
+        true
+      );
+
+      if (firstUrl) {
+        if (progress) progress.textContent = "Camera found — connecting...";
+        const ok = await connectExternalCamera(firstUrl);
+        if (progress) {
+          progress.textContent = ok ? "V380 connected automatically." : "Found camera — click a stream to connect.";
+        }
+      } else if (progress) {
+        progress.textContent = `Scan complete. No camera on ${subnet}.x`;
+      }
+    } catch (_) {
+      alert("Network scan failed.");
+      if (progress) progress.hidden = true;
+    } finally {
+      if (scanBtn) {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = '<i class="fa-solid fa-wifi"></i> Scan Network';
       }
     }
   }
@@ -826,6 +942,7 @@
 
     $("cia-refresh-events")?.addEventListener("click", () => refreshEvents());
 
+    $("cia-cam-scan")?.addEventListener("click", () => scanNetwork());
     $("cia-cam-search")?.addEventListener("click", () => searchCameras());
     $("cia-cam-connect")?.addEventListener("click", async () => {
       const manual = $("cia-cam-url")?.value.trim();
@@ -882,6 +999,7 @@
     els.camStatus = $("cia-cam-connect-status");
     els.camResults = $("cia-cam-results");
     els.camHint = $("cia-cam-hint");
+    els.camProgress = $("cia-cam-scan-progress");
     els.popup = $("cia-popup");
     els.popupBody = $("cia-popup-body");
     els.popupImage = $("cia-popup-image");

@@ -357,12 +357,34 @@
 }
 
 .cia-cam-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
-.cia-cam-actions .cia-btn { flex: 1; min-width: 120px; }
+.cia-cam-actions .cia-btn--primary {
+  grid-column: 1 / -1;
+}
+
+.cia-cam-scan-progress {
+  margin: 0 16px;
+  font-size: 0.68rem;
+  color: var(--cia-green);
+  animation: ciaPulse 1.2s ease infinite;
+}
+
+.cia-cam-scan-progress[hidden] { display: none !important; }
+
+.cia-cam-field select {
+  width: 100%;
+  padding: 9px 10px;
+  background: #000;
+  border: 1px solid rgba(57, 255, 20, 0.28);
+  border-radius: 4px;
+  color: var(--cia-green);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
 
 .cia-cam-status {
   font-size: 0.68rem;
