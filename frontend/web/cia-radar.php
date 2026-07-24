@@ -57,6 +57,7 @@ $ciaPageKicker = 'CIA Perimeter Detection';
 <?php require __DIR__ . '/admin-cia-header.php'; ?>
 
 <main class="ad-main cia-wrap cia-wrap--tactical">
+  <div class="cia-main-grid">
   <section class="cia-tactical-screen" id="cia-radar-panel" aria-label="Radar display">
     <div class="cia-flight-bar">
       <span class="cia-flight-label">RADAR FLIGHT DATA:</span>
@@ -88,6 +89,43 @@ $ciaPageKicker = 'CIA Perimeter Detection';
       <button type="button" class="cia-tac-btn cia-tac-btn--alert" id="cia-stop-all">SECURITY BREACH</button>
     </nav>
   </section>
+
+  <aside class="cia-panel cia-panel--camera-connect" aria-label="Outdoor camera">
+    <div class="cia-panel-head">
+      <h2><i class="fa-solid fa-video"></i> Outdoor Camera</h2>
+      <span id="cia-cam-connect-status" class="cia-cam-status">Not connected</span>
+    </div>
+    <div class="cia-cam-form">
+      <label class="cia-cam-field">
+        <span>Camera IP / Host</span>
+        <input type="text" id="cia-cam-ip" placeholder="e.g. 192.168.1.100" autocomplete="off" />
+      </label>
+      <div class="cia-cam-auth">
+        <label class="cia-cam-field">
+          <span>Username</span>
+          <input type="text" id="cia-cam-user" placeholder="admin" autocomplete="username" />
+        </label>
+        <label class="cia-cam-field">
+          <span>Password</span>
+          <input type="password" id="cia-cam-pass" placeholder="••••••" autocomplete="current-password" />
+        </label>
+      </div>
+      <label class="cia-cam-field">
+        <span>Manual stream URL (optional)</span>
+        <input type="url" id="cia-cam-url" placeholder="http://IP:port/video.mjpg" />
+      </label>
+      <div class="cia-cam-actions">
+        <button type="button" class="cia-btn cia-btn--primary" id="cia-cam-search"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+        <button type="button" class="cia-btn" id="cia-cam-connect"><i class="fa-solid fa-plug"></i> Connect</button>
+      </div>
+    </div>
+    <ul class="cia-cam-results" id="cia-cam-results" hidden></ul>
+    <div class="cia-cam-preview-wrap">
+      <img id="cia-cam-preview" alt="Camera preview" hidden />
+      <p class="cia-cam-hint" id="cia-cam-hint">Search camera IP on your network, then connect to start auto motion detection.</p>
+    </div>
+  </aside>
+  </div>
 
   <section class="cia-panel cia-panel--history" aria-label="Event history">
     <div class="cia-panel-head">

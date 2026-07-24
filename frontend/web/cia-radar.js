@@ -2,6 +2,8 @@
   "use strict";
 
   const PROXY = window.GW_RADAR_PROXY || "cia-radar-api.php";
+  const CAMERA_PROXY = "cia-camera-proxy.php";
+  const CAMERA_STORAGE_KEY = "cia_external_camera_v1";
   const DIRECT = (window.GW_RADAR_API || "http://127.0.0.1:8765").replace(/\/$/, "");
   const MODE = String(window.GW_RADAR_MODE || "mock").toLowerCase();
 
@@ -29,6 +31,9 @@
     serviceOnline: false,
     sensorActive: false,
     lastLocalAlert: 0,
+    sensorLoopRunning: false,
+    externalCameraUrl: "",
+    externalPollTimer: null,
   };
 
   const els = {};
@@ -239,21 +244,6 @@
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, w, h);
 
-    ctx.strokeStyle = "rgba(220, 38, 38, 0.35)";
-    ctx.lineWidth = 1;
-    for (let gx = 0; gx < w; gx += 20) {
-      ctx.beginPath();
-      ctx.moveTo(gx, 0);
-      ctx.lineTo(gx, h);
-      ctx.stroke();
-    }
-    for (let gy = 0; gy < h; gy += 20) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(w, gy);
-      ctx.stroke();
-    }
-
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, maxR + 4, 0, Math.PI * 2);
@@ -414,8 +404,132 @@
     state.beepTimer = null;
   }
 
-  // ── Auto motion sensor (hidden camera, no UI) ──
+  // ── Outdoor IP camera ──
+  function getSensorSource() {
+    const preview = els.camPreview;
+    if (preview && preview.complete && preview.naturalWidth > 0 && !preview.hidden) {
+      return preview;
+    }
+    const video = state.hiddenVideo;
+    if (video && video.readyState >= 2) return video;
+    return null;
+  }
+
+  function setCameraStatus(text, on) {
+    if (!els.camStatus) return;
+    els.camStatus.textContent = text;
+    els.camStatus.classList.toggle("is-on", !!on);
+  }
+
+  function proxySnapshotUrl(cameraUrl) {
+    return `${CAMERA_PROXY}?action=snapshot&camera=${encodeURIComponent(cameraUrl)}&t=${Date.now()}`;
+  }
+
+  function stopExternalPoll() {
+    if (state.externalPollTimer) clearInterval(state.externalPollTimer);
+    state.externalPollTimer = null;
+  }
+
+  async function connectExternalCamera(cameraUrl, save = true) {
+    const url = String(cameraUrl || "").trim();
+    if (!url) return false;
+
+    stopWebcam();
+    state.externalCameraUrl = url;
+    if (save) {
+      localStorage.setItem(CAMERA_STORAGE_KEY, url);
+    }
+
+    const manual = $("cia-cam-url");
+    if (manual) manual.value = url;
+
+    setCameraStatus("Connecting...", false);
+    try {
+      const test = await fetch(proxySnapshotUrl(url), { credentials: "same-origin" });
+      if (!test.ok) throw new Error("Camera unreachable");
+      if (els.camPreview) {
+        els.camPreview.src = proxySnapshotUrl(url);
+        els.camPreview.hidden = false;
+      }
+      if (els.camHint) els.camHint.hidden = true;
+      state.sensorActive = true;
+      setCameraStatus("Connected", true);
+      if (els.sensorStatus) els.sensorStatus.textContent = "Outdoor camera active";
+      stopExternalPoll();
+      state.externalPollTimer = setInterval(() => {
+        if (!state.externalCameraUrl || !els.camPreview) return;
+        els.camPreview.src = proxySnapshotUrl(state.externalCameraUrl);
+      }, 1400);
+      if (!state.sensorLoopRunning) autoSensorLoop();
+      return true;
+    } catch (_) {
+      setCameraStatus("Connection failed", false);
+      state.externalCameraUrl = "";
+      return false;
+    }
+  }
+
+  async function searchCameras() {
+    const ip = $("cia-cam-ip")?.value.trim();
+    if (!ip) {
+      alert("Enter camera IP address first.");
+      return;
+    }
+    const user = $("cia-cam-user")?.value.trim() || "";
+    const pass = $("cia-cam-pass")?.value || "";
+    const btn = $("cia-cam-search");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Searching...";
+    }
+    try {
+      const params = new URLSearchParams({ action: "probe", ip, user, pass });
+      const res = await fetch(`${CAMERA_PROXY}?${params}`, { credentials: "same-origin" });
+      const data = await res.json();
+      const list = els.camResults;
+      if (!list) return;
+      list.innerHTML = "";
+      if (!data.cameras?.length) {
+        list.hidden = false;
+        list.innerHTML = `<li><span class="cia-cam-hint">${data.message || "No camera found."}</span></li>`;
+        return;
+      }
+      data.cameras.forEach((cam) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = cam.label || cam.display_url;
+        b.addEventListener("click", () => connectExternalCamera(cam.url));
+        li.appendChild(b);
+        list.appendChild(li);
+      });
+      list.hidden = false;
+    } catch (_) {
+      alert("Camera search failed. Check IP and network.");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Search';
+      }
+    }
+  }
+
+  function stopWebcam() {
+    if (state.stream) {
+      state.stream.getTracks().forEach((t) => t.stop());
+      state.stream = null;
+    }
+    if (state.hiddenVideo) state.hiddenVideo.srcObject = null;
+  }
+
+  // ── Auto motion sensor ──
   async function startHiddenSensor() {
+    const saved = localStorage.getItem(CAMERA_STORAGE_KEY);
+    if (saved) {
+      const ok = await connectExternalCamera(saved, false);
+      if (ok) return;
+    }
+
     if (state.stream || !state.hiddenVideo) return;
     try {
       state.stream = await navigator.mediaDevices.getUserMedia({
@@ -434,30 +548,30 @@
   }
 
   function captureHiddenFrame() {
-    const video = state.hiddenVideo;
-    if (!video || video.readyState < 2) return null;
-    if (!state.motionCanvas) {
-      state.motionCanvas = document.createElement("canvas");
-    }
+    const source = getSensorSource();
+    if (!source) return null;
+    if (!state.motionCanvas) state.motionCanvas = document.createElement("canvas");
     const canvas = state.motionCanvas;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    const w = source.videoWidth || source.naturalWidth || 640;
+    const h = source.videoHeight || source.naturalHeight || 480;
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL("image/jpeg", 0.75);
   }
 
   function detectLocalMotion() {
-    const video = state.hiddenVideo;
-    if (!video || video.readyState < 2) return false;
+    const source = getSensorSource();
+    if (!source) return false;
     if (!state.motionCanvas) state.motionCanvas = document.createElement("canvas");
     const canvas = state.motionCanvas;
-    const w = Math.min(video.videoWidth || 320, 320);
-    const h = Math.min(video.videoHeight || 240, 240);
+    const w = Math.min(source.videoWidth || source.naturalWidth || 320, 320);
+    const h = Math.min(source.videoHeight || source.naturalHeight || 240, 240);
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, w, h);
+    ctx.drawImage(source, 0, 0, w, h);
     const frame = ctx.getImageData(0, 0, w, h);
     if (!state.lastMotionFrame) {
       state.lastMotionFrame = frame;
@@ -504,6 +618,7 @@
   }
 
   async function autoSensorLoop() {
+    state.sensorLoopRunning = true;
     if (!state.armed) {
       setTimeout(autoSensorLoop, 1000);
       return;
@@ -673,6 +788,24 @@
 
     $("cia-refresh-events")?.addEventListener("click", () => refreshEvents());
 
+    $("cia-cam-search")?.addEventListener("click", () => searchCameras());
+    $("cia-cam-connect")?.addEventListener("click", async () => {
+      const manual = $("cia-cam-url")?.value.trim();
+      if (manual) {
+        await connectExternalCamera(manual);
+        return;
+      }
+      const ip = $("cia-cam-ip")?.value.trim();
+      if (!ip) {
+        alert("Enter camera IP or manual stream URL.");
+        return;
+      }
+      await searchCameras();
+    });
+
+    $("cia-filter-date")?.addEventListener("change", () => refreshEvents());
+    $("cia-filter-severity")?.addEventListener("change", () => refreshEvents());
+
     els.popup?.addEventListener("click", async (e) => {
       const btn = e.target.closest("[data-popup]");
       if (!btn || !state.activeEvent) return;
@@ -694,9 +827,6 @@
       stopAlarmLoop();
       refreshEvents();
     });
-
-    $("cia-filter-date")?.addEventListener("change", () => refreshEvents());
-    $("cia-filter-severity")?.addEventListener("change", () => refreshEvents());
   }
 
   async function initMain() {
@@ -710,6 +840,10 @@
     els.radarPanel = $("cia-radar-panel");
     els.flightIds = $("cia-flight-ids");
     els.hiddenVideo = $("cia-hidden-video");
+    els.camPreview = $("cia-cam-preview");
+    els.camStatus = $("cia-cam-connect-status");
+    els.camResults = $("cia-cam-results");
+    els.camHint = $("cia-cam-hint");
     els.popup = $("cia-popup");
     els.popupBody = $("cia-popup-body");
     els.popupImage = $("cia-popup-image");
