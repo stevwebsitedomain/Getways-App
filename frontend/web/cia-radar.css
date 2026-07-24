@@ -1,0 +1,473 @@
+/* CIA — Tactical AI Motion Radar */
+.cia-radar-page {
+  --cia-bg: #000000;
+  --cia-green: #39ff14;
+  --cia-green-glow: rgba(57, 255, 20, 0.55);
+  --cia-red-grid: rgba(220, 38, 38, 0.45);
+  --cia-red: #ff2b2b;
+  --cia-amber: #fbbf24;
+  --cia-text: #d7ffe0;
+  --cia-muted: #6ee7a0;
+  background: #000;
+  color: var(--cia-text);
+  font-family: "Share Tech Mono", "Courier New", monospace;
+  min-height: 100vh;
+}
+
+.cia-wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 84px 12px 96px;
+}
+
+.cia-wrap--tactical {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.cia-wrap--settings {
+  max-width: 760px;
+}
+
+.cia-kicker {
+  margin: 0;
+  font-family: Orbitron, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  color: var(--cia-muted);
+  text-transform: uppercase;
+}
+
+.cia-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cia-settings-header h1 {
+  margin: 4px 0 0;
+  font-family: Orbitron, sans-serif;
+  color: var(--cia-green);
+  font-size: 1.5rem;
+  text-shadow: 0 0 16px var(--cia-green-glow);
+}
+
+/* ── Tactical radar screen (main hero) ── */
+.cia-tactical-screen {
+  background: #000;
+  border: 2px solid rgba(57, 255, 20, 0.35);
+  box-shadow: 0 0 40px rgba(57, 255, 20, 0.08), inset 0 0 60px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  min-height: min(78vh, 720px);
+}
+
+.cia-tactical-screen.is-flash {
+  animation: ciaScreenFlash 0.7s ease;
+}
+
+@keyframes ciaScreenFlash {
+  0%, 100% { border-color: rgba(57, 255, 20, 0.35); }
+  50% { border-color: rgba(255, 43, 43, 0.9); box-shadow: 0 0 30px rgba(255, 43, 43, 0.5); }
+}
+
+.cia-flight-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.25);
+  background: linear-gradient(180deg, rgba(57, 255, 20, 0.08), transparent);
+  font-size: 0.78rem;
+}
+
+.cia-flight-label {
+  color: var(--cia-green);
+  font-family: Orbitron, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.cia-flight-ids {
+  color: var(--cia-green);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 0 8px var(--cia-green-glow);
+}
+
+.cia-demo-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #1a1a00;
+  background: var(--cia-amber);
+  padding: 3px 8px;
+}
+
+.cia-demo-badge[hidden] { display: none !important; }
+
+.cia-recording-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  color: var(--cia-red);
+  font-weight: 700;
+}
+
+.cia-recording-indicator[hidden] { display: none !important; }
+
+.cia-recording-indicator span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cia-red);
+  animation: ciaPulse 1s ease infinite;
+}
+
+@keyframes ciaPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.cia-radar-viewport {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  background:
+    linear-gradient(var(--cia-red-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cia-red-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-color: #000;
+}
+
+#cia-radar-canvas {
+  width: min(100%, 640px);
+  height: auto;
+  display: block;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(57, 255, 20, 0.2), 0 0 50px rgba(57, 255, 20, 0.12);
+}
+
+.cia-radar-hud {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--cia-green);
+  text-align: right;
+  text-shadow: 0 0 6px var(--cia-green-glow);
+}
+
+.cia-tactical-bar {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  border-top: 2px solid rgba(57, 255, 20, 0.3);
+}
+
+.cia-tac-btn {
+  border: none;
+  border-right: 1px solid rgba(57, 255, 20, 0.15);
+  background: rgba(0, 20, 8, 0.9);
+  color: var(--cia-green);
+  font-family: Orbitron, sans-serif;
+  font-size: clamp(0.55rem, 1.4vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 12px 6px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cia-tac-btn:last-child { border-right: none; }
+
+.cia-tac-btn:hover,
+.cia-tac-btn.is-active {
+  background: rgba(57, 255, 20, 0.15);
+  color: #fff;
+}
+
+.cia-tac-btn--alert {
+  color: #fecaca;
+}
+
+.cia-tac-btn--alert:hover {
+  background: rgba(255, 43, 43, 0.25);
+  color: #fff;
+}
+
+/* ── Side stack ── */
+.cia-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cia-panel {
+  background: rgba(4, 12, 8, 0.95);
+  border: 1px solid rgba(57, 255, 20, 0.22);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cia-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.12);
+}
+
+.cia-panel-head h2 {
+  margin: 0;
+  font-family: Orbitron, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  color: var(--cia-green);
+}
+
+.cia-camera-wrap {
+  position: relative;
+  margin: 10px;
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  background: #000;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+
+#cia-camera-video,
+#cia-camera-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#cia-camera-video { transform: scaleX(-1); }
+
+.cia-side-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.cia-side-actions .cia-btn { flex: 1; }
+
+.cia-status-strip {
+  display: grid;
+  gap: 4px;
+  padding: 0 12px 12px;
+  font-size: 0.7rem;
+  color: var(--cia-muted);
+}
+
+.cia-btn {
+  border: 1px solid rgba(57, 255, 20, 0.4);
+  background: rgba(57, 255, 20, 0.08);
+  color: var(--cia-text);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.cia-btn--primary {
+  background: linear-gradient(180deg, #22c55e, #39ff14);
+  color: #052e16;
+  border-color: transparent;
+}
+
+.cia-btn--danger {
+  border-color: rgba(255, 43, 43, 0.5);
+  color: #fecaca;
+  background: rgba(255, 43, 43, 0.12);
+}
+
+.cia-btn--ghost { background: transparent; }
+
+.cia-filters {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.cia-filters input,
+.cia-filters select {
+  font-size: 0.68rem;
+  background: #000;
+  color: var(--cia-green);
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  border-radius: 3px;
+}
+
+.cia-table-wrap {
+  overflow: auto;
+  max-height: 220px;
+  padding: 0 8px 8px;
+}
+
+.cia-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+}
+
+.cia-table th,
+.cia-table td {
+  border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.cia-table th {
+  color: var(--cia-muted);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Settings page ── */
+.cia-panel--settings-full {
+  padding: 16px;
+}
+
+.cia-settings {
+  display: grid;
+  gap: 14px;
+}
+
+.cia-settings--grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.cia-settings label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #b7f7cb;
+}
+
+.cia-settings input[type="range"],
+.cia-settings input[type="number"],
+.cia-settings select {
+  width: 100%;
+  accent-color: var(--cia-green);
+  background: #000;
+  color: var(--cia-green);
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  border-radius: 3px;
+  padding: 4px;
+}
+
+.cia-toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.cia-toggle--big {
+  grid-column: 1 / -1;
+  font-size: 0.95rem !important;
+  color: var(--cia-green) !important;
+}
+
+.cia-settings-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cia-privacy {
+  font-size: 0.72rem;
+  color: var(--cia-muted);
+  line-height: 1.45;
+}
+
+.cia-privacy--settings {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(57, 255, 20, 0.12);
+}
+
+.cia-marker-detail {
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  color: #c9f7d7;
+}
+
+.cia-popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: grid;
+  place-items: center;
+  z-index: 100000;
+  padding: 16px;
+}
+
+.cia-popup[hidden] { display: none !important; }
+
+.cia-popup-card {
+  width: min(92vw, 420px);
+  background: #040e08;
+  border: 2px solid rgba(57, 255, 20, 0.4);
+  padding: 14px;
+}
+
+.cia-popup-card h3 {
+  margin: 0 0 10px;
+  font-family: Orbitron, sans-serif;
+  color: var(--cia-red);
+  letter-spacing: 0.1em;
+}
+
+#cia-popup-image {
+  width: 100%;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  display: none;
+}
+
+#cia-popup-image[src]:not([src=""]) { display: block; }
+
+.cia-popup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 960px) {
+  .cia-wrap--tactical { grid-template-columns: 1fr; }
+  .cia-tactical-bar { grid-template-columns: repeat(3, 1fr); }
+  .cia-settings--grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .cia-tactical-bar { grid-template-columns: repeat(2, 1fr); }
+}

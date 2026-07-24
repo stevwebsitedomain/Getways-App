@@ -52,3 +52,9 @@ phpunit.phar
 /backend/web/robots.txt
 
 sync_config.jsonc
+
+# Python radar service
+/radar-service/.venv/
+/radar-service/data/
+**/__pycache__/
+*.py[cod]

@@ -619,7 +619,7 @@
 
     const onPointerDown = (e) => {
       if (e.button !== undefined && e.button !== 0) return;
-      if (e.target.closest(".gw-robot-close, .gw-robot-mode, .gw-robot-mic-btn, .gw-robot-speak-btn, .gw-robot-fix-btn, .gw-robot-camera-btn, .gw-robot-pos-btn")) {
+      if (e.target.closest(".gw-robot-close, .gw-robot-cia-btn, .gw-robot-mode, .gw-robot-mic-btn, .gw-robot-speak-btn, .gw-robot-fix-btn, .gw-robot-camera-btn, .gw-robot-pos-btn")) {
         return;
       }
       beginDrag(e.clientX, e.clientY);
@@ -812,11 +812,8 @@
     }
     if (hint) {
       hint.textContent = cameraActive
-        ? t("Agent anakuona sasa.", "Agent can see you now.")
-        : t(
-            "Bonyeza ili Agent akuone. Ruhusu camera kwenye browser yako.",
-            "Press to let Agent see you. Allow camera access in your browser."
-          );
+        ? t("Agent anakuona.", "Agent can see you.")
+        : t("Ruhusu camera kwenye browser.", "Allow camera in browser.");
     }
   }
 
@@ -1078,62 +1075,78 @@
           <span class="gw-robot-badge" hidden>0</span>
         </button>
         <div class="gw-robot-panel" role="dialog" aria-label="Agent">
-          <div class="gw-robot-head">
-            <div class="gw-robot-avatar">${robotFaceHtml("panel")}</div>
-            <div class="gw-robot-title">
-              <strong>Agent <span class="gw-robot-ai-badge" hidden>AI</span></strong>
-              <small>${t("Buruta uso kuhama · Bonyeza mara mbili katikati", "Drag face to move · Double-click to center")}</small>
-            </div>
-            <button type="button" class="gw-robot-close" aria-label="${t("Funga", "Close")}">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-          <div class="gw-robot-position">
-            <span class="gw-robot-position-label">${t("Mahali", "Position")}</span>
-            <button type="button" class="gw-robot-pos-btn" data-pos="left" title="${t("Kushoto", "Left")}"><i class="fa-solid fa-arrow-left"></i></button>
-            <button type="button" class="gw-robot-pos-btn" data-pos="top" title="${t("Juu", "Top")}"><i class="fa-solid fa-arrow-up"></i></button>
-            <button type="button" class="gw-robot-pos-btn" data-pos="center" title="${t("Katikati", "Center")}"><i class="fa-solid fa-crosshairs"></i></button>
-            <button type="button" class="gw-robot-pos-btn" data-pos="bottom" title="${t("Chini", "Bottom")}"><i class="fa-solid fa-arrow-down"></i></button>
-            <button type="button" class="gw-robot-pos-btn" data-pos="right" title="${t("Kulia", "Right")}"><i class="fa-solid fa-arrow-right"></i></button>
-          </div>
-          <div class="gw-robot-body">
-            <div class="gw-robot-modes">
-              ${Object.entries(MODES).map(([key, m]) => `
-                <button type="button" class="gw-robot-mode" data-mode="${key}">
-                  <i class="fa-solid ${m.icon}"></i>
-                  <span>${t(m.labelSw, m.labelEn)}</span>
-                </button>`).join("")}
-            </div>
-            <div class="gw-robot-status">
-              <span class="gw-robot-dot"></span>
-              <span class="gw-robot-status-text">${t("Inapakia...", "Loading...")}</span>
-            </div>
-            <div class="gw-robot-speech">${t("Bonyeza Talk kuzungumza na Agent.", "Press Talk to speak with Agent.")}</div>
-            <div class="gw-robot-camera">
-              <div class="gw-robot-camera-preview" hidden>
-                <video class="gw-robot-camera-video" playsinline muted autoplay></video>
-                <span class="gw-robot-camera-live">LIVE</span>
-                <span class="gw-robot-camera-see">${t("Nakuona", "I see you")}</span>
+          <div class="gw-robot-panel-landscape">
+            <aside class="gw-robot-aside">
+              <div class="gw-robot-avatar">${robotFaceHtml("panel")}</div>
+              <div class="gw-robot-position">
+                <span class="gw-robot-position-label">${t("Mahali", "Position")}</span>
+                <div class="gw-robot-pos-grid">
+                  <button type="button" class="gw-robot-pos-btn" data-pos="left" title="${t("Kushoto", "Left")}"><i class="fa-solid fa-arrow-left"></i></button>
+                  <button type="button" class="gw-robot-pos-btn" data-pos="top" title="${t("Juu", "Top")}"><i class="fa-solid fa-arrow-up"></i></button>
+                  <button type="button" class="gw-robot-pos-btn" data-pos="center" title="${t("Katikati", "Center")}"><i class="fa-solid fa-crosshairs"></i></button>
+                  <button type="button" class="gw-robot-pos-btn" data-pos="bottom" title="${t("Chini", "Bottom")}"><i class="fa-solid fa-arrow-down"></i></button>
+                  <button type="button" class="gw-robot-pos-btn" data-pos="right" title="${t("Kulia", "Right")}"><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
               </div>
-              <button type="button" class="gw-robot-camera-btn">
-                <i class="fa-solid fa-video"></i>
-                <span class="gw-robot-camera-btn-text">${t("Unganisha Camera", "Connect Camera")}</span>
-              </button>
-              <small class="gw-robot-camera-hint">${t("Bonyeza ili Agent akuone. Ruhusu camera kwenye browser yako.", "Press to let Agent see you. Allow camera access in your browser.")}</small>
-            </div>
-            <div class="gw-robot-actions">
-              <button type="button" class="gw-robot-mic-btn">
-                <i class="fa-solid fa-microphone"></i>
-                ${t("Sema", "Talk")}
-              </button>
-              <button type="button" class="gw-robot-speak-btn">
-                <i class="fa-solid fa-volume-high"></i>
-                ${t("Sikiza", "Listen")}
-              </button>
-              <button type="button" class="gw-robot-fix-btn" disabled>
-                <i class="fa-solid fa-wrench"></i>
-                ${t("Rekebisha makosa", "Fix errors")}
-              </button>
+            </aside>
+            <div class="gw-robot-main">
+              <div class="gw-robot-head">
+                <div class="gw-robot-title">
+                  <strong>Agent <span class="gw-robot-ai-badge" hidden>AI</span></strong>
+                  <small>${t("Buruta uso kuhama · Bonyeza mara mbili katikati", "Drag face to move · Double-click to center")}</small>
+                </div>
+                <a href="cia-radar.php" class="gw-robot-cia-btn" title="${t("AI Motion Radar", "AI Motion Radar")}">
+                  <i class="fa-solid fa-satellite-dish"></i> CIA
+                </a>
+                <button type="button" class="gw-robot-close" aria-label="${t("Funga", "Close")}">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <div class="gw-robot-body">
+                <div class="gw-robot-body-grid">
+                  <div class="gw-robot-col-chat">
+                    <div class="gw-robot-status">
+                      <span class="gw-robot-dot"></span>
+                      <span class="gw-robot-status-text">${t("Inapakia...", "Loading...")}</span>
+                    </div>
+                    <div class="gw-robot-speech">${t("Bonyeza Talk kuzungumza na Agent.", "Press Talk to speak with Agent.")}</div>
+                  </div>
+                  <div class="gw-robot-col-side">
+                    <div class="gw-robot-modes">
+                      ${Object.entries(MODES).map(([key, m]) => `
+                        <button type="button" class="gw-robot-mode" data-mode="${key}">
+                          <i class="fa-solid ${m.icon}"></i>
+                          <span>${t(m.labelSw, m.labelEn)}</span>
+                        </button>`).join("")}
+                    </div>
+                    <div class="gw-robot-camera">
+                      <div class="gw-robot-camera-preview" hidden>
+                        <video class="gw-robot-camera-video" playsinline muted autoplay></video>
+                        <span class="gw-robot-camera-live">LIVE</span>
+                        <span class="gw-robot-camera-see">${t("Nakuona", "I see you")}</span>
+                      </div>
+                      <button type="button" class="gw-robot-camera-btn">
+                        <i class="fa-solid fa-video"></i>
+                        <span class="gw-robot-camera-btn-text">${t("Unganisha Camera", "Connect Camera")}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="gw-robot-actions">
+                  <button type="button" class="gw-robot-mic-btn">
+                    <i class="fa-solid fa-microphone"></i>
+                    ${t("Sema", "Talk")}
+                  </button>
+                  <button type="button" class="gw-robot-speak-btn">
+                    <i class="fa-solid fa-volume-high"></i>
+                    ${t("Sikiza", "Listen")}
+                  </button>
+                  <button type="button" class="gw-robot-fix-btn" disabled>
+                    <i class="fa-solid fa-wrench"></i>
+                    ${t("Rekebisha makosa", "Fix errors")}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

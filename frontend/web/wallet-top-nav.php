@@ -53,6 +53,7 @@ $isActive = static function (string $key) use ($activeTopNav): string {
         <a class="<?= trim($isActive('pay')) ?>" href="create-payment.php">Pay</a>
         <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">AutoPay</a>
         <a class="<?= trim($isActive('history')) ?>" href="payment-details.php?type=success">History</a>
+        <a class="<?= trim($isActive('cia')) ?>" href="cia-radar.php">CIA</a>
         <a class="<?= trim($isActive('settings')) ?>" href="settings.php">Settings</a>
         <a href="logout.php">Logout</a>
       </div>
