@@ -124,6 +124,7 @@ $phoneTopbarTitle = 'Transactions';
   <script src="script.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <?php require __DIR__ . '/ai-robot-include.php'; ?>
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
   <script src="payments-merge.js?v=1"></script>
   <script src="receipt-actions.js?v=2"></script>

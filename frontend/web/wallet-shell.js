@@ -956,13 +956,17 @@
     if (!document.body.classList.contains("tis-wallet-dash")) return;
     if (document.querySelector('script[src*="ai-robot.js"]')) return;
 
+    const v = window.GW_ROBOT_ASSET_V || String(Date.now());
     const css = document.createElement("link");
     css.rel = "stylesheet";
-    css.href = "ai-robot.css";
+    css.href = `ai-robot.css?v=${encodeURIComponent(v)}`;
     document.head.appendChild(css);
 
+    window.GW_ROBOT_ASSET_V = v;
+    window.GW_ROBOT_IMG_V = window.GW_ROBOT_IMG_V || v;
+
     const script = document.createElement("script");
-    script.src = "ai-robot.js";
+    script.src = `ai-robot.js?v=${encodeURIComponent(v)}`;
     script.async = true;
     document.body.appendChild(script);
   }

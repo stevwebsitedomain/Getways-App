@@ -124,6 +124,7 @@ $phoneTopbarTitle = 'Profile';
   <script src="tis-api-base.js"></script>
   <script src="script.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+  <?php require __DIR__ . '/ai-robot-include.php'; ?>
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
   <?php if (is_file(__DIR__ . '/settings.js')): ?>
   <script src="settings.js?v=<?= urlencode($settingsJsVersion) ?>"></script>

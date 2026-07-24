@@ -32,10 +32,15 @@
     chat: { icon: "fa-comments", labelSw: "Ongea", labelEn: "Chat" },
   };
 
+  function robotImgUrl() {
+    const v = window.GW_ROBOT_IMG_V || window.GW_ROBOT_ASSET_V || "";
+    return v ? `images/agent-robot.png?v=${encodeURIComponent(v)}` : "images/agent-robot.png";
+  }
+
   function robotFaceHtml() {
     return `
       <div class="gw-robot-face" data-expression="neutral">
-        <img class="gw-robot-portrait" src="images/agent-robot.png" alt="Agent" />
+        <img class="gw-robot-portrait" src="${robotImgUrl()}" alt="Agent" />
       </div>`;
   }
 
@@ -426,11 +431,17 @@
   }
 
   function buildWidget() {
-    if (document.getElementById("gw-robot-root")) return;
+    const buildV = String(window.GW_ROBOT_ASSET_V || "2");
+    const existing = document.getElementById("gw-robot-root");
+    if (existing) {
+      if (existing.dataset.build === buildV) return;
+      existing.remove();
+    }
 
     root = document.createElement("div");
     root.id = "gw-robot-root";
     root.className = "gw-robot-root";
+    root.dataset.build = buildV;
     root.innerHTML = `
       <div class="gw-robot-layout">
         <button type="button" class="gw-robot-fab" aria-label="${t("Zungumza na Agent", "Talk to Agent")}">
