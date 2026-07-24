@@ -25,57 +25,123 @@
 
 .gw-robot-root * { box-sizing: border-box; }
 
-/* ── Robot portrait from user image ── */
+/* ── Agent SVG face (metallic, no black bg) ── */
 .gw-robot-face {
   position: relative;
   width: 100%;
   height: 100%;
-  transition: transform 0.15s ease, filter 0.25s ease;
+  background: transparent;
 }
 
-.gw-robot-portrait {
+.gw-robot-svg {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center 8%;
-  border-radius: 18px;
-  border: 2px solid rgba(56, 189, 248, 0.45);
-  background: #0f172a;
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.45),
-    0 0 18px rgba(56, 189, 248, 0.2);
+  overflow: visible;
+  filter: drop-shadow(0 6px 16px rgba(56, 189, 248, 0.28));
 }
 
-.gw-robot-face[data-expression="speaking"] .gw-robot-portrait,
-.gw-robot-face.is-speaking .gw-robot-portrait {
-  box-shadow:
-    0 8px 28px rgba(0, 0, 0, 0.5),
-    0 0 28px rgba(56, 189, 248, 0.65);
-  animation: gwRobotEyeGlow 0.8s ease infinite alternate;
+.gw-robot-iris {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.12s ease;
 }
 
-.gw-robot-face[data-expression="listening"] .gw-robot-portrait {
-  box-shadow:
-    0 8px 28px rgba(0, 0, 0, 0.5),
-    0 0 32px rgba(56, 189, 248, 0.75);
-  border-color: #38bdf8;
+.gw-robot-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gwAgentBlink 5.5s ease infinite;
 }
 
-.gw-robot-face[data-expression="happy"] .gw-robot-portrait {
-  filter: brightness(1.06) saturate(1.05);
-  border-color: #7dd3fc;
+.gw-robot-eye--right { animation-delay: 0.12s; }
+
+@keyframes gwAgentBlink {
+  0%, 42%, 46%, 100% { transform: scaleY(1); }
+  44% { transform: scaleY(0.06); }
 }
 
-.gw-robot-face[data-expression="angry"] .gw-robot-portrait {
-  filter: saturate(1.2) hue-rotate(-12deg);
-  border-color: #f87171;
-  box-shadow: 0 0 20px rgba(248, 113, 113, 0.45);
+.gw-robot-mouth-wrap {
+  transform-box: fill-box;
+  transform-origin: 100px 155px;
 }
 
-@keyframes gwRobotEyeGlow {
-  from { filter: brightness(1); }
-  to { filter: brightness(1.12); }
+.gw-robot-mouth-hole,
+.gw-robot-tongue {
+  transition: ry 0.08s ease, opacity 0.08s ease;
+}
+
+.gw-robot-face.is-speaking .gw-robot-iris,
+.gw-robot-face[data-expression="speaking"] .gw-robot-iris {
+  animation: gwAgentIrisDance 1.6s ease-in-out infinite;
+}
+
+@keyframes gwAgentIrisDance {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(3px, -2px); }
+  45% { transform: translate(-3px, 1px); }
+  70% { transform: translate(2px, 3px); }
+}
+
+.gw-robot-face.is-speaking .gw-robot-mouth-wrap,
+.gw-robot-face.gw-mouth-open .gw-robot-mouth-wrap,
+.gw-robot-face[data-expression="speaking"] .gw-robot-mouth-wrap {
+  animation: gwAgentMouthTalk 0.13s ease-in-out infinite alternate;
+}
+
+@keyframes gwAgentMouthTalk {
+  from { transform: scaleY(0.45); }
+  to { transform: scaleY(1.2); }
+}
+
+.gw-robot-face.is-speaking .gw-robot-mouth-hole,
+.gw-robot-face.gw-mouth-open .gw-robot-mouth-hole {
+  ry: 7;
+}
+
+.gw-robot-face.is-speaking .gw-robot-tongue,
+.gw-robot-face.gw-mouth-open .gw-robot-tongue {
+  opacity: 0.55;
+  ry: 4;
+}
+
+.gw-robot-face.is-speaking .gw-robot-lip-bottom,
+.gw-robot-face.gw-mouth-open .gw-robot-lip-bottom {
+  transform: translateY(2px);
+}
+
+.gw-robot-face[data-expression="listening"] .gw-robot-iris {
+  animation: gwAgentIrisLook 2s ease-in-out infinite;
+}
+
+@keyframes gwAgentIrisLook {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+.gw-robot-face[data-expression="happy"] .gw-robot-mouth-wrap {
+  transform: scaleY(0.9) translateY(-2px);
+}
+
+.gw-robot-face[data-expression="angry"] .gw-robot-eye {
+  animation: none;
+  transform: scaleY(0.82);
+}
+
+.gw-robot-face[data-expression="angry"] .gw-robot-iris {
+  filter: hue-rotate(140deg) saturate(1.8);
+}
+
+.gw-robot-side-light {
+  animation: gwSidePulse 2.4s ease infinite alternate;
+}
+
+@keyframes gwSidePulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+.gw-robot-face.is-speaking .gw-robot-svg {
+  filter: drop-shadow(0 8px 22px rgba(56, 189, 248, 0.45));
 }
 
 /* ── Panel ── */
@@ -113,8 +179,9 @@
 
 .gw-robot-avatar {
   width: 56px;
-  height: 64px;
+  height: 68px;
   flex-shrink: 0;
+  background: transparent;
 }
 
 .gw-robot-title { flex: 1; min-width: 0; }
@@ -225,21 +292,20 @@
 .gw-robot-fab {
   pointer-events: auto;
   width: 76px;
-  height: 88px;
+  height: 92px;
   border: none;
   cursor: pointer;
   background: transparent;
   position: relative;
   padding: 0;
   transition: transform 0.2s ease;
-  filter: drop-shadow(0 10px 24px rgba(56, 189, 248, 0.35));
 }
 
 .gw-robot-fab:hover { transform: scale(1.08); }
 
 .gw-robot-fab .gw-robot-face {
   width: 76px;
-  height: 88px;
+  height: 92px;
 }
 
 .gw-robot-fab.is-speaking {
@@ -300,6 +366,6 @@
 
 @media (max-width: 480px) {
   .gw-robot-panel { width: min(94vw, 300px); }
-  .gw-robot-fab { width: 68px; height: 78px; }
-  .gw-robot-fab .gw-robot-face { width: 68px; height: 78px; }
+  .gw-robot-fab { width: 68px; height: 82px; }
+  .gw-robot-fab .gw-robot-face { width: 68px; height: 82px; }
 }
