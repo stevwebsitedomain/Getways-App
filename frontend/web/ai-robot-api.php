@@ -266,7 +266,7 @@ function robotBuildSpeakText(string $mode, array $user, bool $isAdmin, string $l
 
     // overview
     if ($lang === 'sw') {
-        $msg = "Karibu {$name}. Mimi ni Kaka, roboti yako ya mfumo wa Getway. ";
+        $msg = "Karibu {$name}. Mimi ni Agent, roboti yako ya mfumo wa Getway. ";
         if ($agent['authorized']) {
             $msg .= 'Nimekutambua wewe kama wakala wangu pekee. ';
         }
@@ -288,7 +288,7 @@ function robotBuildSpeakText(string $mode, array $user, bool $isAdmin, string $l
         return $msg;
     }
 
-    $msg = "Welcome {$name}. I am Kaka, your Getway system robot. ";
+    $msg = "Welcome {$name}. I am Agent, your Getway system robot. ";
     if ($agent['authorized']) {
         $msg .= 'I recognize you as my only authorized agent. ';
     }

@@ -589,15 +589,15 @@ function gwRobotChat(string $message, array $user, string $lang = 'sw'): array
 
     if (gwRobotMessageMatches($lower, ['habari', 'hello', 'hi', 'mambo', 'vipi', 'salamu', 'hey'])) {
         $text = $lang === 'sw'
-            ? "Shikamoo {$codename}! Mimi ni Kaka, roboti yako ya mfumo. Nimekutambua wewe pekee. Unaweza kuniuliza chochote kuhusu mfumo."
-            : "Hello {$codename}! I am Kaka, your system robot. I recognize only you. Ask me anything about the system.";
+            ? "Shikamoo {$codename}! Mimi ni Agent, roboti yako ya mfumo. Unaweza kuniuliza chochote kuhusu mfumo."
+            : "Hello {$codename}! I am Agent, your system robot. Ask me anything about the system.";
         return ['text' => $text, 'emotion' => 'happy', 'authorized' => true];
     }
 
     if (gwRobotMessageMatches($lower, ['jina lako', 'unaitwa nani', 'who are you', 'your name'])) {
         $text = $lang === 'sw'
-            ? "Mimi ni Kaka, roboti wa mfumo wa Getway. Wewe ni {$codename}, wakala wangu pekee niliyekubali."
-            : "I am Kaka, the Getway system robot. You are {$codename}, my only authorized agent.";
+            ? "Mimi ni Agent, roboti wa mfumo wa Getway. Wewe ni {$codename}."
+            : "I am Agent, the Getway system robot. You are {$codename}.";
         return ['text' => $text, 'emotion' => 'happy', 'authorized' => true];
     }
 

@@ -35,16 +35,7 @@
   function robotFaceHtml() {
     return `
       <div class="gw-robot-face" data-expression="neutral">
-        <div class="gw-robot-head-shell">
-          <div class="gw-robot-antenna"></div>
-          <div class="gw-robot-eyes">
-            <div class="gw-robot-eye gw-robot-eye--left"><div class="gw-robot-pupil"></div></div>
-            <div class="gw-robot-eye gw-robot-eye--right"><div class="gw-robot-pupil"></div></div>
-          </div>
-          <div class="gw-robot-mouth"></div>
-          <div class="gw-robot-cheek gw-robot-cheek--left"></div>
-          <div class="gw-robot-cheek gw-robot-cheek--right"></div>
-        </div>
+        <img class="gw-robot-portrait" src="images/agent-robot.png" alt="Agent" />
       </div>`;
   }
 
@@ -419,21 +410,17 @@
 
   function initEyeTracking() {
     document.addEventListener("mousemove", (e) => {
-      const pupils = root?.querySelectorAll(".gw-robot-pupil");
-      if (!pupils?.length) return;
-      pupils.forEach((pupil) => {
-        const eye = pupil.parentElement;
-        if (!eye) return;
-        const rect = eye.getBoundingClientRect();
+      const faces = root?.querySelectorAll(".gw-robot-face");
+      if (!faces?.length) return;
+      faces.forEach((face) => {
+        const rect = face.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
-        const dx = e.clientX - cx;
-        const dy = e.clientY - cy;
-        const angle = Math.atan2(dy, dx);
-        const dist = Math.min(4, Math.hypot(dx, dy) / 30);
-        const px = Math.cos(angle) * dist;
-        const py = Math.sin(angle) * dist;
-        pupil.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px))`;
+        const dx = (e.clientX - cx) / 40;
+        const dy = (e.clientY - cy) / 40;
+        const clampX = Math.max(-6, Math.min(6, dx));
+        const clampY = Math.max(-4, Math.min(4, dy));
+        face.style.transform = `translate(${clampX}px, ${clampY}px)`;
       });
     });
   }
@@ -446,16 +433,16 @@
     root.className = "gw-robot-root";
     root.innerHTML = `
       <div class="gw-robot-layout">
-        <button type="button" class="gw-robot-fab" aria-label="${t("Zungumza na Kaka", "Talk to Kaka")}">
+        <button type="button" class="gw-robot-fab" aria-label="${t("Zungumza na Agent", "Talk to Agent")}">
           ${robotFaceHtml()}
           <span class="gw-robot-badge" hidden>0</span>
         </button>
-        <div class="gw-robot-panel" role="dialog" aria-label="Kaka AI">
+        <div class="gw-robot-panel" role="dialog" aria-label="Agent">
           <div class="gw-robot-head">
             <div class="gw-robot-avatar">${robotFaceHtml()}</div>
             <div class="gw-robot-title">
-              <strong>Kaka AI</strong>
-              <small>${t("Roboti wa Special Agent namba 3", "Robot for Special Agent #3")}</small>
+              <strong>Agent</strong>
+              <small>${t("Msaidizi wa Special Agent namba 3", "Assistant for Special Agent #3")}</small>
             </div>
             <button type="button" class="gw-robot-close" aria-label="${t("Funga", "Close")}">
               <i class="fa-solid fa-xmark"></i>
@@ -473,7 +460,7 @@
               <span class="gw-robot-dot"></span>
               <span class="gw-robot-status-text">${t("Inapakia...", "Loading...")}</span>
             </div>
-            <div class="gw-robot-speech">${t("Bonyeza Talk kuzungumza na Kaka.", "Press Talk to speak with Kaka.")}</div>
+            <div class="gw-robot-speech">${t("Bonyeza Talk kuzungumza na Agent.", "Press Talk to speak with Agent.")}</div>
             <div class="gw-robot-actions">
               <button type="button" class="gw-robot-mic-btn">
                 <i class="fa-solid fa-microphone"></i>
@@ -504,8 +491,8 @@
     refreshStatus().then((data) => {
       if (data?.agent?.authorized) {
         const greet = t(
-          `Karibu ${agentCodename}. Mimi ni Kaka, niko tayari kuzungumza nawe.`,
-          `Welcome ${agentCodename}. I am Kaka, ready to talk.`
+          `Karibu ${agentCodename}. Mimi ni Agent, niko tayari kuzungumza nawe.`,
+          `Welcome ${agentCodename}. I am Agent, ready to talk.`
         );
         setSpeechText(greet);
       }

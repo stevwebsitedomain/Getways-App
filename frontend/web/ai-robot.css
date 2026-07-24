@@ -1,17 +1,13 @@
-/* Kaka AI Robot — humanoid face assistant */
+/* Agent AI Robot — futuristic assistant */
 .gw-robot-root {
-  --gw-robot-metal: #3dd6c3;
-  --gw-robot-metal-dark: #1a9e8f;
-  --gw-robot-face: #e8f4f8;
-  --gw-robot-face-shadow: #b8d4dc;
-  --gw-robot-eye: #0ea5e9;
-  --gw-robot-pupil: #0f172a;
-  --gw-robot-bg: rgba(8, 20, 28, 0.97);
-  --gw-robot-text: #ecfeff;
-  --gw-robot-muted: #7dd3c0;
+  --gw-robot-metal: #38bdf8;
+  --gw-robot-metal-dark: #0284c7;
+  --gw-robot-bg: rgba(8, 14, 24, 0.97);
+  --gw-robot-text: #f0f9ff;
+  --gw-robot-muted: #7dd3fc;
   --gw-robot-danger: #f87171;
   --gw-robot-ok: #34d399;
-  --gw-robot-glow: rgba(61, 214, 195, 0.45);
+  --gw-robot-glow: rgba(56, 189, 248, 0.55);
   position: fixed;
   right: max(8px, env(safe-area-inset-right));
   top: 50%;
@@ -29,212 +25,57 @@
 
 .gw-robot-root * { box-sizing: border-box; }
 
-/* ── Humanoid robot face ── */
+/* ── Robot portrait from user image ── */
 .gw-robot-face {
   position: relative;
   width: 100%;
   height: 100%;
+  transition: transform 0.15s ease, filter 0.25s ease;
 }
 
-.gw-robot-head-shell {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: 42% 42% 38% 38%;
-  background: linear-gradient(165deg, var(--gw-robot-face) 0%, var(--gw-robot-face-shadow) 100%);
-  border: 2.5px solid var(--gw-robot-metal);
-  box-shadow:
-    inset 0 -6px 12px rgba(0, 0, 0, 0.08),
-    0 4px 16px var(--gw-robot-glow);
-  overflow: visible;
-}
-
-.gw-robot-antenna {
-  position: absolute;
-  top: -14px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 3px;
-  height: 14px;
-  background: var(--gw-robot-metal);
-  border-radius: 2px;
-}
-
-.gw-robot-antenna::after {
-  content: "";
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--gw-robot-metal);
-  box-shadow: 0 0 8px var(--gw-robot-metal);
-  animation: gwRobotAntennaBlink 2s ease infinite;
-}
-
-@keyframes gwRobotAntennaBlink {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--gw-robot-metal); }
-  50% { opacity: 0.5; box-shadow: 0 0 14px var(--gw-robot-metal); }
-}
-
-.gw-robot-eyes {
-  position: absolute;
-  top: 28%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 72%;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.gw-robot-eye {
-  width: 28%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid var(--gw-robot-metal-dark);
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-  animation: gwRobotBlink 4.5s ease infinite;
-}
-
-.gw-robot-eye--right { animation-delay: 0.15s; }
-
-@keyframes gwRobotBlink {
-  0%, 42%, 46%, 100% { transform: scaleY(1); }
-  44% { transform: scaleY(0.08); }
-}
-
-.gw-robot-pupil {
-  position: absolute;
-  width: 48%;
-  height: 48%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, var(--gw-robot-eye), var(--gw-robot-pupil));
-  transition: transform 0.12s ease;
-}
-
-.gw-robot-pupil::after {
-  content: "";
-  position: absolute;
-  top: 18%;
-  left: 22%;
-  width: 28%;
-  height: 28%;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.gw-robot-mouth {
-  position: absolute;
-  bottom: 18%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 36%;
-  height: 14%;
-  transition: all 0.25s ease;
-}
-
-/* Mouth shapes via pseudo */
-.gw-robot-mouth::before {
-  content: "";
+.gw-robot-portrait {
   display: block;
   width: 100%;
   height: 100%;
-  border-bottom: 3px solid var(--gw-robot-metal-dark);
-  border-radius: 0 0 50% 50%;
-  transition: all 0.25s ease;
+  object-fit: cover;
+  object-position: center 12%;
+  border-radius: 18px;
+  border: 2px solid rgba(56, 189, 248, 0.45);
+  background: #0f172a;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(56, 189, 248, 0.2);
 }
 
-.gw-robot-cheek {
-  position: absolute;
-  bottom: 28%;
-  width: 14%;
-  height: 10%;
-  border-radius: 50%;
-  background: rgba(248, 113, 113, 0);
-  transition: background 0.3s ease;
+.gw-robot-face[data-expression="speaking"] .gw-robot-portrait,
+.gw-robot-face.is-speaking .gw-robot-portrait {
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(56, 189, 248, 0.65);
+  animation: gwRobotEyeGlow 0.8s ease infinite alternate;
 }
 
-.gw-robot-cheek--left { left: 10%; }
-.gw-robot-cheek--right { right: 10%; }
-
-/* Expressions */
-.gw-robot-face[data-expression="happy"] .gw-robot-mouth::before {
-  border-bottom: none;
-  border-top: 3px solid var(--gw-robot-metal-dark);
-  border-radius: 50% 50% 0 0;
-  height: 60%;
+.gw-robot-face[data-expression="listening"] .gw-robot-portrait {
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.5),
+    0 0 32px rgba(56, 189, 248, 0.75);
+  border-color: #38bdf8;
 }
 
-.gw-robot-face[data-expression="happy"] .gw-robot-cheek {
-  background: rgba(248, 113, 113, 0.35);
+.gw-robot-face[data-expression="happy"] .gw-robot-portrait {
+  filter: brightness(1.06) saturate(1.05);
+  border-color: #7dd3fc;
 }
 
-.gw-robot-face[data-expression="angry"] .gw-robot-eye {
-  border-color: var(--gw-robot-danger);
-  animation: none;
-  transform: scaleY(0.85) rotate(-8deg);
+.gw-robot-face[data-expression="angry"] .gw-robot-portrait {
+  filter: saturate(1.2) hue-rotate(-12deg);
+  border-color: #f87171;
+  box-shadow: 0 0 20px rgba(248, 113, 113, 0.45);
 }
 
-.gw-robot-face[data-expression="angry"] .gw-robot-eye--right {
-  transform: scaleY(0.85) rotate(8deg);
-}
-
-.gw-robot-face[data-expression="angry"] .gw-robot-mouth::before {
-  border-bottom: none;
-  border-top: 4px solid var(--gw-robot-danger);
-  border-radius: 50% 50% 0 0;
-  height: 50%;
-  width: 70%;
-  margin: 0 auto;
-}
-
-.gw-robot-face[data-expression="angry"] .gw-robot-head-shell {
-  border-color: var(--gw-robot-danger);
-}
-
-.gw-robot-face[data-expression="speaking"] .gw-robot-mouth::before {
-  border: none;
-  width: 50%;
-  height: 50%;
-  margin: 0 auto;
-  background: var(--gw-robot-metal-dark);
-  border-radius: 50%;
-  animation: gwRobotTalk 0.35s ease infinite alternate;
-}
-
-@keyframes gwRobotTalk {
-  from { transform: scaleY(0.6); }
-  to { transform: scaleY(1.1); }
-}
-
-.gw-robot-face[data-expression="listening"] .gw-robot-eye {
-  animation: none;
-  transform: scale(1.12);
-  border-color: var(--gw-robot-metal);
-  box-shadow: 0 0 10px var(--gw-robot-glow);
-}
-
-.gw-robot-face[data-expression="listening"] .gw-robot-pupil {
-  animation: gwRobotLookAround 1.5s ease infinite;
-}
-
-@keyframes gwRobotLookAround {
-  0%, 100% { transform: translate(-50%, -50%); }
-  25% { transform: translate(-30%, -50%); }
-  75% { transform: translate(-70%, -50%); }
-}
-
-.gw-robot-face.is-speaking .gw-robot-head-shell {
-  box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.08), 0 0 20px var(--gw-robot-glow);
+@keyframes gwRobotEyeGlow {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.12); }
 }
 
 /* ── Panel ── */
@@ -244,10 +85,9 @@
   background: var(--gw-robot-bg);
   color: var(--gw-robot-text);
   border-radius: 20px;
-  border: 1px solid rgba(61, 214, 195, 0.25);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(61, 214, 195, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(56, 189, 248, 0.1);
   margin-right: 8px;
-  margin-bottom: 0;
   overflow: hidden;
   transform-origin: center right;
   transform: scale(0.9) translateX(12px);
@@ -267,23 +107,23 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(61, 214, 195, 0.18), rgba(26, 158, 143, 0.08));
-  border-bottom: 1px solid rgba(61, 214, 195, 0.15);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(2, 132, 199, 0.08));
+  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
 }
 
 .gw-robot-avatar {
-  width: 52px;
-  height: 58px;
+  width: 56px;
+  height: 64px;
   flex-shrink: 0;
 }
 
 .gw-robot-title { flex: 1; min-width: 0; }
-.gw-robot-title strong { display: block; font-size: 1rem; font-weight: 800; color: var(--gw-robot-metal); }
+.gw-robot-title strong { display: block; font-size: 1.05rem; font-weight: 800; color: var(--gw-robot-metal); letter-spacing: 0.04em; }
 .gw-robot-title small { display: block; font-size: 0.72rem; color: var(--gw-robot-muted); margin-top: 2px; }
 
 .gw-robot-close {
   width: 32px; height: 32px; border: none; border-radius: 10px;
-  background: rgba(61, 214, 195, 0.12); color: var(--gw-robot-text);
+  background: rgba(56, 189, 248, 0.12); color: var(--gw-robot-text);
   cursor: pointer; display: grid; place-items: center;
 }
 
@@ -294,8 +134,8 @@
 }
 
 .gw-robot-mode {
-  border: 1px solid rgba(61, 214, 195, 0.2);
-  background: rgba(61, 214, 195, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: rgba(56, 189, 248, 0.06);
   color: var(--gw-robot-text);
   border-radius: 10px; padding: 8px 6px;
   font-size: 0.72rem; font-weight: 600; cursor: pointer;
@@ -304,7 +144,7 @@
 }
 
 .gw-robot-mode.is-active {
-  background: rgba(61, 214, 195, 0.2);
+  background: rgba(56, 189, 248, 0.2);
   border-color: var(--gw-robot-metal);
   color: var(--gw-robot-metal);
 }
@@ -314,8 +154,8 @@
   border-radius: 12px; padding: 10px 12px;
   font-size: 0.8rem; line-height: 1.45;
   min-height: 56px; max-height: 110px; overflow-y: auto;
-  color: #cffafe; margin-bottom: 10px;
-  border: 1px solid rgba(61, 214, 195, 0.1);
+  color: #e0f2fe; margin-bottom: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.1);
 }
 
 .gw-robot-status {
@@ -351,13 +191,13 @@
 
 .gw-robot-speak-btn {
   background: linear-gradient(135deg, var(--gw-robot-metal), var(--gw-robot-metal-dark));
-  color: #042f2e;
+  color: #082f49;
 }
 
 .gw-robot-mic-btn {
-  background: rgba(14, 165, 233, 0.2);
-  color: #7dd3fc;
-  border: 1px solid rgba(14, 165, 233, 0.4);
+  background: rgba(56, 189, 248, 0.18);
+  color: #bae6fd;
+  border: 1px solid rgba(56, 189, 248, 0.4);
 }
 
 .gw-robot-mic-btn.is-listening {
@@ -384,22 +224,22 @@
 /* ── FAB floating robot ── */
 .gw-robot-fab {
   pointer-events: auto;
-  width: 72px;
-  height: 80px;
+  width: 76px;
+  height: 88px;
   border: none;
   cursor: pointer;
   background: transparent;
   position: relative;
   padding: 0;
   transition: transform 0.2s ease;
-  filter: drop-shadow(0 8px 20px rgba(61, 214, 195, 0.35));
+  filter: drop-shadow(0 10px 24px rgba(56, 189, 248, 0.35));
 }
 
 .gw-robot-fab:hover { transform: scale(1.08); }
 
 .gw-robot-fab .gw-robot-face {
-  width: 72px;
-  height: 80px;
+  width: 76px;
+  height: 88px;
 }
 
 .gw-robot-fab.is-speaking {
@@ -425,7 +265,7 @@
   font-weight: 800;
   display: grid;
   place-items: center;
-  border: 2px solid #042f2e;
+  border: 2px solid #0f172a;
   z-index: 2;
 }
 
@@ -439,7 +279,6 @@
 
 .gw-robot-layout > * { pointer-events: auto; }
 
-/* Wallet bottom nav — shift up */
 .tis-wallet-dash .gw-robot-root {
   top: auto;
   bottom: calc(78px + env(safe-area-inset-bottom));
@@ -461,6 +300,6 @@
 
 @media (max-width: 480px) {
   .gw-robot-panel { width: min(94vw, 300px); }
-  .gw-robot-fab { width: 64px; height: 72px; }
-  .gw-robot-fab .gw-robot-face { width: 64px; height: 72px; }
+  .gw-robot-fab { width: 68px; height: 78px; }
+  .gw-robot-fab .gw-robot-face { width: 68px; height: 78px; }
 }
