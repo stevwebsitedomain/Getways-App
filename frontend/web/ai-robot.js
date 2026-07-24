@@ -4,6 +4,7 @@
   const API_URL = "ai-robot-api.php";
   const LANG_KEY = "nectaAppLanguage";
   const MODE_KEY = "gwRobotMode";
+  const POS_KEY = "gwRobotPosition";
   const MONITOR_INTERVAL = 30000;
   const ERROR_CHECK_INTERVAL = 12000;
 
@@ -16,6 +17,15 @@
   let monitorTimer = null;
   let errorTimer = null;
   let lastSpokenErrorCount = -1;
+  let lastErrorFingerprint = "";
+  let pendingErrorAnnounce = false;
+  let cameraStream = null;
+  let cameraActive = false;
+  let faceWatchRaf = null;
+  let faceDetector = null;
+  let aiEnabled = false;
+  let dragState = null;
+  let suppressFabClick = false;
   let synth = window.speechSynthesis || null;
   let recognition = null;
   let isAuthorized = false;
@@ -122,7 +132,70 @@
     apiFetch("report-error", {
       method: "POST",
       body: { source, message, page: document.title, url: window.location.href, severity: "error" },
-    }).catch(() => {});
+    })
+      .then(() => {
+        setTimeout(() => {
+          refreshStatus().then((data) => {
+            if (data) announceErrorsIfNew(data).catch(() => {});
+          });
+        }, 600);
+      })
+      .catch(() => {});
+  }
+
+  function errorFingerprint(data) {
+    const errors = data?.openErrors || [];
+    return errors.map((e) => String(e.id || e.message || "")).sort().join("|");
+  }
+
+  async function announceErrorsIfNew(data) {
+    if (!data) return;
+
+    const count = data.errorCount ?? 0;
+    if (count === 0) {
+      lastErrorFingerprint = "";
+      lastSpokenErrorCount = 0;
+      return;
+    }
+
+    const fp = errorFingerprint(data);
+    if (fp === lastErrorFingerprint) return;
+
+    if (speaking || listening) {
+      pendingErrorAnnounce = true;
+      return;
+    }
+
+    lastErrorFingerprint = fp;
+    lastSpokenErrorCount = count;
+
+    const errors = data.openErrors || [];
+    const detail = errors
+      .slice(0, 2)
+      .map((e) => String(e.message || "").slice(0, 100))
+      .filter(Boolean)
+      .join(". ");
+
+    let msg = t(
+      `Tahadhari ${agentCodename}! Kuna makosa ${count} kwenye mfumo.`,
+      `Alert ${agentCodename}! There are ${count} error(s) in the system.`
+    );
+    if (detail) msg += ` ${detail}`;
+
+    await speak(msg, "angry");
+
+    const fixData = await apiFetch("fix", { method: "POST", body: {} });
+    await refreshStatus();
+
+    const fixed = (fixData.fixed || []).join(". ");
+    const remaining = fixData.remaining ?? 0;
+    if (fixed || remaining !== count) {
+      let fixMsg = "";
+      if (fixed) fixMsg += t(`Nimerekebisha: ${fixed}.`, `I fixed: ${fixed}.`);
+      if (remaining > 0) fixMsg += t(` Bado makosa ${remaining}.`, ` ${remaining} error(s) remain.`);
+      else fixMsg += t(" Sasa mfumo uko sawa.", " System is OK now.");
+      if (fixMsg.trim()) await speak(fixMsg, remaining > 0 ? "angry" : "happy");
+    }
   }
 
   function setExpression(emotion) {
@@ -155,32 +228,69 @@
     return "small";
   }
 
-  function charDuration(ch, rate) {
-    const base = 88 / rate;
-    if (ch === " ") return base * 0.45;
-    if (/[.,!?;:]/.test(ch)) return base * 1.1;
-    if (/[mbp]/.test(ch)) return base * 0.65;
-    if (/[aáàâeéèêiîíìoôóòuûúù]/i.test(ch)) return base * 1.05;
-    return base * 0.82;
+  function wordToVisemeSequence(word) {
+    const chars = Array.from(String(word || "").toLowerCase());
+    if (!chars.length) return ["rest"];
+
+    const seq = [];
+    chars.forEach((ch) => {
+      if (!/[a-zàáâãäåæèéêëìíîïòóôõöùúûüýÿñç]/i.test(ch)) return;
+      const viseme = charToViseme(ch);
+      if (viseme === "rest") return;
+      if (seq[seq.length - 1] !== viseme) seq.push(viseme);
+    });
+
+    return seq.length ? seq : ["small"];
+  }
+
+  function applyWordViseme(word, rate) {
+    lipTimeouts.forEach((id) => window.clearTimeout(id));
+    lipTimeouts = [];
+
+    const seq = wordToVisemeSequence(word);
+    const wordMs = Math.max(110, Math.min(380, (word.length || 1) * 72 / (rate || 0.9)));
+    const step = wordMs / seq.length;
+    let elapsed = 0;
+
+    seq.forEach((viseme) => {
+      const id = window.setTimeout(() => {
+        if (speaking) setMouthViseme(viseme);
+      }, elapsed);
+      lipTimeouts.push(id);
+      elapsed += step;
+    });
   }
 
   function scheduleLipSync(text, rate) {
-    stopLipSync();
-    const chars = Array.from(String(text || ""));
-    if (!chars.length) return;
+    const words = String(text || "")
+      .split(/\s+/)
+      .map((w) => w.trim())
+      .filter(Boolean);
+    if (!words.length) return;
+
+    lipTimeouts.forEach((id) => window.clearTimeout(id));
+    lipTimeouts = [];
 
     let elapsed = 0;
-    chars.forEach((ch) => {
-      const viseme = charToViseme(ch);
-      const delay = elapsed;
-      const id = window.setTimeout(() => {
-        if (speaking) setMouthViseme(viseme);
-      }, delay);
-      lipTimeouts.push(id);
-      elapsed += charDuration(ch, rate || 0.9);
+    words.forEach((word) => {
+      const seq = wordToVisemeSequence(word);
+      const wordMs = Math.max(110, Math.min(380, word.length * 72 / (rate || 0.9)));
+      const step = wordMs / seq.length;
+
+      seq.forEach((viseme) => {
+        const delay = elapsed;
+        const id = window.setTimeout(() => {
+          if (speaking) setMouthViseme(viseme);
+        }, delay);
+        lipTimeouts.push(id);
+        elapsed += step;
+      });
+      elapsed += 35;
     });
 
-    lipTimeouts.push(window.setTimeout(() => setMouthViseme("rest"), elapsed + 60));
+    lipTimeouts.push(window.setTimeout(() => {
+      if (speaking) setMouthViseme("rest");
+    }, elapsed + 80));
   }
 
   function stopLipSync() {
@@ -269,7 +379,6 @@
     speaking = true;
     updateSpeakingUI(true);
     setSpeechText(text);
-    if (emotion) setExpression(emotion);
 
     return new Promise((resolve) => {
       window.setTimeout(() => {
@@ -297,18 +406,22 @@
           updateSpeakingUI(false);
           if (!listening) setExpression(emotion || "neutral");
           resolve();
+          if (pendingErrorAnnounce) {
+            pendingErrorAnnounce = false;
+            announceErrorsIfNew(statusData).catch(() => {});
+          }
         };
 
         utter.onstart = () => {
-          scheduleLipSync(text, rate);
+          setMouthViseme("rest");
         };
 
         utter.onboundary = (event) => {
           if (!speaking || event.name !== "word") return;
           const idx = event.charIndex ?? 0;
           const len = event.charLength || 1;
-          const slice = text.slice(idx, idx + len);
-          if (slice) scheduleLipSync(slice, rate * 1.08);
+          const word = text.slice(idx, idx + len).trim();
+          if (word) applyWordViseme(word, rate);
         };
 
         utter.onend = finish;
@@ -361,12 +474,216 @@
       badge.hidden = count === 0;
     }
     if (fixBtn) fixBtn.disabled = count === 0;
+
+    const aiBadge = root?.querySelector(".gw-robot-ai-badge");
+    if (aiBadge) {
+      aiBadge.hidden = !aiEnabled;
+      aiBadge.textContent = t("AI", "AI");
+    }
+  }
+
+  function clampPosition(x, y) {
+    const w = root?.offsetWidth || 120;
+    const h = root?.offsetHeight || 120;
+    const pad = 8;
+    return {
+      x: Math.max(pad, Math.min(window.innerWidth - w - pad, x)),
+      y: Math.max(pad, Math.min(window.innerHeight - h - pad, y)),
+    };
+  }
+
+  function applyPosition(pos, persist = false) {
+    if (!root) return;
+
+    if (!pos) {
+      root.classList.remove("is-custom-pos");
+      root.style.left = "";
+      root.style.top = "";
+      root.style.right = "";
+      root.style.bottom = "";
+      root.style.transform = "";
+      if (persist) {
+        try {
+          localStorage.removeItem(POS_KEY);
+        } catch (_) {}
+      }
+      return;
+    }
+
+    const clamped = clampPosition(pos.x, pos.y);
+    root.classList.add("is-custom-pos");
+    root.style.right = "auto";
+    root.style.bottom = "auto";
+    root.style.left = `${clamped.x}px`;
+    root.style.top = `${clamped.y}px`;
+    root.style.transform = "none";
+
+    if (persist) {
+      try {
+        localStorage.setItem(POS_KEY, JSON.stringify(clamped));
+      } catch (_) {}
+    }
+  }
+
+  function loadSavedPosition() {
+    try {
+      const raw = localStorage.getItem(POS_KEY);
+      if (!raw) return;
+      const pos = JSON.parse(raw);
+      if (typeof pos?.x === "number" && typeof pos?.y === "number") {
+        applyPosition(pos);
+      }
+    } catch (_) {}
+  }
+
+  function snapPosition(preset) {
+    if (!root) return;
+    const w = root.offsetWidth || 120;
+    const h = root.offsetHeight || 120;
+    const pad = 12;
+    let x = 0;
+    let y = 0;
+
+    switch (preset) {
+      case "left":
+        x = pad;
+        y = (window.innerHeight - h) / 2;
+        break;
+      case "right":
+        x = window.innerWidth - w - pad;
+        y = (window.innerHeight - h) / 2;
+        break;
+      case "top":
+        x = (window.innerWidth - w) / 2;
+        y = pad;
+        break;
+      case "bottom":
+        x = (window.innerWidth - w) / 2;
+        y = window.innerHeight - h - pad;
+        break;
+      case "center":
+      default:
+        x = (window.innerWidth - w) / 2;
+        y = (window.innerHeight - h) / 2;
+        break;
+    }
+
+    applyPosition({ x, y }, true);
+  }
+
+  function resetPosition() {
+    applyPosition(null, true);
+  }
+
+  function beginDrag(clientX, clientY) {
+    if (!root) return;
+    const rect = root.getBoundingClientRect();
+    dragState = {
+      startX: clientX,
+      startY: clientY,
+      originX: rect.left,
+      originY: rect.top,
+      moved: false,
+    };
+    root.classList.add("is-dragging");
+  }
+
+  function moveDrag(clientX, clientY) {
+    if (!dragState || !root) return;
+    const dx = clientX - dragState.startX;
+    const dy = clientY - dragState.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragState.moved = true;
+    applyPosition({ x: dragState.originX + dx, y: dragState.originY + dy });
+  }
+
+  function endDrag() {
+    if (!dragState || !root) return;
+    const didMove = dragState.moved;
+    dragState = null;
+    root.classList.remove("is-dragging");
+    if (didMove) {
+      const rect = root.getBoundingClientRect();
+      applyPosition({ x: rect.left, y: rect.top }, true);
+      suppressFabClick = true;
+      setTimeout(() => {
+        suppressFabClick = false;
+      }, 120);
+    }
+  }
+
+  function initDrag() {
+    const handles = () => [
+      root?.querySelector(".gw-robot-fab"),
+      root?.querySelector(".gw-robot-head"),
+    ].filter(Boolean);
+
+    const onPointerDown = (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target.closest(".gw-robot-close, .gw-robot-mode, .gw-robot-mic-btn, .gw-robot-speak-btn, .gw-robot-fix-btn, .gw-robot-camera-btn, .gw-robot-pos-btn")) {
+        return;
+      }
+      beginDrag(e.clientX, e.clientY);
+      e.preventDefault();
+    };
+
+    const onPointerMove = (e) => {
+      if (!dragState) return;
+      moveDrag(e.clientX, e.clientY);
+    };
+
+    const onPointerUp = () => endDrag();
+
+    handles().forEach((el) => {
+      el.addEventListener("mousedown", onPointerDown);
+      el.addEventListener("touchstart", (e) => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        onPointerDown({ ...e, clientX: touch.clientX, clientY: touch.clientY, button: 0, target: e.target, preventDefault: () => e.preventDefault() });
+      }, { passive: false });
+    });
+
+    document.addEventListener("mousemove", onPointerMove);
+    document.addEventListener("mouseup", onPointerUp);
+    document.addEventListener("touchmove", (e) => {
+      if (!dragState) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      moveDrag(touch.clientX, touch.clientY);
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("touchend", onPointerUp);
+
+    root?.querySelector(".gw-robot-fab")?.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      resetPosition();
+      setSpeechText(t("Agent imewekwa katikati.", "Agent moved to center."));
+    });
+
+    root?.querySelectorAll(".gw-robot-pos-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        snapPosition(btn.dataset.pos || "center");
+      });
+    });
+
+    window.addEventListener("resize", () => {
+      if (!root?.classList.contains("is-custom-pos")) return;
+      try {
+        const raw = localStorage.getItem(POS_KEY);
+        if (!raw) return;
+        const pos = JSON.parse(raw);
+        if (typeof pos?.x === "number" && typeof pos?.y === "number") {
+          applyPosition(pos, true);
+        }
+      } catch (_) {}
+    });
   }
 
   async function refreshStatus() {
     try {
       const data = await apiFetch("status");
       updateStatusUI(data);
+      aiEnabled = data?.aiEnabled === true;
 
       if (data?.agent && !data.agent.authorized) {
         try {
@@ -395,7 +712,34 @@
 
   async function sendChat(message) {
     if (!message.trim()) return;
-    setSpeechText(t("Ninasikiliza...", "Listening..."));
+
+    const lower = message.trim().toLowerCase();
+    if (/unaona|nione|camera|kuona|see me|can you see/i.test(lower)) {
+      if (cameraActive) {
+        await speak(
+          t(`Ndiyo ${agentCodename}, nakuona vizuri!`, `Yes ${agentCodename}, I can see you clearly!`),
+          "happy"
+        );
+      } else {
+        openPanel();
+        setSpeechText(
+          t(
+            "Bonyeza Unganisha Camera hapo chini ili nikuone.",
+            "Press Connect Camera below so I can see you."
+          )
+        );
+        await speak(
+          t(
+            "Bonyeza kitufe cha Unganisha Camera ili nikuone.",
+            "Press the Connect Camera button so I can see you."
+          ),
+          "neutral"
+        );
+      }
+      return;
+    }
+
+    setSpeechText(t("Ninafikiri...", "Thinking..."));
     try {
       const data = await apiFetch("chat", { method: "POST", body: { message } });
       if (data.authorized) isAuthorized = true;
@@ -440,13 +784,176 @@
   async function checkErrorsAndSpeak() {
     const data = await refreshStatus();
     if (!data) return;
-
-    const count = data.errorCount ?? 0;
-    if (count > 0 && count !== lastSpokenErrorCount) {
-      lastSpokenErrorCount = count;
-      await autoFixErrors(false);
+    await announceErrorsIfNew(data);
+    if (pendingErrorAnnounce && !speaking && !listening) {
+      pendingErrorAnnounce = false;
+      await announceErrorsIfNew(statusData);
     }
-    if (count === 0) lastSpokenErrorCount = 0;
+  }
+
+  function updateCameraUI() {
+    const preview = root?.querySelector(".gw-robot-camera-preview");
+    const btn = root?.querySelector(".gw-robot-camera-btn");
+    const btnText = root?.querySelector(".gw-robot-camera-btn-text");
+    const hint = root?.querySelector(".gw-robot-camera-hint");
+
+    preview?.toggleAttribute("hidden", !cameraActive);
+    root?.classList.toggle("gw-robot-camera-on", cameraActive);
+
+    if (btnText) {
+      btnText.textContent = cameraActive
+        ? t("Zima Camera", "Turn Off Camera")
+        : t("Unganisha Camera", "Connect Camera");
+    }
+    if (btn) {
+      btn.classList.toggle("is-active", cameraActive);
+      btn.querySelector("i")?.classList.toggle("fa-video-slash", cameraActive);
+      btn.querySelector("i")?.classList.toggle("fa-video", !cameraActive);
+    }
+    if (hint) {
+      hint.textContent = cameraActive
+        ? t("Agent anakuona sasa.", "Agent can see you now.")
+        : t(
+            "Bonyeza ili Agent akuone. Ruhusu camera kwenye browser yako.",
+            "Press to let Agent see you. Allow camera access in your browser."
+          );
+    }
+  }
+
+  function moveEyesToVideoPoint(nx, ny, video) {
+    const irises = root?.querySelectorAll(".gw-robot-iris");
+    if (!irises?.length || !video?.videoWidth) return;
+    const px = ((nx / video.videoWidth) - 0.5) * 10;
+    const py = ((ny / video.videoHeight) - 0.5) * 8;
+    const tx = Math.max(-5, Math.min(5, px));
+    const ty = Math.max(-4, Math.min(4, py));
+    irises.forEach((iris) => {
+      iris.style.transform = `translate(${tx}px, ${ty}px)`;
+    });
+  }
+
+  function startFaceWatch(video) {
+    if (faceWatchRaf) cancelAnimationFrame(faceWatchRaf);
+
+    if ("FaceDetector" in window) {
+      try {
+        faceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+      } catch (_) {
+        faceDetector = null;
+      }
+    }
+
+    let lastDetect = 0;
+    const tick = (now) => {
+      if (!cameraActive || !video) return;
+
+      if (faceDetector && video.readyState >= 2 && now - lastDetect > 180) {
+        lastDetect = now;
+        faceDetector
+          .detect(video)
+          .then((faces) => {
+            if (faces?.length > 0) {
+              const box = faces[0].boundingBox;
+              moveEyesToVideoPoint(box.x + box.width / 2, box.y + box.height / 2, video);
+            } else {
+              moveEyesToVideoPoint(video.videoWidth / 2, video.videoHeight * 0.42, video);
+            }
+          })
+          .catch(() => {});
+      } else if (!faceDetector && video.videoWidth) {
+        moveEyesToVideoPoint(video.videoWidth / 2, video.videoHeight * 0.42, video);
+      }
+
+      faceWatchRaf = requestAnimationFrame(tick);
+    };
+    faceWatchRaf = requestAnimationFrame(tick);
+  }
+
+  function stopFaceWatch() {
+    if (faceWatchRaf) {
+      cancelAnimationFrame(faceWatchRaf);
+      faceWatchRaf = null;
+    }
+    faceDetector = null;
+    root?.querySelectorAll(".gw-robot-iris").forEach((iris) => {
+      iris.style.transform = "";
+    });
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setSpeechText(
+        t(
+          "Kivinjari chako hakiungi mkono camera. Tumia Chrome au Edge.",
+          "Your browser does not support camera. Use Chrome or Edge."
+        )
+      );
+      await speak(
+        t("Samahani, camera haiwezi kufunguliwa hapa.", "Sorry, camera cannot be opened here."),
+        "angry"
+      );
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 320 }, height: { ideal: 240 } },
+        audio: false,
+      });
+      cameraStream = stream;
+      cameraActive = true;
+
+      const video = root?.querySelector(".gw-robot-camera-video");
+      if (video) {
+        video.srcObject = stream;
+        await video.play().catch(() => {});
+        startFaceWatch(video);
+      }
+
+      updateCameraUI();
+      setExpression("happy");
+      const msg = t(
+        `Sawa ${agentCodename}, nakuona sasa!`,
+        `OK ${agentCodename}, I can see you now!`
+      );
+      setSpeechText(msg);
+      await speak(msg, "happy");
+    } catch (err) {
+      cameraStream = null;
+      cameraActive = false;
+      updateCameraUI();
+      const denied = err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError";
+      const msg = denied
+        ? t(
+            "Umeruhusu camera? Bonyeza ruhusu kwenye browser kisha jaribu tena.",
+            "Did you allow camera? Click Allow in the browser and try again."
+          )
+        : t("Imeshindwa kufungua camera. Jaribu tena.", "Could not open camera. Try again.");
+      setSpeechText(msg);
+      await speak(msg, "angry");
+    }
+  }
+
+  function stopCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      cameraStream = null;
+    }
+    cameraActive = false;
+    const video = root?.querySelector(".gw-robot-camera-video");
+    if (video) video.srcObject = null;
+    stopFaceWatch();
+    updateCameraUI();
+  }
+
+  async function toggleCamera() {
+    if (cameraActive) {
+      stopCamera();
+      setSpeechText(t("Camera imezimwa.", "Camera turned off."));
+      return;
+    }
+    openPanel();
+    await startCamera();
   }
 
   function setMode(mode) {
@@ -534,6 +1041,7 @@
 
   function initEyeTracking() {
     document.addEventListener("mousemove", (e) => {
+      if (cameraActive) return;
       const irises = root?.querySelectorAll(".gw-robot-iris");
       if (!irises?.length || speaking) return;
       irises.forEach((iris) => {
@@ -573,12 +1081,20 @@
           <div class="gw-robot-head">
             <div class="gw-robot-avatar">${robotFaceHtml("panel")}</div>
             <div class="gw-robot-title">
-              <strong>Agent</strong>
-              <small>${t("Msaidizi wa Special Agent namba 3", "Assistant for Special Agent #3")}</small>
+              <strong>Agent <span class="gw-robot-ai-badge" hidden>AI</span></strong>
+              <small>${t("Buruta uso kuhama · Bonyeza mara mbili katikati", "Drag face to move · Double-click to center")}</small>
             </div>
             <button type="button" class="gw-robot-close" aria-label="${t("Funga", "Close")}">
               <i class="fa-solid fa-xmark"></i>
             </button>
+          </div>
+          <div class="gw-robot-position">
+            <span class="gw-robot-position-label">${t("Mahali", "Position")}</span>
+            <button type="button" class="gw-robot-pos-btn" data-pos="left" title="${t("Kushoto", "Left")}"><i class="fa-solid fa-arrow-left"></i></button>
+            <button type="button" class="gw-robot-pos-btn" data-pos="top" title="${t("Juu", "Top")}"><i class="fa-solid fa-arrow-up"></i></button>
+            <button type="button" class="gw-robot-pos-btn" data-pos="center" title="${t("Katikati", "Center")}"><i class="fa-solid fa-crosshairs"></i></button>
+            <button type="button" class="gw-robot-pos-btn" data-pos="bottom" title="${t("Chini", "Bottom")}"><i class="fa-solid fa-arrow-down"></i></button>
+            <button type="button" class="gw-robot-pos-btn" data-pos="right" title="${t("Kulia", "Right")}"><i class="fa-solid fa-arrow-right"></i></button>
           </div>
           <div class="gw-robot-body">
             <div class="gw-robot-modes">
@@ -593,6 +1109,18 @@
               <span class="gw-robot-status-text">${t("Inapakia...", "Loading...")}</span>
             </div>
             <div class="gw-robot-speech">${t("Bonyeza Talk kuzungumza na Agent.", "Press Talk to speak with Agent.")}</div>
+            <div class="gw-robot-camera">
+              <div class="gw-robot-camera-preview" hidden>
+                <video class="gw-robot-camera-video" playsinline muted autoplay></video>
+                <span class="gw-robot-camera-live">LIVE</span>
+                <span class="gw-robot-camera-see">${t("Nakuona", "I see you")}</span>
+              </div>
+              <button type="button" class="gw-robot-camera-btn">
+                <i class="fa-solid fa-video"></i>
+                <span class="gw-robot-camera-btn-text">${t("Unganisha Camera", "Connect Camera")}</span>
+              </button>
+              <small class="gw-robot-camera-hint">${t("Bonyeza ili Agent akuone. Ruhusu camera kwenye browser yako.", "Press to let Agent see you. Allow camera access in your browser.")}</small>
+            </div>
             <div class="gw-robot-actions">
               <button type="button" class="gw-robot-mic-btn">
                 <i class="fa-solid fa-microphone"></i>
@@ -619,6 +1147,8 @@
 
     setMode(currentMode);
     bindEvents();
+    initDrag();
+    loadSavedPosition();
     initEyeTracking();
     refreshStatus().then((data) => {
       if (data?.agent?.authorized) {
@@ -646,6 +1176,7 @@
     const fixBtn = root.querySelector(".gw-robot-fix-btn");
 
     fab.addEventListener("click", () => {
+      if (suppressFabClick) return;
       if (!panelOpen) {
         startTalk();
         return;
@@ -662,7 +1193,12 @@
       root.classList.remove("is-open");
       stopSpeaking();
       if (listening && recognition) recognition.stop();
+      stopCamera();
       setExpression("neutral");
+    });
+
+    root.querySelector(".gw-robot-camera-btn")?.addEventListener("click", () => {
+      toggleCamera().catch(() => {});
     });
 
     speakBtn.addEventListener("click", () => {
@@ -717,6 +1253,17 @@
     fix: () => autoFixErrors(true),
     setMode,
     setExpression,
+    startCamera,
+    stopCamera,
+    toggleCamera,
+    resetPosition,
+    snapPosition,
+    get aiOn() {
+      return aiEnabled;
+    },
+    get cameraOn() {
+      return cameraActive;
+    },
   };
 
   if (document.readyState === "loading") {

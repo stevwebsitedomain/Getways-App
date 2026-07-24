@@ -63,7 +63,8 @@
 .gw-robot-mouth-wrap {
   transform-box: fill-box;
   transform-origin: 100px 155px;
-  transition: transform 0.07s cubic-bezier(0.33, 1, 0.68, 1);
+  transform: translateY(0);
+  transition: transform 0.04s ease-out;
 }
 
 .gw-robot-mouth-hole,
@@ -71,62 +72,68 @@
 .gw-robot-lip-top,
 .gw-robot-lip-bottom {
   transition:
-    rx 0.07s ease,
-    ry 0.07s ease,
-    opacity 0.07s ease,
-    transform 0.07s ease,
-    stroke-width 0.07s ease;
+    rx 0.04s ease-out,
+    ry 0.04s ease-out,
+    opacity 0.04s ease-out,
+    transform 0.04s ease-out,
+    d 0.04s ease-out,
+    stroke-width 0.04s ease-out;
 }
 
-/* ── Human-like viseme mouth shapes ── */
-.gw-robot-face[data-mouth="rest"] .gw-robot-mouth-wrap { transform: scaleY(0.42) scaleX(1); }
-.gw-robot-face[data-mouth="rest"] .gw-robot-mouth-hole { rx: 11; ry: 1; }
+/* Visemes — lips morph in place (no bounce up/down) */
+.gw-robot-face[data-mouth="rest"] .gw-robot-mouth-hole { rx: 11; ry: 1.2; }
+.gw-robot-face[data-mouth="rest"] .gw-robot-lip-top { d: path("M84 152 Q100 149 116 152"); }
+.gw-robot-face[data-mouth="rest"] .gw-robot-lip-bottom { d: path("M84 152 Q100 157 116 152"); }
 .gw-robot-face[data-mouth="rest"] .gw-robot-tongue { opacity: 0; ry: 1; }
 
-.gw-robot-face[data-mouth="mb"] .gw-robot-mouth-wrap { transform: scaleY(0.28) scaleX(1.02); }
-.gw-robot-face[data-mouth="mb"] .gw-robot-mouth-hole { rx: 12; ry: 0.6; }
-.gw-robot-face[data-mouth="mb"] .gw-robot-lip-top { transform: translateY(1px); }
+.gw-robot-face[data-mouth="mb"] .gw-robot-mouth-hole { rx: 12; ry: 0.4; }
+.gw-robot-face[data-mouth="mb"] .gw-robot-lip-top { d: path("M83 152 Q100 151 117 152"); }
+.gw-robot-face[data-mouth="mb"] .gw-robot-lip-bottom { d: path("M83 152 Q100 153 117 152"); }
+.gw-robot-face[data-mouth="mb"] .gw-robot-tongue { opacity: 0; }
 
-.gw-robot-face[data-mouth="ff"] .gw-robot-mouth-wrap { transform: scaleY(0.55) scaleX(1.08); }
-.gw-robot-face[data-mouth="ff"] .gw-robot-mouth-hole { rx: 10; ry: 2.8; }
-.gw-robot-face[data-mouth="ff"] .gw-robot-lip-bottom { transform: translateY(1px); }
+.gw-robot-face[data-mouth="ff"] .gw-robot-mouth-hole { rx: 9; ry: 2.2; }
+.gw-robot-face[data-mouth="ff"] .gw-robot-lip-top { d: path("M85 151 Q100 150 115 151"); }
+.gw-robot-face[data-mouth="ff"] .gw-robot-lip-bottom { d: path("M85 153 Q100 154 115 153"); }
+.gw-robot-face[data-mouth="ff"] .gw-robot-tongue { opacity: 0.1; ry: 1.5; }
 
-.gw-robot-face[data-mouth="small"] .gw-robot-mouth-wrap { transform: scaleY(0.62) scaleX(1); }
-.gw-robot-face[data-mouth="small"] .gw-robot-mouth-hole { rx: 10; ry: 3.5; }
-.gw-robot-face[data-mouth="small"] .gw-robot-tongue { opacity: 0.25; ry: 2; }
+.gw-robot-face[data-mouth="small"] .gw-robot-mouth-hole { rx: 9.5; ry: 3.2; }
+.gw-robot-face[data-mouth="small"] .gw-robot-lip-top { d: path("M86 151 Q100 150 114 151"); }
+.gw-robot-face[data-mouth="small"] .gw-robot-lip-bottom { d: path("M86 154 Q100 156 114 154"); }
+.gw-robot-face[data-mouth="small"] .gw-robot-tongue { opacity: 0.2; ry: 2; }
 
-.gw-robot-face[data-mouth="th"] .gw-robot-mouth-wrap { transform: scaleY(0.68) scaleX(0.96); }
-.gw-robot-face[data-mouth="th"] .gw-robot-mouth-hole { rx: 9; ry: 4; }
-.gw-robot-face[data-mouth="th"] .gw-robot-tongue { opacity: 0.45; ry: 3.2; }
+.gw-robot-face[data-mouth="th"] .gw-robot-mouth-hole { rx: 8.5; ry: 4.5; }
+.gw-robot-face[data-mouth="th"] .gw-robot-lip-top { d: path("M86 151 Q100 149 114 151"); }
+.gw-robot-face[data-mouth="th"] .gw-robot-lip-bottom { d: path("M86 155 Q100 158 114 155"); }
+.gw-robot-face[data-mouth="th"] .gw-robot-tongue { opacity: 0.35; ry: 2.8; }
 
-.gw-robot-face[data-mouth="ee"] .gw-robot-mouth-wrap { transform: scaleY(0.58) scaleX(1.22); }
-.gw-robot-face[data-mouth="ee"] .gw-robot-mouth-hole { rx: 14; ry: 4.2; }
-.gw-robot-face[data-mouth="ee"] .gw-robot-lip-top { transform: translateY(-1px); }
-.gw-robot-face[data-mouth="ee"] .gw-robot-lip-bottom { transform: translateY(2px); }
+.gw-robot-face[data-mouth="ee"] .gw-robot-mouth-hole { rx: 13; ry: 3.8; }
+.gw-robot-face[data-mouth="ee"] .gw-robot-lip-top { d: path("M82 151 Q100 148 118 151"); }
+.gw-robot-face[data-mouth="ee"] .gw-robot-lip-bottom { d: path("M82 154 Q100 157 118 154"); }
+.gw-robot-face[data-mouth="ee"] .gw-robot-tongue { opacity: 0.25; ry: 2.2; }
 
-.gw-robot-face[data-mouth="aa"] .gw-robot-mouth-wrap { transform: scaleY(1.18) scaleX(1.06); }
-.gw-robot-face[data-mouth="aa"] .gw-robot-mouth-hole { rx: 13; ry: 8.5; }
-.gw-robot-face[data-mouth="aa"] .gw-robot-tongue { opacity: 0.55; ry: 5; }
-.gw-robot-face[data-mouth="aa"] .gw-robot-lip-bottom { transform: translateY(5px); }
+.gw-robot-face[data-mouth="aa"] .gw-robot-mouth-hole { rx: 12; ry: 6.8; }
+.gw-robot-face[data-mouth="aa"] .gw-robot-lip-top { d: path("M84 150 Q100 147 116 150"); }
+.gw-robot-face[data-mouth="aa"] .gw-robot-lip-bottom { d: path("M84 157 Q100 162 116 157"); }
+.gw-robot-face[data-mouth="aa"] .gw-robot-tongue { opacity: 0.5; ry: 4.2; }
+.gw-robot-face[data-mouth="aa"] .gw-robot-mouth-wrap { transform: translateY(1px); }
 
-.gw-robot-face[data-mouth="oh"] .gw-robot-mouth-wrap { transform: scaleY(1.05) scaleX(0.82); }
-.gw-robot-face[data-mouth="oh"] .gw-robot-mouth-hole { rx: 8; ry: 7.5; }
-.gw-robot-face[data-mouth="oh"] .gw-robot-tongue { opacity: 0.4; ry: 4; }
+.gw-robot-face[data-mouth="oh"] .gw-robot-mouth-hole { rx: 7.5; ry: 6.2; }
+.gw-robot-face[data-mouth="oh"] .gw-robot-lip-top { d: path("M87 151 Q100 149 113 151"); }
+.gw-robot-face[data-mouth="oh"] .gw-robot-lip-bottom { d: path("M87 156 Q100 160 113 156"); }
+.gw-robot-face[data-mouth="oh"] .gw-robot-tongue { opacity: 0.35; ry: 3.5; }
 
-.gw-robot-face[data-mouth="uu"] .gw-robot-mouth-wrap { transform: scaleY(0.72) scaleX(0.68); }
-.gw-robot-face[data-mouth="uu"] .gw-robot-mouth-hole { rx: 5.5; ry: 5; }
-.gw-robot-face[data-mouth="uu"] .gw-robot-lip-top { transform: translateY(2px); }
+.gw-robot-face[data-mouth="uu"] .gw-robot-mouth-hole { rx: 5.5; ry: 4.8; }
+.gw-robot-face[data-mouth="uu"] .gw-robot-lip-top { d: path("M88 152 Q100 151 112 152"); }
+.gw-robot-face[data-mouth="uu"] .gw-robot-lip-bottom { d: path("M88 155 Q100 157 112 155"); }
+.gw-robot-face[data-mouth="uu"] .gw-robot-tongue { opacity: 0.15; ry: 2; }
+
+.gw-robot-face.is-speaking[data-mouth] .gw-robot-mouth-wrap {
+  animation: none;
+}
 
 .gw-robot-face.is-speaking .gw-robot-iris,
 .gw-robot-face[data-expression="speaking"] .gw-robot-iris {
-  animation: gwAgentIrisDance 1.6s ease-in-out infinite;
-}
-
-@keyframes gwAgentIrisDance {
-  0%, 100% { transform: translate(0, 0); }
-  20% { transform: translate(3px, -2px); }
-  45% { transform: translate(-3px, 1px); }
-  70% { transform: translate(2px, 3px); }
+  animation: none;
 }
 
 .gw-robot-face[data-expression="listening"] .gw-robot-iris {
@@ -138,8 +145,8 @@
   50% { transform: translateX(4px); }
 }
 
-.gw-robot-face[data-expression="happy"] .gw-robot-mouth-wrap {
-  transform: scaleY(0.9) translateY(-2px);
+.gw-robot-face[data-expression="happy"]:not(.is-speaking) .gw-robot-mouth-wrap {
+  transform: translateY(-1px);
 }
 
 .gw-robot-face[data-expression="angry"] .gw-robot-eye {
@@ -188,6 +195,25 @@
   visibility: visible;
 }
 
+.gw-robot-root.is-custom-pos {
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+.gw-robot-root.is-dragging {
+  animation: none !important;
+}
+
+.gw-robot-root.is-dragging .gw-robot-fab {
+  cursor: grabbing;
+}
+
+.gw-robot-fab {
+  cursor: grab;
+}
+
 .gw-robot-head {
   display: flex;
   align-items: center;
@@ -195,6 +221,61 @@
   padding: 14px 16px;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(2, 132, 199, 0.08));
   border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+  user-select: none;
+  cursor: grab;
+}
+
+.gw-robot-root.is-dragging .gw-robot-head {
+  cursor: grabbing;
+}
+
+.gw-robot-position {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.1);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.gw-robot-position-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--gw-robot-muted);
+  margin-right: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.gw-robot-pos-btn {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: rgba(56, 189, 248, 0.08);
+  color: var(--gw-robot-text);
+  border-radius: 8px;
+  padding: 5px 0;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.gw-robot-pos-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--gw-robot-metal);
+}
+
+.gw-robot-ai-badge {
+  display: inline-block;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #0f172a;
+  background: linear-gradient(135deg, #34d399, #38bdf8);
+  padding: 1px 5px;
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-left: 4px;
 }
 
 .gw-robot-avatar {
@@ -243,6 +324,104 @@
   min-height: 56px; max-height: 110px; overflow-y: auto;
   color: #e0f2fe; margin-bottom: 10px;
   border: 1px solid rgba(56, 189, 248, 0.1);
+}
+
+.gw-robot-camera {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+.gw-robot-camera-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  background: #0a1628;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.gw-robot-camera-preview[hidden] {
+  display: none !important;
+}
+
+.gw-robot-camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  display: block;
+}
+
+.gw-robot-camera-live {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: rgba(248, 113, 113, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.gw-robot-camera-see {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #e0f2fe;
+  background: rgba(2, 132, 199, 0.75);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.gw-robot-camera-btn {
+  width: 100%;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--gw-robot-text);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.gw-robot-camera-btn:hover {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: var(--gw-robot-metal);
+}
+
+.gw-robot-camera-btn.is-active {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+}
+
+.gw-robot-camera-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: var(--gw-robot-muted);
+  text-align: center;
+}
+
+.gw-robot-root.gw-robot-camera-on .gw-robot-dot {
+  background: var(--gw-robot-metal);
+  box-shadow: 0 0 8px var(--gw-robot-glow);
 }
 
 .gw-robot-status {
@@ -329,12 +508,7 @@
 }
 
 .gw-robot-fab.is-speaking {
-  animation: gwRobotFabBounce 0.5s ease infinite alternate;
-}
-
-@keyframes gwRobotFabBounce {
-  from { transform: scale(1); }
-  to { transform: scale(1.06); }
+  filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.55));
 }
 
 .gw-robot-badge {

@@ -171,6 +171,7 @@ robotJson(200, [
         'authorized' => $agentInfo['authorized'],
         'bound' => $agentInfo['bound'],
     ],
+    'aiEnabled' => gwRobotLlmEnabled(),
 ]);
 
 function robotBuildSpeakText(string $mode, array $user, bool $isAdmin, string $lang): string

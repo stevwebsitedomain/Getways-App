@@ -4,6 +4,170 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/auth-init.php';
 
+/**
+ * Read env from server or project .env file.
+ */
+function gwRobotEnv(string $key, string $default = ''): string
+{
+    static $loaded = false;
+    /** @var array<string, string> $vars */
+    static $vars = [];
+
+    if (!$loaded) {
+        $paths = [
+            __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '.env',
+            __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '.env',
+        ];
+        foreach ($paths as $path) {
+            if (!is_file($path)) {
+                continue;
+            }
+            $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if (!is_array($lines)) {
+                break;
+            }
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+                    continue;
+                }
+                [$k, $v] = explode('=', $line, 2);
+                $vars[trim($k)] = trim($v, " \t\"'");
+            }
+            break;
+        }
+        $loaded = true;
+    }
+
+    $fromServer = getenv($key);
+    if ($fromServer !== false && $fromServer !== '') {
+        return (string) $fromServer;
+    }
+
+    return $vars[$key] ?? $default;
+}
+
+function gwRobotLlmEnabled(): bool
+{
+    $key = gwRobotEnv('AGENT_AI_API_KEY');
+    if ($key !== '') {
+        return true;
+    }
+    return gwRobotEnv('OPENAI_API_KEY') !== '';
+}
+
+/**
+ * @return array{text: string, emotion: string, authorized: bool, source?: string}|null
+ */
+function gwRobotLlmChat(string $message, array $user, string $lang = 'sw'): ?array
+{
+    $apiKey = gwRobotEnv('AGENT_AI_API_KEY');
+    if ($apiKey === '') {
+        $apiKey = gwRobotEnv('OPENAI_API_KEY');
+    }
+    if ($apiKey === '') {
+        return null;
+    }
+
+    if (!function_exists('curl_init')) {
+        return null;
+    }
+
+    $baseUrl = rtrim(gwRobotEnv('AGENT_AI_BASE_URL', 'https://api.openai.com/v1'), '/');
+    $model = gwRobotEnv('AGENT_AI_MODEL', 'gpt-4o-mini');
+    $agent = gwRobotCheckAgent($user);
+    $codename = (string) ($agent['codename'] ?? 'Special Agent namba 3');
+    $name = trim((string) ($user['fullName'] ?? 'User'));
+    $role = trim((string) ($user['role'] ?? 'user'));
+    $errorCount = count(gwRobotGetOpenErrors());
+    $loginAt = (string) ($_SESSION['gw_login_at'] ?? '');
+
+    $systemPrompt = $lang === 'sw'
+        ? "Wewe ni Agent, roboti wa mfumo wa Getway wallet. Mtumiaji anaitwa {$codename} ({$name}), jukumu: {$role}. Jibu kwa Kiswahili kwa ufupi, wazi na kwa urafiki. Unaweza kujibu maswali yoyote — teknolojia, maisha, biashara, au mfumo. Kuhusu mfumo: makosa {$errorCount} yako wazi sasa."
+        : "You are Agent, the Getway wallet system robot. The user is {$codename} ({$name}), role: {$role}. Reply in English, concise and friendly. You can answer any question. System has {$errorCount} open error(s) right now.";
+
+    if ($loginAt !== '') {
+        $duration = $lang === 'sw' ? gwRobotFormatDurationSw($loginAt) : gwRobotFormatDuration($loginAt);
+        $systemPrompt .= $lang === 'sw'
+            ? " Mtumiaji ameingia {$duration}."
+            : " User logged in {$duration} ago.";
+    }
+
+    $profile = gwRobotGetAgentProfile();
+    $memories = array_slice($profile['memories'] ?? [], -6);
+    $memoryFacts = [];
+    foreach ($memories as $mem) {
+        if (!is_array($mem)) {
+            continue;
+        }
+        $fact = trim((string) ($mem['fact'] ?? ''));
+        if ($fact !== '') {
+            $memoryFacts[] = $fact;
+        }
+    }
+    if ($memoryFacts !== []) {
+        $systemPrompt .= $lang === 'sw'
+            ? ' Ulikumbuka: ' . implode('; ', $memoryFacts) . '.'
+            : ' You remember: ' . implode('; ', $memoryFacts) . '.';
+    }
+
+    $systemPrompt .= $lang === 'sw'
+        ? ' Usitoe siri za API, nywila, au data nyeti.'
+        : ' Never reveal API keys, passwords, or sensitive data.';
+
+    $payload = [
+        'model' => $model,
+        'messages' => [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $message],
+        ],
+        'max_tokens' => 450,
+        'temperature' => 0.65,
+    ];
+
+    $ch = curl_init($baseUrl . '/chat/completions');
+    if ($ch === false) {
+        return null;
+    }
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey,
+        ],
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        CURLOPT_TIMEOUT => 35,
+        CURLOPT_CONNECTTIMEOUT => 10,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if (!is_string($response) || $response === '' || $httpCode < 200 || $httpCode >= 300) {
+        return null;
+    }
+
+    $data = json_decode($response, true);
+    if (!is_array($data)) {
+        return null;
+    }
+
+    $text = trim((string) ($data['choices'][0]['message']['content'] ?? ''));
+    if ($text === '') {
+        return null;
+    }
+
+    return [
+        'text' => $text,
+        'emotion' => 'neutral',
+        'authorized' => true,
+        'source' => 'llm',
+    ];
+}
+
 function gwRobotRuntimeDir(): string
 {
     $dir = gwAuthRuntimeDir() . DIRECTORY_SEPARATOR . 'ai-robot';
@@ -722,6 +886,16 @@ function gwRobotChat(string $message, array $user, string $lang = 'sw'): array
         }
     }
 
+    $llm = gwRobotLlmChat($msg, $user, $lang);
+    if ($llm !== null) {
+        gwRobotRememberFact($msg, 'conversation');
+        $conversations = $profile['conversations'] ?? [];
+        $conversations[] = ['q' => $msg, 'at' => gmdate('c'), 'source' => 'llm'];
+        $profile['conversations'] = array_slice($conversations, -50);
+        gwRobotSaveAgentProfile($profile);
+        return $llm;
+    }
+
     gwRobotRememberFact($msg, 'conversation');
     $conversations = $profile['conversations'] ?? [];
     $conversations[] = ['q' => $msg, 'at' => gmdate('c')];
@@ -730,10 +904,10 @@ function gwRobotChat(string $message, array $user, string $lang = 'sw'): array
 
     if ($lang === 'sw') {
         $text = "{$codename}, nimekusikia. Umesema: {$msg}. ";
-        $text .= 'Kama unahitaji taarifa za mfumo, niulize kuhusu makosa, walioingia, au hali ya dashboard. Nimekukumbuka.';
+        $text .= 'Kwa maswali yoyote, weka AGENT_AI_API_KEY kwenye .env ili niweze kujibu kwa akili. Kwa sasa niulize kuhusu makosa, walioingia, au hali ya mfumo.';
     } else {
         $text = "{$codename}, I heard you. You said: {$msg}. ";
-        $text .= 'For system info, ask about errors, logins, or dashboard status. I will remember this.';
+        $text .= 'For any question, set AGENT_AI_API_KEY in .env to enable smart AI replies. For now, ask about errors, logins, or dashboard status.';
     }
 
     return ['text' => $text, 'emotion' => 'neutral', 'authorized' => true];
