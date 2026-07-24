@@ -5,7 +5,7 @@ import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.radar_routes import _status, broadcast_event, router as radar_router, _ws_clients
+from backend.api.radar_routes import _status, broadcast_event, process_hardware_motion, router as radar_router, _ws_clients
 from backend.db import init_db
 from backend.services.radar_serial_service import radar_serial_service
 
@@ -30,7 +30,7 @@ async def ws_radar_events(websocket: WebSocket) -> None:
         await websocket.send_json({"type": "status", "payload": _status().model_dump()})
         while True:
             for raw in radar_serial_service.poll_events():
-                await broadcast_event({"type": "radar_hardware", "payload": raw})
+                await process_hardware_motion(raw)
             try:
                 await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
             except asyncio.TimeoutError:

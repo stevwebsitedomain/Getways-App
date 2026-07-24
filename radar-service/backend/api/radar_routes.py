@@ -52,6 +52,71 @@ def _status() -> RadarStatus:
     )
 
 
+async def process_hardware_motion(raw: dict[str, Any]) -> None:
+    if raw.get("event") != "motion":
+        return
+    cfg = event_service.get_settings()
+    if not cfg.armed:
+        return
+
+    mode = settings.radar_mode.lower()
+    sensor_mode = "mock" if mode in {"mock", "demo"} else "hardware"
+    distance_m = raw.get("distance_m")
+    angle_deg = raw.get("angle_deg")
+    tracking_id = f"radar-{raw.get('timestamp') or uuid.uuid4().hex[:10]}"
+
+    energy = raw.get("energy")
+    confidence = 0.82
+    if energy is not None:
+        try:
+            confidence = min(0.95, max(0.55, float(energy) / 100))
+        except (TypeError, ValueError):
+            pass
+
+    object_type = "person"
+    if not event_service.passes_filter(object_type, cfg.alert_filter):
+        return
+    if not event_service.should_alert(tracking_id, cfg):
+        return
+
+    severity = severity_for(
+        object_type,
+        float(distance_m) if distance_m is not None else None,
+        cfg.selected_range_m,
+    )
+    payload = DetectionEventIn(
+        tracking_id=tracking_id,
+        object_type=object_type,
+        confidence=confidence,
+        distance_m=float(distance_m) if distance_m is not None else None,
+        angle_deg=float(angle_deg) if angle_deg is not None else None,
+        speed_mps=float(raw["speed_mps"]) if raw.get("speed_mps") is not None else None,
+        sensor_mode=sensor_mode,
+        camera_name="mmWave Radar",
+        severity=severity,
+        metadata={"energy": energy, "source": "hardware"},
+    )
+    event = event_service.create_event(payload)
+    marker = {
+        "tracking_id": tracking_id,
+        "object_type": object_type,
+        "severity": severity,
+        "distance_m": payload.distance_m,
+        "angle_deg": payload.angle_deg,
+        "has_direction": payload.angle_deg is not None,
+        "last_seen": datetime.now(timezone.utc).isoformat(),
+    }
+    _active_markers[tracking_id] = marker
+    await broadcast_event(
+        {
+            "type": "detection",
+            "event": event,
+            "marker": marker,
+            "alarm": alarm_service.payload_for_event(event),
+        }
+    )
+
+
 @router.get("/status")
 def get_status() -> dict[str, Any]:
     return {"ok": True, **_status().model_dump()}
@@ -273,7 +338,7 @@ async def ws_events(websocket: WebSocket) -> None:
         await websocket.send_json({"type": "status", "payload": _status().model_dump()})
         while True:
             for raw in radar_serial_service.poll_events():
-                await broadcast_event({"type": "radar_hardware", "payload": raw})
+                await process_hardware_motion(raw)
             try:
                 import asyncio
 

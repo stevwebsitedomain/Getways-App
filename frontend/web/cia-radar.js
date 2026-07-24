@@ -22,6 +22,13 @@
     recordingChunks: [],
     mediaRecorder: null,
     preBuffer: [],
+    phosphor: null,
+    hiddenVideo: null,
+    motionCanvas: null,
+    lastMotionFrame: null,
+    serviceOnline: false,
+    sensorActive: false,
+    lastLocalAlert: 0,
   };
 
   const els = {};
@@ -75,8 +82,14 @@
       els.systemStatus.classList.toggle("is-alert", status === "alert");
     }
     if (els.modeLabel) els.modeLabel.textContent = (payload.operating_mode || MODE).toUpperCase();
-    if (els.cameraStatus) els.cameraStatus.textContent = payload.camera_connected || state.cameraOn ? "Connected" : "Disconnected";
-    if (els.radarStatus) els.radarStatus.textContent = payload.radar_connected ? "Connected" : "Disconnected";
+    if (els.radarStatus) els.radarStatus.textContent = payload.radar_connected || state.serviceOnline ? "Connected" : "Disconnected";
+    if (els.sensorStatus) {
+      els.sensorStatus.textContent = state.sensorActive
+        ? "Auto motion sensor active"
+        : state.armed
+          ? "Sensor starting..."
+          : "Sensor idle";
+    }
     if (els.demoBadge) els.demoBadge.hidden = !(payload.demo_mode || MODE === "mock" || MODE === "demo");
     if (els.recordingIndicator) els.recordingIndicator.hidden = !state.armed;
   }
@@ -200,7 +213,15 @@
   ];
 
   let sweep = 0;
-  const sweepTrail = [];
+
+  function ensurePhosphor(w, h) {
+    if (!state.phosphor || state.phosphor.width !== w || state.phosphor.height !== h) {
+      state.phosphor = document.createElement("canvas");
+      state.phosphor.width = w;
+      state.phosphor.height = h;
+    }
+    return state.phosphor.getContext("2d");
+  }
 
   function drawRadar() {
     const canvas = els.radarCanvas;
@@ -263,29 +284,42 @@
       ctx.fillText(String(n), x - 4, cy + 16);
     });
 
-    sweep = (sweep + 1.8) % 360;
-    sweepTrail.push(sweep);
-    if (sweepTrail.length > 28) sweepTrail.shift();
-    sweepTrail.forEach((deg, i) => {
-      const alpha = (i / sweepTrail.length) * 0.22;
-      const rad = ((deg - 90) * Math.PI) / 180;
-      const grad = ctx.createConicGradient(rad, cx, cy);
-      grad.addColorStop(0, `rgba(57, 255, 20, 0)`);
-      grad.addColorStop(0.08, `rgba(57, 255, 20, ${alpha})`);
-      grad.addColorStop(0.18, `rgba(57, 255, 20, 0)`);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, maxR, rad - 0.55, rad + 0.05);
-      ctx.closePath();
-      ctx.fill();
-    });
-
+    sweep = (sweep + 1.6) % 360;
     const sweepRad = ((sweep - 90) * Math.PI) / 180;
+    const pctx = ensurePhosphor(w, h);
+
+    pctx.fillStyle = "rgba(0, 0, 0, 0.06)";
+    pctx.fillRect(0, 0, w, h);
+
+    pctx.save();
+    pctx.beginPath();
+    pctx.moveTo(cx, cy);
+    pctx.arc(cx, cy, maxR, sweepRad - 0.62, sweepRad + 0.02);
+    pctx.closePath();
+    const wedge = pctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+    wedge.addColorStop(0, "rgba(57, 255, 20, 0.55)");
+    wedge.addColorStop(0.45, "rgba(57, 255, 20, 0.22)");
+    wedge.addColorStop(1, "rgba(57, 255, 20, 0)");
+    pctx.fillStyle = wedge;
+    pctx.fill();
+    pctx.restore();
+
+    pctx.strokeStyle = "rgba(57, 255, 20, 0.95)";
+    pctx.lineWidth = 2.5;
+    pctx.shadowColor = "#39ff14";
+    pctx.shadowBlur = 18;
+    pctx.beginPath();
+    pctx.moveTo(cx, cy);
+    pctx.lineTo(cx + Math.cos(sweepRad) * maxR, cy + Math.sin(sweepRad) * maxR);
+    pctx.stroke();
+    pctx.shadowBlur = 0;
+
+    ctx.drawImage(state.phosphor, 0, 0);
+
     ctx.strokeStyle = "rgba(57, 255, 20, 0.95)";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.shadowColor = "#39ff14";
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 14;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(sweepRad) * maxR, cy + Math.sin(sweepRad) * maxR);
@@ -324,7 +358,7 @@
     }
 
     const now = Date.now();
-    const isDemo = MODE === "mock" || MODE === "demo";
+    const isDemo = (MODE === "mock" || MODE === "demo") && !state.armed;
     if (isDemo && state.markers.size === 0) {
       DEMO_BLIPS.forEach((b) => plotMarker(b, true));
     }
@@ -380,123 +414,151 @@
     state.beepTimer = null;
   }
 
-  // ── Camera + detection ──
-  async function connectCamera() {
-    if (state.stream) return;
-    state.stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } },
-      audio: false,
-    });
-    els.video.srcObject = state.stream;
-    await els.video.play();
-    state.cameraOn = true;
-    resizeOverlay();
-    if (window.cocoSsd && !state.model) {
-      state.model = await window.cocoSsd.load();
-    }
-    startRecorder();
-    detectLoop();
-  }
-
-  function resizeOverlay() {
-    const rect = els.video.getBoundingClientRect();
-    els.overlay.width = rect.width;
-    els.overlay.height = rect.height;
-  }
-
-  function startRecorder() {
-    if (!state.stream || state.mediaRecorder) return;
+  // ── Auto motion sensor (hidden camera, no UI) ──
+  async function startHiddenSensor() {
+    if (state.stream || !state.hiddenVideo) return;
     try {
-      state.mediaRecorder = new MediaRecorder(state.stream, { mimeType: "video/webm;codecs=vp8" });
-      state.mediaRecorder.ondataavailable = (e) => {
-        if (!e.data.size) return;
-        state.preBuffer.push(e.data);
-        if (state.preBuffer.length > 20) state.preBuffer.shift();
-      };
-      state.mediaRecorder.start(250);
-    } catch (_) {}
+      state.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      state.hiddenVideo.srcObject = state.stream;
+      await state.hiddenVideo.play();
+      state.sensorActive = true;
+      setStatus({ system_status: state.armed ? "armed" : "disarmed", radar_connected: state.serviceOnline });
+      autoSensorLoop();
+    } catch (_) {
+      state.sensorActive = false;
+      if (els.sensorStatus) els.sensorStatus.textContent = "Sensor unavailable — using radar service";
+    }
   }
 
-  async function captureSnapshot() {
-    const canvas = document.createElement("canvas");
-    canvas.width = els.video.videoWidth || 640;
-    canvas.height = els.video.videoHeight || 480;
+  function captureHiddenFrame() {
+    const video = state.hiddenVideo;
+    if (!video || video.readyState < 2) return null;
+    if (!state.motionCanvas) {
+      state.motionCanvas = document.createElement("canvas");
+    }
+    const canvas = state.motionCanvas;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(els.video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", 0.92);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.75);
   }
 
-  async function captureClipBlob() {
-    return new Promise((resolve) => {
-      if (!state.stream) return resolve(null);
-      const chunks = [...state.preBuffer];
-      const rec = new MediaRecorder(state.stream, { mimeType: "video/webm;codecs=vp8" });
-      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-      rec.onstop = () => resolve(new Blob(chunks, { type: "video/webm" }));
-      rec.start();
-      setTimeout(() => rec.stop(), (state.settings?.post_event_seconds || 10) * 1000);
+  function detectLocalMotion() {
+    const video = state.hiddenVideo;
+    if (!video || video.readyState < 2) return false;
+    if (!state.motionCanvas) state.motionCanvas = document.createElement("canvas");
+    const canvas = state.motionCanvas;
+    const w = Math.min(video.videoWidth || 320, 320);
+    const h = Math.min(video.videoHeight || 240, 240);
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, w, h);
+    const frame = ctx.getImageData(0, 0, w, h);
+    if (!state.lastMotionFrame) {
+      state.lastMotionFrame = frame;
+      return false;
+    }
+    let diff = 0;
+    const step = 16;
+    for (let i = 0; i < frame.data.length; i += 4 * step) {
+      diff += Math.abs(frame.data[i] - state.lastMotionFrame.data[i]);
+      diff += Math.abs(frame.data[i + 1] - state.lastMotionFrame.data[i + 1]);
+      diff += Math.abs(frame.data[i + 2] - state.lastMotionFrame.data[i + 2]);
+    }
+    state.lastMotionFrame = frame;
+    const threshold = { low: 9000, medium: 6500, high: 4200 }[state.settings?.sensitivity || "medium"] || 6500;
+    return diff > threshold;
+  }
+
+  function reportLocalMotion() {
+    const now = Date.now();
+    const cooldownMs = (state.settings?.cooldown_seconds || 10) * 1000;
+    if (now - state.lastLocalAlert < cooldownMs) return;
+    state.lastLocalAlert = now;
+    const angle = Math.round((Math.random() * 120) - 60);
+    const distance = Number((1.2 + Math.random() * (state.maxRangeM - 1)).toFixed(1));
+    const trackingId = `local-${Date.now()}`;
+    const marker = {
+      tracking_id: trackingId,
+      object_type: "person",
+      severity: distance < 2.5 ? "high" : "medium",
+      distance_m: distance,
+      angle_deg: angle,
+      label: markerLabel({ tracking_id: trackingId }),
+    };
+    upsertMarker(marker);
+    showPopup({
+      id: trackingId,
+      object_type: "person",
+      confidence: 0.78,
+      distance_m: distance,
+      detected_at: new Date().toISOString(),
+      severity: marker.severity,
     });
+    refreshEvents().catch(() => {});
   }
 
-  const LABEL_MAP = {
-    person: "person",
-    car: "car",
-    motorcycle: "motorcycle",
-    bicycle: "bicycle",
-    bus: "bus",
-    truck: "truck",
-    dog: "dog",
-    cat: "cat",
-    bird: "bird",
-  };
-
-  async function detectLoop() {
-    if (!state.cameraOn || !state.armed) {
-      requestAnimationFrame(detectLoop);
+  async function autoSensorLoop() {
+    if (!state.armed) {
+      setTimeout(autoSensorLoop, 1000);
       return;
     }
-    if (!state.model) {
-      requestAnimationFrame(detectLoop);
-      return;
-    }
-    const preds = await state.model.detect(els.video);
-    const ctx = els.overlay.getContext("2d");
-    ctx.clearRect(0, 0, els.overlay.width, els.overlay.height);
-  const scaleX = els.overlay.width / (els.video.videoWidth || 1);
-  const scaleY = els.overlay.height / (els.video.videoHeight || 1);
 
-    for (const p of preds) {
-      const label = LABEL_MAP[p.class] || (p.score >= 0.45 ? p.class : "unknown moving object");
-      if (p.score < (state.settings?.confidence_threshold || 0.6) && label !== "person") continue;
-      const [x, y, w, h] = p.bbox;
-      ctx.strokeStyle = "#39ff14";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x * scaleX, y * scaleY, w * scaleX, h * scaleY);
-      ctx.fillStyle = "rgba(57,255,20,0.85)";
-      ctx.font = "12px DM Sans";
-      ctx.fillText(`${label} ${Math.round(p.score * 100)}%`, x * scaleX + 4, y * scaleY + 14);
+    const hasMotion = detectLocalMotion();
+    const image = captureHiddenFrame();
 
-      const trackId = `cam-${label}-${Math.round(x / 40)}`;
-      const hits = (state.tracked.get(trackId) || 0) + 1;
-      state.tracked.set(trackId, hits);
-      if (hits < 3) continue;
-
-      if (MODE === "camera" || MODE === "mock" || MODE === "demo") {
-        const image = await captureSnapshot();
-        await api("/api/radar/frame", {
+    if (image && state.serviceOnline) {
+      try {
+        const result = await api("/api/radar/frame", {
           method: "POST",
           body: {
             image,
-            tracking_id: trackId,
-            camera_name: "Webcam",
-            distance_m: null,
-            angle_deg: null,
+            tracking_id: `auto-${Date.now()}`,
+            camera_name: "Auto Sensor",
           },
-        }).catch(() => {});
+        });
+        if (result.events?.length) {
+          result.events.forEach((ev) => {
+            upsertMarker({
+              tracking_id: ev.tracking_id || `ev-${ev.id}`,
+              object_type: ev.object_type,
+              severity: ev.severity,
+              distance_m: ev.distance_m,
+              angle_deg: ev.angle_deg,
+            });
+            showPopup(ev);
+          });
+          refreshEvents().catch(() => {});
+        }
+      } catch (_) {
+        if (hasMotion) reportLocalMotion();
       }
+    } else if (hasMotion) {
+      reportLocalMotion();
     }
 
-    setTimeout(detectLoop, 900);
+    setTimeout(autoSensorLoop, state.serviceOnline ? 1100 : 800);
+  }
+
+  async function ensureArmed() {
+    if (state.armed) return;
+    try {
+      const data = await api("/api/radar/arm", { method: "POST", body: {} });
+      state.settings = data.settings;
+      state.armed = !!data.settings.armed;
+      $("cia-arm-toggle")?.classList.toggle("is-active", state.armed);
+      const armedEl = $("cia-armed");
+      if (armedEl) armedEl.checked = state.armed;
+      setStatus({ system_status: "armed", demo_mode: MODE === "mock" });
+    } catch (_) {
+      state.armed = true;
+      setStatus({ system_status: "armed", demo_mode: true });
+    }
   }
 
   // ── Events UI ──
@@ -557,18 +619,6 @@
           showPopup(payload.event);
           refreshEvents().catch(() => {});
         }
-        if (payload.type === "radar_hardware") {
-          const hw = payload.payload;
-          if (hw && hw.event === "motion") {
-            upsertMarker({
-              tracking_id: `radar-${hw.timestamp || Date.now()}`,
-              distance_m: hw.distance_m ?? null,
-              angle_deg: hw.angle_deg ?? null,
-              severity: "medium",
-              object_type: "radar motion",
-            });
-          }
-        }
       };
       state.ws.onclose = () => setTimeout(connectWs, 3000);
     } catch (_) {}
@@ -594,10 +644,6 @@
       const out = $("cia-confidence-out");
       if (out) out.textContent = `${Math.round(e.target.value * 100)}%`;
     });
-
-    $("cia-camera-connect")?.addEventListener("click", () =>
-      connectCamera().catch(() => alert("Camera access failed"))
-    );
 
     $("cia-arm-toggle")?.addEventListener("click", async () => {
       const endpoint = state.armed ? "/api/radar/disarm" : "/api/radar/arm";
@@ -637,32 +683,33 @@
         stopAlarmLoop();
         return;
       }
-      if (action === "ack") await api(`/api/radar/events/${id}/acknowledge`, { method: "POST", body: {} });
-      if (action === "false") await api(`/api/radar/events/${id}/false-alarm`, { method: "POST", body: {} });
-      if (action === "live") window.scrollTo({ top: 0, behavior: "smooth" });
-      if (action === "clip" && state.activeEvent.video_path) {
-        window.open(`${PROXY}?path=${encodeURIComponent(`/api/radar/events/${id}/video`)}`, "_blank");
+      if (typeof id !== "number" && typeof id !== "string") return;
+      if (action === "ack" && String(id).match(/^\d+$/)) {
+        await api(`/api/radar/events/${id}/acknowledge`, { method: "POST", body: {} });
+      }
+      if (action === "false" && String(id).match(/^\d+$/)) {
+        await api(`/api/radar/events/${id}/false-alarm`, { method: "POST", body: {} });
       }
       els.popup.hidden = true;
       stopAlarmLoop();
       refreshEvents();
     });
 
-    window.addEventListener("resize", resizeOverlay);
+    $("cia-filter-date")?.addEventListener("change", () => refreshEvents());
+    $("cia-filter-severity")?.addEventListener("change", () => refreshEvents());
   }
 
   async function initMain() {
     els.clock = $("cia-clock");
     els.systemStatus = $("cia-system-status");
+    els.sensorStatus = $("cia-sensor-status");
     els.modeLabel = $("cia-mode-label");
-    els.cameraStatus = $("cia-camera-status");
     els.radarStatus = $("cia-radar-status");
     els.demoBadge = $("cia-demo-badge");
     els.radarCanvas = $("cia-radar-canvas");
     els.radarPanel = $("cia-radar-panel");
     els.flightIds = $("cia-flight-ids");
-    els.video = $("cia-camera-video");
-    els.overlay = $("cia-camera-overlay");
+    els.hiddenVideo = $("cia-hidden-video");
     els.popup = $("cia-popup");
     els.popupBody = $("cia-popup-body");
     els.popupImage = $("cia-popup-image");
@@ -676,16 +723,30 @@
 
     try {
       const status = await api("/api/radar/status");
+      state.serviceOnline = true;
       setStatus(status);
       state.maxRangeM = Number(status.maximum_sensor_range_m || 5);
     } catch (_) {
+      state.serviceOnline = false;
       setStatus({ system_status: "offline", demo_mode: true, operating_mode: MODE });
     }
 
     await loadSettings().catch(() => {});
+    await ensureArmed();
     $("cia-arm-toggle")?.classList.toggle("is-active", state.armed);
     await refreshEvents().catch(() => {});
     connectWs();
+    startHiddenSensor();
+    initAudio();
+    setInterval(async () => {
+      try {
+        const status = await api("/api/radar/status");
+        state.serviceOnline = true;
+        setStatus(status);
+      } catch (_) {
+        state.serviceOnline = false;
+      }
+    }, 8000);
   }
 
   async function initSettings() {

@@ -62,71 +62,58 @@ $ciaPageKicker = 'CIA Perimeter Detection';
       <span class="cia-flight-label">RADAR FLIGHT DATA:</span>
       <span class="cia-flight-ids" id="cia-flight-ids">— STANDBY —</span>
       <span class="cia-demo-badge" id="cia-demo-badge">DEMO MODE</span>
-      <span class="cia-recording-indicator" id="cia-recording-indicator" hidden><span></span> REC</span>
+      <span class="cia-recording-indicator" id="cia-recording-indicator" hidden><span></span> SCANNING</span>
     </div>
 
     <div class="cia-radar-viewport">
       <canvas id="cia-radar-canvas" width="640" height="640" aria-label="Tactical radar"></canvas>
       <div class="cia-radar-hud">
         <span id="cia-system-status">OFFLINE</span>
+        <span id="cia-sensor-status">Sensor idle</span>
         <span id="cia-clock">--:--:--</span>
       </div>
+    </div>
+
+    <div class="cia-status-strip cia-status-strip--inline">
+      <span><strong>Mode:</strong> <span id="cia-mode-label"><?= htmlspecialchars(strtoupper($radarMode), ENT_QUOTES) ?></span></span>
+      <span><strong>Radar:</strong> <span id="cia-radar-status">Disconnected</span></span>
+      <button type="button" class="cia-btn cia-btn--ghost cia-btn--compact" id="cia-enable-audio"><i class="fa-solid fa-volume-high"></i> Alarm</button>
     </div>
 
     <nav class="cia-tactical-bar" aria-label="Tactical controls">
       <a href="admin-dashboard.php" class="cia-tac-btn">DIRECTORY</a>
       <a href="cia-radar-settings.php" class="cia-tac-btn">SUB-COMMAND</a>
-      <button type="button" class="cia-tac-btn" id="cia-camera-connect">PROXY</button>
       <button type="button" class="cia-tac-btn" id="cia-arm-toggle">SCAN</button>
       <button type="button" class="cia-tac-btn" id="cia-refresh-events">TRACK</button>
       <button type="button" class="cia-tac-btn cia-tac-btn--alert" id="cia-stop-all">SECURITY BREACH</button>
     </nav>
   </section>
 
-  <aside class="cia-side-stack">
-    <section class="cia-panel cia-panel--camera" aria-label="Live camera">
-      <div class="cia-panel-head">
-        <h2>Live Camera</h2>
-        <span id="cia-camera-status">Disconnected</span>
+  <section class="cia-panel cia-panel--history" aria-label="Event history">
+    <div class="cia-panel-head">
+      <h2>Event Log</h2>
+      <div class="cia-filters">
+        <input type="date" id="cia-filter-date" />
+        <select id="cia-filter-severity">
+          <option value="">All</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
       </div>
-      <div class="cia-camera-wrap">
-        <video id="cia-camera-video" playsinline muted autoplay></video>
-        <canvas id="cia-camera-overlay"></canvas>
-      </div>
-      <div class="cia-side-actions">
-        <button type="button" class="cia-btn" id="cia-enable-audio"><i class="fa-solid fa-volume-high"></i> Alarm Sound</button>
-        <a href="cia-radar-settings.php" class="cia-btn cia-btn--ghost"><i class="fa-solid fa-sliders"></i> Settings</a>
-      </div>
-      <div class="cia-status-strip">
-        <span><strong>Mode:</strong> <span id="cia-mode-label"><?= htmlspecialchars(strtoupper($radarMode), ENT_QUOTES) ?></span></span>
-        <span><strong>Radar:</strong> <span id="cia-radar-status">Disconnected</span></span>
-      </div>
-    </section>
-
-    <section class="cia-panel cia-panel--history" aria-label="Event history">
-      <div class="cia-panel-head">
-        <h2>Event Log</h2>
-        <div class="cia-filters">
-          <input type="date" id="cia-filter-date" />
-          <select id="cia-filter-severity">
-            <option value="">All</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </div>
-      </div>
-      <div class="cia-table-wrap">
-        <table class="cia-table" id="cia-events-table">
-          <thead>
-            <tr><th>ID</th><th>Object</th><th>Dist.</th><th>Time</th><th>Status</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </aside>
+    </div>
+    <div class="cia-table-wrap cia-table-wrap--tall">
+      <table class="cia-table" id="cia-events-table">
+        <thead>
+          <tr><th>ID</th><th>Object</th><th>Dist.</th><th>Time</th><th>Status</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
 </main>
+
+<video id="cia-hidden-video" hidden playsinline muted aria-hidden="true"></video>
 
 <div class="cia-marker-detail" id="cia-marker-detail" hidden></div>
 
@@ -136,8 +123,6 @@ $ciaPageKicker = 'CIA Perimeter Detection';
     <img id="cia-popup-image" alt="Detection snapshot" />
     <div id="cia-popup-body"></div>
     <div class="cia-popup-actions">
-      <button type="button" class="cia-btn" data-popup="live">View Live</button>
-      <button type="button" class="cia-btn" data-popup="clip">Play Clip</button>
       <button type="button" class="cia-btn" data-popup="ack">Acknowledge</button>
       <button type="button" class="cia-btn" data-popup="false">False Alarm</button>
       <button type="button" class="cia-btn cia-btn--ghost" data-popup="dismiss">Dismiss</button>
@@ -152,8 +137,6 @@ $ciaPageKicker = 'CIA Perimeter Detection';
   window.GW_RADAR_MODE = <?= json_encode($radarMode, JSON_UNESCAPED_UNICODE) ?>;
   window.CIA_RADAR_PAGE = 'main';
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script src="cia-radar.js?v=<?= urlencode($jsVersion) ?>"></script>
 </body>
 </html>
