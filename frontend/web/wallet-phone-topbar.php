@@ -44,7 +44,6 @@ if ($authInitial === '') {
         <a href="create-payment.php"><i class="fa-solid fa-dollar-sign"></i> Pay</a>
         <a href="control-number.php"><i class="fa-solid fa-map-location-dot"></i> Services</a>
         <a href="payment-details.php?type=success"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
-        <a href="cia-radar.php"><i class="fa-solid fa-satellite-dish"></i> CIA Radar</a>
         <a href="autopay.php"><i class="fa-solid fa-bolt"></i> AutoPay</a>
         <a href="settings.php"><i class="fa-solid fa-user"></i> Profile</a>
       </section>

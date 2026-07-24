@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/auth-guard.php';
+require __DIR__ . '/admin-guard.php';
 
 function ciaRadarEnv(string $key, string $default = ''): string
 {
@@ -34,11 +34,10 @@ function ciaRadarEnv(string $key, string $default = ''): string
 $radarApi = ciaRadarEnv('RADAR_SERVICE_URL', 'http://127.0.0.1:8765');
 $cssVersion = (string) (@filemtime(__DIR__ . '/cia-radar.css') ?: time());
 $jsVersion = (string) (@filemtime(__DIR__ . '/cia-radar.js') ?: time());
-$bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
-$ptVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
+$adVersion = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
 $radarMode = ciaRadarEnv('RADAR_MODE', 'mock');
-$phoneTopbarTitle = 'CIA Radar';
-$phoneTopbarBack = 'part-two.php';
+$ciaPageTitle = 'AI Motion Radar';
+$ciaPageKicker = 'CIA Perimeter Detection';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -49,24 +48,15 @@ $phoneTopbarBack = 'part-two.php';
   <link rel="icon" type="image/png" href="images/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=Orbitron:wght@500;700;800&family=Share+Tech+Mono&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="part-two.css?v=<?= urlencode($ptVersion) ?>" />
-  <link rel="stylesheet" href="wallet-banking-theme.css?v=<?= urlencode($bkVersion) ?>" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Orbitron:wght@500;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin-dashboard.css?v=<?= urlencode($adVersion) ?>" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="cia-radar.css?v=<?= urlencode($cssVersion) ?>" />
 </head>
-<body class="tis-shell tis-wallet-dash layout-phone w-home-sample bk-theme cia-radar-page">
-<?php $activeTopNav = 'cia'; require __DIR__ . '/wallet-top-nav.php'; ?>
+<body class="ad-body cia-radar-page">
+<?php require __DIR__ . '/admin-cia-header.php'; ?>
 
-<main class="tis-wrap w-shell">
-  <div class="w-app">
-<?php require __DIR__ . '/wallet-phone-topbar.php'; ?>
-
-<div class="cia-wrap cia-wrap--tactical">
+<main class="ad-main cia-wrap cia-wrap--tactical">
   <section class="cia-tactical-screen" id="cia-radar-panel" aria-label="Radar display">
     <div class="cia-flight-bar">
       <span class="cia-flight-label">RADAR FLIGHT DATA:</span>
@@ -84,7 +74,7 @@ $phoneTopbarBack = 'part-two.php';
     </div>
 
     <nav class="cia-tactical-bar" aria-label="Tactical controls">
-      <a href="part-two.php" class="cia-tac-btn">DIRECTORY</a>
+      <a href="admin-dashboard.php" class="cia-tac-btn">DIRECTORY</a>
       <a href="cia-radar-settings.php" class="cia-tac-btn">SUB-COMMAND</a>
       <button type="button" class="cia-tac-btn" id="cia-camera-connect">PROXY</button>
       <button type="button" class="cia-tac-btn" id="cia-arm-toggle">SCAN</button>
@@ -136,9 +126,6 @@ $phoneTopbarBack = 'part-two.php';
       </div>
     </section>
   </aside>
-</div>
-
-  </div>
 </main>
 
 <div class="cia-marker-detail" id="cia-marker-detail" hidden></div>
@@ -158,7 +145,6 @@ $phoneTopbarBack = 'part-two.php';
   </div>
 </div>
 
-<?php $activeNav = 'cia'; require __DIR__ . '/wallet-bottom-nav.php'; ?>
 <?php require __DIR__ . '/ai-robot-include.php'; ?>
 <script>
   window.GW_RADAR_API = <?= json_encode($radarApi, JSON_UNESCAPED_SLASHES) ?>;
@@ -169,6 +155,5 @@ $phoneTopbarBack = 'part-two.php';
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script src="cia-radar.js?v=<?= urlencode($jsVersion) ?>"></script>
-<script src="wallet-shell.js"></script>
 </body>
 </html>

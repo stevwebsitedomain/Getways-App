@@ -14,6 +14,13 @@ if (!isset($_SESSION['gw_auth_user']) || !is_array($_SESSION['gw_auth_user'])) {
     exit;
 }
 
+$role = strtolower((string) ($_SESSION['gw_auth_user']['role'] ?? 'user'));
+if ($role !== 'admin') {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'message' => 'Admin access required.']);
+    exit;
+}
+
 function ciaProxyEnv(string $key, string $default = ''): string
 {
     $v = getenv($key);

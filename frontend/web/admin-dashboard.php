@@ -54,6 +54,9 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
         <i class="fa-solid fa-circle-nodes" aria-hidden="true"></i>
         <span>General Analysis</span>
       </button>
+      <a class="ad-link ad-link--cia" href="cia-radar.php">
+        <i class="fa-solid fa-satellite-dish"></i> CIA Radar
+      </a>
       <span class="ad-user"><?php echo $authName; ?></span>
       <a class="ad-link" href="part-two.php">User wallet</a>
       <a class="ad-link ad-link--danger" href="logout.php">Logout</a>
@@ -377,6 +380,9 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
         <button type="button" class="ad-ga-chip" data-ga-target="recent" data-ga-action="scroll">
           <i class="fa-solid fa-receipt"></i> Collections
         </button>
+        <a class="ad-ga-chip ad-ga-chip--link" href="cia-radar.php">
+          <i class="fa-solid fa-satellite-dish"></i> CIA Radar
+        </a>
         <a class="ad-ga-chip ad-ga-chip--link" href="autopay.php">
           <i class="fa-solid fa-bolt"></i> Autopay page
         </a>

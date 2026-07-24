@@ -1095,9 +1095,9 @@
                   <strong>Agent <span class="gw-robot-ai-badge" hidden>AI</span></strong>
                   <small>${t("Buruta uso kuhama · Bonyeza mara mbili katikati", "Drag face to move · Double-click to center")}</small>
                 </div>
-                <a href="cia-radar.php" class="gw-robot-cia-btn" title="${t("AI Motion Radar", "AI Motion Radar")}">
+                ${window.GW_ROBOT_SHOW_CIA ? `<a href="cia-radar.php" class="gw-robot-cia-btn" title="${t("AI Motion Radar", "AI Motion Radar")}">
                   <i class="fa-solid fa-satellite-dish"></i> CIA
-                </a>
+                </a>` : ""}
                 <button type="button" class="gw-robot-close" aria-label="${t("Funga", "Close")}">
                   <i class="fa-solid fa-xmark"></i>
                 </button>

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/auth-guard.php';
+require __DIR__ . '/admin-guard.php';
 
 function ciaSettingsEnv(string $key, string $default = ''): string
 {
@@ -30,11 +30,10 @@ function ciaSettingsEnv(string $key, string $default = ''): string
 $radarApi = ciaSettingsEnv('RADAR_SERVICE_URL', 'http://127.0.0.1:8765');
 $cssVersion = (string) (@filemtime(__DIR__ . '/cia-radar.css') ?: time());
 $jsVersion = (string) (@filemtime(__DIR__ . '/cia-radar.js') ?: time());
-$bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
-$ptVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
+$adVersion = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
 $radarMode = ciaSettingsEnv('RADAR_MODE', 'mock');
-$phoneTopbarTitle = 'Detection Settings';
-$phoneTopbarBack = 'cia-radar.php';
+$ciaPageTitle = 'Detection Settings';
+$ciaPageKicker = 'CIA Sub-Command';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -43,28 +42,19 @@ $phoneTopbarBack = 'cia-radar.php';
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>CIA | Detection Settings</title>
   <link rel="icon" type="image/png" href="images/favicon.png" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="part-two.css?v=<?= urlencode($ptVersion) ?>" />
-  <link rel="stylesheet" href="wallet-banking-theme.css?v=<?= urlencode($bkVersion) ?>" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin-dashboard.css?v=<?= urlencode($adVersion) ?>" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="cia-radar.css?v=<?= urlencode($cssVersion) ?>" />
 </head>
-<body class="tis-shell tis-wallet-dash layout-phone w-home-sample bk-theme cia-radar-page cia-settings-page">
-<?php $activeTopNav = 'cia'; require __DIR__ . '/wallet-top-nav.php'; ?>
+<body class="ad-body cia-radar-page cia-settings-page">
+<?php require __DIR__ . '/admin-cia-header.php'; ?>
 
-<main class="tis-wrap w-shell">
-  <div class="w-app">
-<?php require __DIR__ . '/wallet-phone-topbar.php'; ?>
-
-<div class="cia-wrap cia-wrap--settings">
+<main class="ad-main cia-wrap cia-wrap--settings">
   <header class="cia-settings-header">
     <div>
       <p class="cia-kicker">Sub-Command</p>
-      <h1>Detection Settings</h1>
+      <h2 class="cia-settings-title">Perimeter configuration</h2>
     </div>
     <a href="cia-radar.php" class="cia-btn"><i class="fa-solid fa-satellite-dish"></i> Back to Radar</a>
   </header>
@@ -131,12 +121,9 @@ $phoneTopbarBack = 'cia-radar.php';
       Recordings stored locally only. Max range comes from sensor profile (MR24HPC1 default 5m). Camera classifies objects; radar supplies distance/angle when hardware connected.
     </p>
   </section>
-</div>
-
-  </div>
 </main>
 
-<?php $activeNav = 'cia'; require __DIR__ . '/wallet-bottom-nav.php'; ?>
+<?php require __DIR__ . '/ai-robot-include.php'; ?>
 <script>
   window.GW_RADAR_API = <?= json_encode($radarApi, JSON_UNESCAPED_SLASHES) ?>;
   window.GW_RADAR_PROXY = 'cia-radar-api.php';
@@ -144,6 +131,5 @@ $phoneTopbarBack = 'cia-radar.php';
   window.CIA_RADAR_PAGE = 'settings';
 </script>
 <script src="cia-radar.js?v=<?= urlencode($jsVersion) ?>"></script>
-<script src="wallet-shell.js"></script>
 </body>
 </html>

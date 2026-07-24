@@ -78,6 +78,12 @@ body.ad-body {
   border-color: rgba(239, 68, 68, 0.4);
 }
 
+.ad-link--cia {
+  background: rgba(57, 255, 20, 0.12);
+  border-color: rgba(57, 255, 20, 0.35);
+  color: #b7f7cb;
+}
+
 .ad-main {
   max-width: 1120px;
   margin: 0 auto;
