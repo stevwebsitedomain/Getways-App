@@ -1,6 +1,8 @@
 const DEFAULT_CORS_ORIGINS = [
   "https://getway.legitconsult.co.tz",
   "https://www.getway.legitconsult.co.tz",
+  "https://pay.legitconsult.co.tz",
+  "https://www.pay.legitconsult.co.tz",
   "http://localhost",
   "http://127.0.0.1",
 ];

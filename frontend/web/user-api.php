@@ -45,9 +45,6 @@ function userRemoteUpstream(): string
     return 'https://getways-app.onrender.com';
 }
 
-/**
- * @return array<string,mixed>|null
- */
 function userFetchRemote(string $remoteAction, string $httpMethod = 'GET', ?array $body = null): ?array
 {
     $url = userRemoteUpstream() . '/admin/' . rawurlencode($remoteAction);
@@ -98,6 +95,158 @@ function userFetchRemote(string $remoteAction, string $httpMethod = 'GET', ?arra
     }
 
     return $decoded;
+}
+
+/**
+ * @return array<string,mixed>|null
+ */
+function userFetchRenderGet(string $path): ?array
+{
+    $path = '/' . ltrim($path, '/');
+    $url = userRemoteUpstream() . $path;
+    $ch = curl_init($url);
+    if ($ch === false) {
+        return null;
+    }
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 12,
+        CURLOPT_TIMEOUT => 45,
+        CURLOPT_HTTPHEADER => ['Accept: application/json'],
+    ]);
+
+    $raw = curl_exec($ch);
+    if ($raw === false) {
+        curl_close($ch);
+        return null;
+    }
+
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $decoded = json_decode((string) $raw, true);
+    if (!is_array($decoded) || $status >= 400) {
+        return null;
+    }
+
+    return $decoded;
+}
+
+/**
+ * @param array<int,array<string,mixed>> $listA
+ * @param array<int,array<string,mixed>> $listB
+ * @return array<int,array<string,mixed>>
+ */
+function userMergePaymentLists(array $listA, array $listB): array
+{
+    $map = [];
+    foreach (array_merge($listA, $listB) as $raw) {
+        if (!is_array($raw)) {
+            continue;
+        }
+        $ref = strtoupper(trim((string) ($raw['orderReference'] ?? $raw['order_reference'] ?? '')));
+        if ($ref === '') {
+            continue;
+        }
+        $status = strtoupper(trim((string) ($raw['status'] ?? $raw['paymentStatus'] ?? 'PENDING')));
+        if (in_array($status, ['SUCCESSFUL', 'SETTLED', 'COMPLETED', 'PAID'], true)) {
+            $status = 'SUCCESS';
+        }
+        if (in_array($status, ['FAILURE', 'DECLINED'], true)) {
+            $status = 'FAILED';
+        }
+        $row = [
+            'id' => $raw['id'] ?? $ref,
+            'orderReference' => $ref,
+            'amount' => (float) ($raw['amount'] ?? 0),
+            'status' => $status,
+            'phone' => (string) ($raw['phone'] ?? ''),
+            'channel' => (string) ($raw['channel'] ?? $raw['mobileChannel'] ?? ''),
+            'createdAt' => $raw['createdAt'] ?? $raw['created_at'] ?? null,
+            'updatedAt' => $raw['updatedAt'] ?? $raw['updated_at'] ?? null,
+        ];
+        if (!isset($map[$ref])) {
+            $map[$ref] = $row;
+            continue;
+        }
+        $map[$ref] = array_merge($map[$ref], $row);
+    }
+
+    $out = array_values($map);
+    usort($out, static function (array $a, array $b): int {
+        $ta = strtotime((string) ($a['createdAt'] ?? $a['updatedAt'] ?? '')) ?: 0;
+        $tb = strtotime((string) ($b['createdAt'] ?? $b['updatedAt'] ?? '')) ?: 0;
+
+        return $tb <=> $ta;
+    });
+
+    return $out;
+}
+
+/**
+ * @param array<int,array<string,mixed>> $payments
+ * @return array<string,mixed>
+ */
+function userSummarizePayments(array $payments): array
+{
+    $totalSales = 0.0;
+    $failedSales = 0.0;
+    $pendingTransactions = 0;
+    foreach ($payments as $payment) {
+        $status = strtoupper((string) ($payment['status'] ?? ''));
+        $amount = (float) ($payment['amount'] ?? 0);
+        if ($status === 'SUCCESS') {
+            $totalSales += $amount;
+        } elseif ($status === 'FAILED') {
+            $failedSales += $amount;
+        } elseif ($status === 'PENDING') {
+            $pendingTransactions++;
+        }
+    }
+
+    return [
+        'totalSales' => $totalSales,
+        'failedSales' => $failedSales,
+        'pendingTransactions' => $pendingTransactions,
+        'count' => count($payments),
+        'payments' => $payments,
+    ];
+}
+
+/**
+ * @param array<int,array<string,mixed>> $payments
+ */
+function userFilterPaymentsByType(array $payments, string $type): array
+{
+    $t = strtolower(trim($type));
+    if ($t === 'failed') {
+        return array_values(array_filter($payments, static fn(array $p): bool => strtoupper((string) ($p['status'] ?? '')) === 'FAILED'));
+    }
+    if ($t === 'pending' || $t === 'unpaid') {
+        return array_values(array_filter($payments, static fn(array $p): bool => strtoupper((string) ($p['status'] ?? '')) === 'PENDING'));
+    }
+
+    return array_values(array_filter($payments, static fn(array $p): bool => strtoupper((string) ($p['status'] ?? '')) === 'SUCCESS'));
+}
+
+/**
+ * @return array<string,mixed>
+ */
+function userLoadWalletPayments(): array
+{
+    $localPayments = [];
+    try {
+        userYiiApp();
+        $local = userClickPesa()->listWalletPayments();
+        $localPayments = is_array($local['payments'] ?? null) ? $local['payments'] : [];
+    } catch (Throwable $e) {
+        $localPayments = [];
+    }
+
+    $remote = userFetchRenderGet('/payments');
+    $remotePayments = is_array($remote['payments'] ?? null) ? $remote['payments'] : [];
+
+    return userSummarizePayments(userMergePaymentLists($localPayments, $remotePayments));
 }
 
 function normalizePhone(string $phone): string
@@ -191,6 +340,29 @@ function userRemoteControlNumberBody(array $body): array
     unset($body['customerName'], $body['customerPhone'], $body['phone']);
 
     return $body;
+}
+
+if ($action === 'wallet-health' && $method === 'GET') {
+    userJson(200, ['ok' => true, 'success' => true, 'status' => 'ok']);
+}
+
+if ($action === 'wallet-payments' && $method === 'GET') {
+    $summary = userLoadWalletPayments();
+    userJson(200, ['ok' => true, 'success' => true, 'source' => 'user-wallet-proxy'] + $summary);
+}
+
+if ($action === 'wallet-payment-details' && $method === 'GET') {
+    $type = strtolower(trim((string) ($_GET['type'] ?? 'success')));
+    $summary = userLoadWalletPayments();
+    $rows = userFilterPaymentsByType($summary['payments'] ?? [], $type);
+    userJson(200, [
+        'ok' => true,
+        'success' => true,
+        'type' => $type,
+        'count' => count($rows),
+        'rows' => $rows,
+        'source' => 'user-wallet-proxy',
+    ]);
 }
 
 if ($action === 'transactions' && $method === 'GET') {

@@ -67,29 +67,22 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
         </div>
       </section>
 
-      <!-- Balance (Screen 7) -->
-      <section class="bk-balance-section w-searchable" aria-labelledby="balance-label">
-        <p id="balance-label" class="bk-balance-label" data-i18n="total_balance">Total Balance</p>
-        <div class="bk-balance-row">
-          <p class="bk-balance-amt" id="success-amount">TZS 0</p>
-          <div class="bk-balance-quick">
-            <a href="create-payment.php" class="bk-icon-btn" aria-label="Add payment" title="Top-up">
-              <i class="fa-solid fa-plus"></i>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <!-- Virtual card (Screen 7) -->
+      <!-- Virtual card with balance -->
       <section class="bk-virtual-card w-searchable" aria-label="Wallet card">
-        <div class="bk-card-chip" aria-hidden="true"></div>
+        <div class="bk-card-top">
+          <div class="bk-card-chip" aria-hidden="true"></div>
+          <div class="bk-card-brand">VISA</div>
+        </div>
+        <div class="bk-card-balance" aria-labelledby="balance-label">
+          <p id="balance-label" class="bk-balance-label" data-i18n="total_balance">Total Balance</p>
+          <p class="bk-balance-amt" id="success-amount">TZS 0</p>
+        </div>
         <div class="bk-card-number">**** **** **** 4582</div>
         <div class="bk-card-footer">
           <div class="bk-card-holder">
             Card holder
             <strong><?= htmlspecialchars($authName, ENT_QUOTES) ?></strong>
           </div>
-          <div class="bk-card-brand">VISA</div>
         </div>
       </section>
 

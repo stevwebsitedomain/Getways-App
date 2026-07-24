@@ -20,6 +20,7 @@
     window.NECTA_WEB_BASE = resolveAppWebBase();
     window.TIS_API_BASE = BASE_API_URL.replace(/\/$/, "");
     window.CLICKPESA_API_BASE = resolveApiBase("api/clickpesa");
+    window.WALLET_USER_API = `${window.NECTA_WEB_BASE.replace(/\/$/, "")}/user-api.php`;
   } catch (_) {
     window.BASE_API_URL = BASE_API_URL;
     window.NECTA_WEB_BASE = "/";

@@ -349,7 +349,7 @@ function notifyWalletUpdated() {
   }
 }
 
-async function loadPayments() {
+async function loadPayments(retryCount = 0) {
   try {
     let data;
     if (window.GetwayPaymentsMerge && typeof window.GetwayPaymentsMerge.loadMergedPayments === "function") {
@@ -419,13 +419,17 @@ async function loadPayments() {
     }
     notifyWalletUpdated();
   } catch (error) {
+    if (retryCount < 2) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1500 * (retryCount + 1)));
+      return loadPayments(retryCount + 1);
+    }
     setSummaryPlaceholders();
     setApiStatus(
       "",
       true
     );
     if (window.NectaServerAlerts && typeof window.NectaServerAlerts.setOffline === "function") {
-      window.NectaServerAlerts.setOffline("Could not load totals. Check tis-clickpesa server.");
+      window.NectaServerAlerts.setOffline("Could not load totals. Check your connection and try again.");
     }
   }
 }

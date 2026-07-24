@@ -89,9 +89,14 @@
     return payments.filter((p) => String(p.status).toUpperCase() === "SUCCESS");
   }
 
-  async function fetchJsonSafe(url, headers) {
+  async function fetchJsonSafe(url, headers, fetchOptions) {
     try {
-      const res = await fetch(url, { cache: "no-store", headers: headers || {} });
+      const res = await fetch(url, {
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: headers || {},
+        ...(fetchOptions || {}),
+      });
       if (!res.ok) return null;
       return await res.json();
     } catch (_) {
@@ -99,14 +104,31 @@
     }
   }
 
+  function walletUserApiBase() {
+    const base = global.NECTA_WEB_BASE || `${global.location.origin}/`;
+    return `${String(base).replace(/\/$/, "")}/user-api.php`;
+  }
+
   /**
    * Load payments from Yii + Node and merge.
    */
   async function loadMergedPayments(apiBase, clickpesaBase, headers) {
     const RENDER_API = "https://getways-app.onrender.com";
+    const hdrs = headers || { "Content-Type": "application/json" };
+
+    const proxy = await fetchJsonSafe(`${walletUserApiBase()}?action=wallet-payments`, hdrs);
+    if (proxy && proxy.ok !== false && Array.isArray(proxy.payments)) {
+      return {
+        totalSales: Number(proxy.totalSales || 0),
+        failedSales: Number(proxy.failedSales || 0),
+        pendingTransactions: Number(proxy.pendingTransactions || 0),
+        count: Number(proxy.count || proxy.payments.length || 0),
+        payments: proxy.payments,
+      };
+    }
+
     const yiiBase = clickpesaBase || global.CLICKPESA_API_BASE || `${global.location.origin}/api/clickpesa`;
     const nodeBase = apiBase || global.BASE_API_URL || global.TIS_API_BASE || RENDER_API;
-    const hdrs = headers || { "Content-Type": "application/json" };
 
     const [yii, node] = await Promise.all([
       fetchJsonSafe(`${yiiBase}/payments`, hdrs),
@@ -121,6 +143,19 @@
   }
 
   async function loadMergedDetails(type, apiBase, clickpesaBase, headers) {
+    const hdrs = headers || { "Content-Type": "application/json" };
+    const proxy = await fetchJsonSafe(
+      `${walletUserApiBase()}?action=wallet-payment-details&type=${encodeURIComponent(String(type || "success"))}`,
+      hdrs
+    );
+    if (proxy && proxy.ok !== false && Array.isArray(proxy.rows)) {
+      return {
+        type: String(type || "success").toLowerCase(),
+        count: Number(proxy.count || proxy.rows.length || 0),
+        rows: proxy.rows,
+      };
+    }
+
     const summary = await loadMergedPayments(apiBase, clickpesaBase, headers);
     const rows = filterByType(summary.payments || [], type);
     return {
