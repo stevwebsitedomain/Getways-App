@@ -79,7 +79,6 @@ $phoneTopbarTitle = 'AutoPay';
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="tis-api-base.js"></script>
   <script src="script.js"></script>
-  <?php require __DIR__ . '/ai-robot-include.php'; ?>
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
   <script src="receipt-actions.js?v=2"></script>
   <script src="receipt-slip.js?v=13"></script>

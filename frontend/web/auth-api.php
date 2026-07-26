@@ -6,7 +6,6 @@ header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
 require_once __DIR__ . '/auth-init.php';
-require_once __DIR__ . '/ai-robot-lib.php';
 gwAuthStartSession();
 gwAuthRuntimeDir();
 
@@ -251,7 +250,6 @@ function loginSession(array $user, string $method = 'password'): array
     $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
     $_SESSION['gw_login_at'] = gmdate('c');
     unset($_SESSION['gw_pending']);
-    gwRobotLogLogin($user, $method);
     $role = (string) $user['role'];
 
     return [
