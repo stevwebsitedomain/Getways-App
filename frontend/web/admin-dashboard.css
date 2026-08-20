@@ -1320,12 +1320,12 @@ body.ad-ga-active {
    Portal layout — e-services catalogue (sidebar + white cards)
    ============================================================ */
 .ad-portal {
-  --ad-portal-blue: #0000a0;
-  --ad-portal-blue-light: #0054a6;
-  --ad-portal-bg: #eef2f7;
+  --ad-portal-blue: #002d58;
+  --ad-portal-blue-light: #005691;
+  --ad-portal-bg: #f0f4f8;
   --ad-portal-card: #ffffff;
   --ad-portal-text: #1a1a2e;
-  --ad-portal-link: #0054a6;
+  --ad-portal-link: #005691;
   --ad-sidebar-w: 260px;
 }
 
@@ -1342,7 +1342,7 @@ body.ad-portal.ad-body {
 .ad-sidebar {
   width: var(--ad-sidebar-w);
   flex-shrink: 0;
-  background: linear-gradient(180deg, #0000a0 0%, #001a72 100%);
+  background: #002d58;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -1353,6 +1353,15 @@ body.ad-portal.ad-body {
   bottom: 0;
   z-index: 300;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ad-sidebar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .ad-sidebar-head {
@@ -1423,6 +1432,7 @@ body.ad-portal.ad-body {
 .ad-sidebar-link {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
   border: none;
@@ -1438,10 +1448,24 @@ body.ad-portal.ad-body {
   transition: background 0.15s;
 }
 
+.ad-sidebar-link-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .ad-sidebar-link i {
   width: 18px;
   opacity: 0.85;
   font-size: 0.82rem;
+}
+
+.ad-sidebar-chevron {
+  width: auto !important;
+  font-size: 0.65rem !important;
+  opacity: 0.45 !important;
+  margin-left: auto;
 }
 
 .ad-sidebar-link:hover,
@@ -1594,7 +1618,7 @@ body.ad-portal.ad-body {
 
 .ad-service-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
   padding: 16px 18px;
   background: var(--ad-portal-card);
@@ -1606,14 +1630,13 @@ body.ad-portal.ad-body {
   font: inherit;
   color: inherit;
   text-decoration: none;
-  transition: box-shadow 0.15s, border-color 0.15s, transform 0.12s;
-  min-height: 88px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  min-height: 72px;
 }
 
 .ad-service-card:hover {
-  border-color: #93c5fd;
-  box-shadow: 0 4px 14px rgba(0, 84, 166, 0.12);
-  transform: translateY(-1px);
+  border-color: #b8c9dc;
+  box-shadow: 0 4px 12px rgba(0, 45, 88, 0.1);
 }
 
 .ad-service-card--link {
@@ -1621,13 +1644,13 @@ body.ad-portal.ad-body {
 }
 
 .ad-service-ico {
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
   display: grid;
   place-items: center;
   color: var(--ad-portal-link);
-  font-size: 1.35rem;
+  font-size: 1.15rem;
 }
 
 .ad-service-body {
@@ -1638,14 +1661,14 @@ body.ad-portal.ad-body {
 }
 
 .ad-service-title {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--ad-portal-link);
   line-height: 1.3;
 }
 
 .ad-service-value {
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   font-weight: 800;
   color: var(--ad-portal-text);
   line-height: 1.2;
@@ -1658,6 +1681,35 @@ body.ad-portal.ad-body {
   font-size: 0.72rem;
   color: #64748b;
   font-weight: 500;
+}
+
+.ad-logout-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #c5cdd8;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ad-logout-top:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.ad-portal .ad-pie,
+.ad-portal .ad-trend {
+  min-height: 300px;
+  width: 100%;
+}
+
+.ad-portal .ad-trend-wrap {
+  margin-bottom: 18px;
 }
 
 .ad-detail-sections {

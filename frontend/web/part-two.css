@@ -2365,6 +2365,22 @@ body.tis-wallet-dash {
   background: rgba(11, 47, 107, 0.1);
 }
 
+.w-phone-logout-btn {
+  color: #b91c1c !important;
+  border-color: rgba(185, 28, 28, 0.25) !important;
+}
+
+.w-phone-logout-btn:hover {
+  background: #fef2f2 !important;
+}
+
+.w-phone-menu-logout {
+  color: #b91c1c !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+  margin-top: 4px;
+  padding-top: 10px !important;
+}
+
 .w-phone-icon-btn.is-active {
   background: rgba(255, 255, 255, 0.55);
   box-shadow: inset 0 0 0 1px rgba(11, 47, 107, 0.35);

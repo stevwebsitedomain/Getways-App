@@ -33,6 +33,9 @@ if ($authInitial === '') {
           <h1><?= htmlspecialchars($phoneTopbarTitle, ENT_QUOTES) ?></h1>
         </div>
         <div class="w-phone-top-actions">
+          <a href="logout.php" class="w-phone-icon-btn w-phone-icon-link w-phone-logout-btn" aria-label="Logout" title="Logout">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </a>
           <button type="button" class="w-phone-icon-btn" aria-label="Open menu" aria-expanded="false" data-phone-menu-toggle>
             <i class="fa-solid fa-bars"></i>
           </button>
@@ -46,6 +49,7 @@ if ($authInitial === '') {
         <a href="payment-details.php?type=success"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
         <a href="autopay.php"><i class="fa-solid fa-bolt"></i> AutoPay</a>
         <a href="settings.php"><i class="fa-solid fa-user"></i> Profile</a>
+        <a href="logout.php" class="w-phone-menu-logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
       </section>
 
       <section class="w-lang-menu" data-lang-menu aria-label="Language options" hidden>

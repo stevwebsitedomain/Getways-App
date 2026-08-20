@@ -47,24 +47,26 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <!-- Portal layout v2 — inline so production cannot show stale dark dashboard -->
   <style id="ad-portal-critical">
-    body.ad-body.ad-portal{background:#eef2f7!important;color:#1a1a2e!important;background-image:none!important}
+    body.ad-body.ad-portal{background:#f0f4f8!important;color:#1a1a2e!important;background-image:none!important}
     body.ad-body.ad-portal .ad-top{display:none!important}
     body.ad-body.ad-portal .ad-stats:not(.ad-stats--hidden){display:none!important}
     body.ad-body.ad-portal .ad-detail-sections.is-collapsed{display:none!important}
     body.ad-body.ad-portal.ad-view-detail .ad-portal-home{display:none!important}
     body.ad-body.ad-portal.ad-view-detail .ad-detail-sections{display:grid!important}
     .ad-shell{display:flex;min-height:100svh}
-    .ad-sidebar{width:260px;flex-shrink:0;background:linear-gradient(180deg,#0000a0 0%,#001a72 100%);color:#fff;display:flex;flex-direction:column;padding:20px 0 16px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto}
+    .ad-sidebar{width:260px;flex-shrink:0;background:#002d58;color:#fff;display:flex;flex-direction:column;padding:20px 0 16px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none}
+    .ad-sidebar::-webkit-scrollbar{display:none;width:0;height:0}
     .ad-main-wrap{flex:1;margin-left:260px;min-width:0;display:flex;flex-direction:column}
-    .ad-portal-top{position:sticky;top:0;z-index:200;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#eef2f7;border-bottom:1px solid #d8dee8}
-    .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#eef2f7}
+    .ad-portal-top{position:sticky;top:0;z-index:200;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
+    .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#f0f4f8}
     .ad-portal-home{display:grid!important;gap:28px}
     .ad-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .ad-service-card{display:flex;align-items:flex-start;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:88px}
-    .ad-service-title{font-size:.88rem;font-weight:700;color:#0054a6}
+    .ad-service-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:72px}
+    .ad-service-title{font-size:.88rem;font-weight:700;color:#005691}
     .ad-service-value{font-size:1.05rem;font-weight:800;color:#1a1a2e}
-    @media(max-width:900px){.ad-sidebar{transform:translateX(-100%)}.ad-sidebar.is-open{transform:translateX(0)}.ad-main-wrap{margin-left:0}.ad-menu-btn{display:grid!important;place-items:center;width:40px;height:40px;border:1px solid #c5cdd8;border-radius:8px;background:#fff;color:#0054a6;cursor:pointer}.ad-service-grid{grid-template-columns:1fr}}
+    @media(max-width:900px){.ad-sidebar{transform:translateX(-100%)}.ad-sidebar.is-open{transform:translateX(0)}.ad-main-wrap{margin-left:0}.ad-menu-btn{display:grid!important;place-items:center;width:40px;height:40px;border:1px solid #c5cdd8;border-radius:8px;background:#fff;color:#005691;cursor:pointer}.ad-service-grid{grid-template-columns:1fr}}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body class="ad-body ad-portal ad-view-home">
   <div class="ad-shell">
@@ -81,14 +83,14 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       </button>
       <nav class="ad-sidebar-nav" aria-label="Admin modules">
         <p class="ad-sidebar-label">COLLECTIONS</p>
-        <button type="button" class="ad-sidebar-link" data-ad-target="analytics"><i class="fa-solid fa-chart-line"></i> Payment analysis</button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="control-number"><i class="fa-solid fa-file-invoice-dollar"></i> Control number</button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="transactions"><i class="fa-solid fa-receipt"></i> Transactions</button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="recent"><i class="fa-solid fa-clock-rotate-left"></i> Recent collections</button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="analytics"><span class="ad-sidebar-link-text"><i class="fa-solid fa-chart-line"></i> Payment analysis</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="control-number"><span class="ad-sidebar-link-text"><i class="fa-solid fa-file-invoice-dollar"></i> Control number</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="transactions"><span class="ad-sidebar-link-text"><i class="fa-solid fa-receipt"></i> Transactions</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="recent"><span class="ad-sidebar-link-text"><i class="fa-solid fa-clock-rotate-left"></i> Recent collections</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <p class="ad-sidebar-label">PAYOUTS</p>
-        <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest"><i class="fa-solid fa-mobile-screen"></i> Payout destination</button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="payouts"><i class="fa-solid fa-money-bill-transfer"></i> Automatic payouts</button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="users"><i class="fa-solid fa-users"></i> Registered users</button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest"><span class="ad-sidebar-link-text"><i class="fa-solid fa-mobile-screen"></i> Payout destination</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="payouts"><span class="ad-sidebar-link-text"><i class="fa-solid fa-money-bill-transfer"></i> Automatic payouts</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="users"><span class="ad-sidebar-link-text"><i class="fa-solid fa-users"></i> Registered users</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
       </nav>
       <div class="ad-sidebar-foot">
         <span class="ad-sidebar-user"><?php echo $authName; ?></span>
@@ -113,6 +115,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
             <span>General Analysis</span>
           </button>
           <button type="button" class="ad-refresh" id="ad-refresh">Refresh all</button>
+          <a class="ad-logout-top" href="logout.php"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </div>
       </header>
 
@@ -311,7 +314,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
         </div>
         <p id="ad-statement-error" class="ad-db-banner" hidden></p>
         <div class="ad-trend-wrap">
-          <p class="ad-trend-title">Transaction trend · last 14 days</p>
+          <p class="ad-trend-title">Transaction trend</p>
           <div id="ad-trend" class="ad-trend" role="img" aria-label="Daily transaction trend"></div>
         </div>
         <div id="ad-pie" class="ad-pie" role="img" aria-label="Payment pie chart"></div>

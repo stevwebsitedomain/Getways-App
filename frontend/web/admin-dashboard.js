@@ -335,127 +335,194 @@
     syncPortalCards();
   }
 
+  const chartStore = window.__gwAdminCharts || (window.__gwAdminCharts = {});
+
+  function destroyChart(key) {
+    if (chartStore[key]) {
+      try {
+        chartStore[key].destroy();
+      } catch (_) {
+        /* ignore */
+      }
+      delete chartStore[key];
+    }
+  }
+
   function drawPie(el, pie) {
     if (!el) return;
     const success = Number(pie.success || 0);
     const pending = Number(pie.pending || 0);
     const failed = Number(pie.failed || 0);
     const total = success + pending + failed;
+    destroyChart("pie");
     if (!total) {
       el.innerHTML = `<p>No ClickPesa transactions were found for this period.</p>`;
       return;
     }
+    if (typeof ApexCharts === "undefined") {
+      el.innerHTML = `<p>Chart library failed to load.</p>`;
+      return;
+    }
 
-    const W = 360;
-    const H = 240;
-    const cx = W / 2;
-    const cy = H / 2 + 4;
-    const r = 68;
-    const labelR = 98;
-    const colors = { success: "#22c55e", pending: "#f59e0b", failed: "#ef4444" };
-    const slices = [
-      { key: "success", label: "Success", count: success },
-      { key: "pending", label: "Pending", count: pending },
-      { key: "failed", label: "Failed", count: failed },
-    ].filter((s) => s.count > 0);
+    const labels = [];
+    const series = [];
+    const colors = [];
+    if (success > 0) {
+      labels.push("Success");
+      series.push(success);
+      colors.push("#0868AC");
+    }
+    if (pending > 0) {
+      labels.push("Pending");
+      series.push(pending);
+      colors.push("#F3B61F");
+    }
+    if (failed > 0) {
+      labels.push("Failed");
+      series.push(failed);
+      colors.push("#882828");
+    }
 
-    let angle = 0;
-    const paths = [];
-    const leaders = [];
-
-    slices.forEach((slice) => {
-      const sweep = (slice.count / total) * 360;
-      const start = angle;
-      const end = angle + Math.min(sweep, 359.999);
-      const mid = start + sweep / 2;
-      if (slices.length === 1) {
-        paths.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${colors[slice.key]}" stroke="#1a222c" stroke-width="2"/>`);
-      } else {
-        const startRad = ((start - 90) * Math.PI) / 180;
-        const endRad = ((end - 90) * Math.PI) / 180;
-        const x1 = cx + r * Math.cos(startRad);
-        const y1 = cy + r * Math.sin(startRad);
-        const x2 = cx + r * Math.cos(endRad);
-        const y2 = cy + r * Math.sin(endRad);
-        const large = end - start > 180 ? 1 : 0;
-        paths.push(`<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${colors[slice.key]}" stroke="#1a222c" stroke-width="2"/>`);
-      }
-
-      const innerRad = ((mid - 90) * Math.PI) / 180;
-      const outerRad = ((mid - 90) * Math.PI) / 180;
-      const innerX = cx + r * 0.82 * Math.cos(innerRad);
-      const innerY = cy + r * 0.82 * Math.sin(innerRad);
-      const outerX = cx + labelR * Math.cos(outerRad);
-      const outerY = cy + labelR * Math.sin(outerRad);
-      const side = mid > 180 ? -1 : 1;
-      const labelX = outerX + side * 18;
-      const pct = Math.round((slice.count / total) * 100);
-      const textAnchor = side < 0 ? "end" : "start";
-      leaders.push(`
-        <line x1="${innerX.toFixed(1)}" y1="${innerY.toFixed(1)}" x2="${outerX.toFixed(1)}" y2="${outerY.toFixed(1)}" stroke="${colors[slice.key]}" stroke-width="1.5"/>
-        <text x="${labelX.toFixed(1)}" y="${(outerY - 4).toFixed(1)}" text-anchor="${textAnchor}" fill="#fff" font-size="11" font-weight="700">${slice.label}</text>
-        <text x="${labelX.toFixed(1)}" y="${(outerY + 10).toFixed(1)}" text-anchor="${textAnchor}" fill="#8b9aab" font-size="10">${slice.count} · ${pct}%</text>
-      `);
-      angle = end;
+    el.innerHTML = "";
+    const chart = new ApexCharts(el, {
+      series,
+      chart: {
+        type: "donut",
+        width: "100%",
+        height: 360,
+        parentHeightOffset: 0,
+        toolbar: { show: false },
+      },
+      labels,
+      title: {
+        text: "Payment status",
+        align: "center",
+        style: { fontSize: "14px", fontWeight: 700, color: "#002d58" },
+      },
+      legend: { show: true, position: "bottom", fontWeight: 600 },
+      stroke: { show: true, width: 2, colors: ["#fff"] },
+      dataLabels: {
+        enabled: true,
+        formatter: function (val) {
+          return Number(val).toFixed(1) + "%";
+        },
+        style: { fontSize: "12px", fontWeight: 600, colors: ["#fff"] },
+        dropShadow: { enabled: true, top: 1, left: 1, blur: 1, opacity: 0.45 },
+      },
+      plotOptions: {
+        pie: {
+          expandOnClick: false,
+          donut: {
+            size: "56%",
+            labels: {
+              show: true,
+              total: {
+                show: true,
+                label: "TOTAL",
+                formatter: function () {
+                  return String(total);
+                },
+              },
+            },
+          },
+        },
+      },
+      colors,
+      tooltip: { fillSeriesColor: false },
+      responsive: [{ breakpoint: 480, options: { chart: { height: 280 } } }],
     });
-
-    el.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" width="100%" height="240" role="img" aria-label="Payment analysis pie chart">
-        ${paths.join("")}
-        <circle cx="${cx}" cy="${cy}" r="34" fill="#1a222c"/>
-        <text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">${total}</text>
-        <text x="${cx}" y="${cy + 14}" text-anchor="middle" fill="#8b9aab" font-size="10">TOTAL</text>
-        ${leaders.join("")}
-      </svg>
-      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;font-size:0.82rem;color:#8b9aab;margin-top:8px">
-        <span><i style="color:#22c55e">●</i> Success ${success}</span>
-        <span><i style="color:#f59e0b">●</i> Pending ${pending}</span>
-        <span><i style="color:#ef4444">●</i> Failed ${failed}</span>
-      </div>`;
+    chartStore.pie = chart;
+    chart.render();
   }
 
   function drawTrend(el, days) {
     if (!el) return;
     const list = Array.isArray(days) ? days : [];
     const totalHits = list.reduce((sum, d) => sum + Number(d.count || 0), 0);
+    destroyChart("trend");
     if (!totalHits) {
       el.innerHTML = '<p class="ad-trend-empty">No activity in the last 14 days yet.</p>';
       return;
     }
+    if (typeof ApexCharts === "undefined") {
+      el.innerHTML = '<p class="ad-trend-empty">Chart library failed to load.</p>';
+      return;
+    }
 
-    const max = Math.max(1, ...list.map((d) => Number(d.count || 0)));
-    const W = 400;
-    const H = 90;
-    const padL = 4;
-    const padR = 4;
-    const padT = 10;
-    const padB = 22;
-    const innerW = W - padL - padR;
-    const innerH = H - padT - padB;
-    const n = list.length;
-    const pts = list.map((d, i) => {
-      const x = padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
-      const y = padT + innerH - (Number(d.count || 0) / max) * innerH;
-      return { x, y, label: d.label || "" };
+    const labels = list.map((d) => String(d.label || ""));
+    const values = list.map((d) => Number(d.count || 0));
+    const seriesData = labels.map((label, index) => ({ x: label, y: values[index] ?? 0 }));
+    let peakIdx = 0;
+    values.forEach((v, i) => {
+      if (v > values[peakIdx]) peakIdx = i;
     });
-    const lineD = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-    const areaD = `${lineD} L ${pts[pts.length - 1].x.toFixed(1)} ${(H - padB).toFixed(1)} L ${pts[0].x.toFixed(1)} ${(H - padB).toFixed(1)} Z`;
+    const midIdx = Math.floor(values.length / 2);
+    const points = [
+      {
+        x: labels[peakIdx],
+        y: values[peakIdx],
+        marker: { size: 6, fillColor: "#F3B61F", strokeColor: "#002d58", strokeWidth: 2 },
+        label: {
+          text: "Peak",
+          borderColor: "#F3B61F",
+          style: { color: "#002d58", background: "#F3B61F", fontWeight: 700 },
+        },
+      },
+      {
+        x: labels[midIdx],
+        y: values[midIdx],
+        marker: { size: 5, fillColor: "#0D8ACB", strokeColor: "#fff", strokeWidth: 2 },
+        label: {
+          text: "Typical",
+          borderColor: "#0D8ACB",
+          style: { color: "#fff", background: "#0D8ACB", fontWeight: 700 },
+        },
+      },
+    ];
 
-    el.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="adTrendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#22c55e" stop-opacity="0.35"/>
-            <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <path d="${areaD}" fill="url(#adTrendFill)" stroke="none"/>
-        <path d="${lineD}" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        ${pts
-          .filter((_, i) => i % 3 === 0 || i === n - 1)
-          .map((p) => `<text x="${p.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="#8b9aab">${esc(p.label)}</text>`)
-          .join("")}
-      </svg>`;
+    el.innerHTML = "";
+    const chart = new ApexCharts(el, {
+      series: [{ name: "Transactions", data: seriesData }],
+      chart: {
+        height: 340,
+        type: "line",
+        id: "ad-annotation-trend",
+        zoom: { enabled: false },
+        selection: { enabled: false },
+        toolbar: { show: false },
+      },
+      annotations: { points },
+      dataLabels: { enabled: false },
+      stroke: { curve: "smooth", width: 3 },
+      grid: { padding: { right: 40, left: 20 }, borderColor: "#d8dee8" },
+      title: {
+        text: "Transaction trend · last 14 days",
+        align: "left",
+        style: { fontSize: "14px", fontWeight: 700, color: "#002d58" },
+      },
+      colors: ["#008FFB"],
+      markers: { size: 3, colors: ["#0868AC"], strokeColors: "#fff", strokeWidth: 2 },
+      xaxis: {
+        type: "category",
+        labels: { style: { colors: "#64748b", fontSize: "11px" } },
+      },
+      yaxis: {
+        min: 0,
+        decimalsInFloat: 0,
+        title: { text: "Count", style: { color: "#64748b" } },
+        labels: { style: { colors: "#64748b" } },
+      },
+      tooltip: {
+        theme: "light",
+        y: {
+          formatter: function (val) {
+            return `${val} transaction${Number(val) === 1 ? "" : "s"}`;
+          },
+        },
+      },
+    });
+    chartStore.trend = chart;
+    chart.render();
   }
 
   function updatePeriodLabels(analytics) {
