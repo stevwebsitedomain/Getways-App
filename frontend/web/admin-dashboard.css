@@ -596,6 +596,100 @@ body.ad-body {
   background: rgba(156, 163, 175, 0.1);
 }
 
+.ad-btn--primary {
+  background: #005691;
+  border-color: #005691;
+  color: #fff;
+}
+
+.ad-btn--primary i,
+.ad-btn--primary span {
+  color: #fff;
+}
+
+.ad-btn--primary:hover {
+  background: #004875;
+  border-color: #004875;
+}
+
+.ad-btn--ghost {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #005691;
+}
+
+.ad-btn--ghost i,
+.ad-btn--ghost span {
+  color: #005691;
+}
+
+.ad-btn--ghost:hover {
+  background: #f0f7fc;
+  border-color: #005691;
+}
+
+.ad-btn--status {
+  color: #005691;
+}
+
+.ad-btn--status i,
+.ad-btn--status span {
+  color: #005691;
+}
+
+.ad-btn--status:hover {
+  background: rgba(0, 86, 145, 0.1);
+}
+
+.ad-btn--retry {
+  color: #b45309;
+}
+
+.ad-btn--retry i,
+.ad-btn--retry span {
+  color: #b45309;
+}
+
+.ad-btn--retry:hover {
+  background: rgba(180, 83, 9, 0.1);
+}
+
+.ad-btn--delete {
+  color: #b91c1c;
+}
+
+.ad-btn--delete i,
+.ad-btn--delete span {
+  color: #b91c1c;
+}
+
+.ad-btn--delete:hover {
+  background: rgba(185, 28, 28, 0.1);
+}
+
+.ad-actions--payout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: none;
+  width: auto;
+  margin-top: 8px;
+  grid-template-columns: none;
+}
+
+.ad-actions--payout .ad-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ad-payout-updated {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
 .ad-recent {
   list-style: none;
   margin: 0;
@@ -1801,8 +1895,10 @@ body.ad-portal.ad-body {
 
 .ad-portal .ad-refresh {
   background: #fff !important;
-  border-color: #cbd5e1 !important;
+  border: 1px solid #cbd5e1 !important;
   color: #005691 !important;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
 }
 
 .ad-portal .ad-ga-open {
@@ -1905,6 +2001,87 @@ body.ad-portal.ad-body {
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
   color: #002d58 !important;
+}
+
+.ad-portal .ad-btn--primary {
+  background: #005691 !important;
+  border-color: #005691 !important;
+  color: #fff !important;
+}
+
+.ad-portal .ad-btn--primary i,
+.ad-portal .ad-btn--primary span {
+  color: #fff !important;
+}
+
+.ad-portal .ad-btn--primary:hover {
+  background: #004875 !important;
+  border-color: #004875 !important;
+}
+
+.ad-portal .ad-btn--ghost {
+  color: #005691 !important;
+}
+
+.ad-portal .ad-btn--ghost i,
+.ad-portal .ad-btn--ghost span {
+  color: #005691 !important;
+}
+
+.ad-portal .ad-btn--ghost:hover {
+  background: #f0f7fc !important;
+  border-color: #005691 !important;
+}
+
+.ad-portal .ad-btn--status,
+.ad-portal .ad-btn--status i,
+.ad-portal .ad-btn--status span {
+  color: #005691 !important;
+}
+
+.ad-portal .ad-btn--status:hover {
+  background: rgba(0, 86, 145, 0.08) !important;
+}
+
+.ad-portal .ad-btn--retry,
+.ad-portal .ad-btn--retry i,
+.ad-portal .ad-btn--retry span {
+  color: #b45309 !important;
+}
+
+.ad-portal .ad-btn--retry:hover {
+  background: rgba(180, 83, 9, 0.08) !important;
+}
+
+.ad-portal .ad-btn--view,
+.ad-portal .ad-btn--view i,
+.ad-portal .ad-btn--view span {
+  color: #0369a1 !important;
+}
+
+.ad-portal .ad-btn--view:hover {
+  background: rgba(3, 105, 161, 0.08) !important;
+}
+
+.ad-portal .ad-btn--delete,
+.ad-portal .ad-btn--delete i,
+.ad-portal .ad-btn--delete span {
+  color: #b91c1c !important;
+}
+
+.ad-portal .ad-btn--delete:hover {
+  background: rgba(185, 28, 28, 0.08) !important;
+}
+
+.ad-portal .ad-actions--payout .ad-btn {
+  background: #fff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ad-portal .ad-payout-updated {
+  color: #64748b !important;
 }
 
 .ad-portal .ad-table-wrap {

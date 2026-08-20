@@ -834,11 +834,12 @@
           <td>${esc(row.provider || "—")}</td>
           <td>${esc(row.lastError || "—")}</td>
           <td>
-            ${fmtDate(row.updatedAt)}
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-              <button type="button" data-refresh-payout="${row.payoutReference}">Status</button>
-              ${row.retryable ? `<button type="button" data-retry-payout="${row.id}">Retry</button>` : ""}
-              <button type="button" data-view-payout="${row.id}">View</button>
+            <div class="ad-payout-updated">${fmtDate(row.updatedAt)}</div>
+            <div class="ad-actions ad-actions--payout">
+              <button type="button" class="ad-btn ad-btn--status" data-refresh-payout="${esc(row.payoutReference)}" title="Refresh status"><i class="fa-solid fa-arrows-rotate"></i><span>Status</span></button>
+              ${row.retryable ? `<button type="button" class="ad-btn ad-btn--retry" data-retry-payout="${row.id}" title="Retry payout"><i class="fa-solid fa-rotate-right"></i><span>Retry</span></button>` : ""}
+              <button type="button" class="ad-btn ad-btn--view" data-view-payout="${row.id}" title="View details"><i class="fa-solid fa-eye"></i><span>View</span></button>
+              <button type="button" class="ad-btn ad-btn--delete" data-delete-payout="${row.id}" data-delete-ref="${esc(row.payoutReference)}" title="Delete payout"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
             </div>
           </td>
         </tr>`).join("") : `<tr><td colspan="8">No automatic payouts have been processed.</td></tr>`;
@@ -875,6 +876,25 @@
       btn.addEventListener("click", () => {
         const row = latestPayoutRows.find((item) => Number(item.id) === Number(btn.getAttribute("data-view-payout")));
         showPayoutDetails(row).catch(() => {});
+      });
+    });
+    body.querySelectorAll("[data-delete-payout]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = Number(btn.getAttribute("data-delete-payout"));
+        const ref = btn.getAttribute("data-delete-ref") || String(id);
+        if (!id) return;
+        if (!window.confirm(`Delete payout ${ref}? This removes it from the dashboard only.`)) return;
+        btn.disabled = true;
+        try {
+          const result = await requestJson("delete-payout", { method: "POST", body: { id } });
+          notify(result.message || "Payout deleted.", "success");
+          await Promise.all([loadPayouts(), loadPayoutSummary()]);
+        } catch (error) {
+          setBanner("ad-payouts-error", error.message);
+          notify(error.message || "Delete failed.", "error");
+        } finally {
+          btn.disabled = false;
+        }
       });
     });
     renderPager("ad-payouts-pager", payoutsPage, rows.length, (page) => {
@@ -1387,7 +1407,6 @@
   });
   document.getElementById("ad-cn-form")?.addEventListener("submit", createControlNumber);
   document.getElementById("ad-payout-form")?.addEventListener("submit", savePayoutDestination);
-  document.getElementById("ad-payouts-refresh")?.insertAdjacentHTML("afterend", ' <button type="button" class="ad-refresh" id="ad-payouts-export">Export CSV</button>');
   document.getElementById("ad-payouts-export")?.addEventListener("click", exportPayoutCsv);
   bindGeneralAnalysis();
   bindPortalNavigation();

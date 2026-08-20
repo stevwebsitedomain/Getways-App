@@ -408,8 +408,9 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
         <h2>Payout dashboard</h2>
         <div class="ad-card-actions">
           <span id="ad-test-mode-badge" class="ad-badge ad-badge--warn" hidden>TEST MODE</span>
-          <button type="button" class="ad-btn ad-btn--primary" id="ad-manual-payout-open">Manual payout</button>
-          <button type="button" class="ad-refresh" id="ad-payouts-refresh">Refresh</button>
+          <button type="button" class="ad-btn ad-btn--primary" id="ad-manual-payout-open"><i class="fa-solid fa-paper-plane"></i><span>Manual payout</span></button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-payouts-refresh"><i class="fa-solid fa-rotate"></i><span>Refresh</span></button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-payouts-export"><i class="fa-solid fa-file-csv"></i><span>Export CSV</span></button>
         </div>
       </div>
       <div class="ad-stats ad-stats--payout" id="ad-payout-stats">

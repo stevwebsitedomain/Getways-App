@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace common\services;
 
 use common\models\ClickPesaPayout;
+use common\models\ClickPesaPayoutAuditLog;
 use common\models\ClickPesaSetting;
 use common\models\ClickPesaSettingAudit;
 use common\models\ClickPesaSyncLog;
@@ -1395,6 +1396,45 @@ class ClickPesaService extends Component
         $payout = $this->processPayout($payout, $phone);
 
         return ['success' => true, 'payout' => $payout->toAdminArray()];
+    }
+
+    /**
+     * Remove a payout record from the admin dashboard (local DB only).
+     *
+     * @return array{success:bool,message:string,id:int}
+     */
+    public function deletePayout(int $payoutId): array
+    {
+        $payout = ClickPesaPayout::findOne($payoutId);
+        if ($payout === null) {
+            throw new NotFoundHttpException('Payout not found.');
+        }
+
+        $id = (int) $payout->id;
+        $reference = (string) $payout->payout_reference;
+
+        $tx = Yii::$app->db->beginTransaction();
+        try {
+            ClickPesaPayoutAuditLog::deleteAll(['payout_id' => $id]);
+            if ($payout->delete() === false) {
+                throw new ServerErrorHttpException('Failed to delete payout.');
+            }
+            $tx->commit();
+        } catch (\Throwable $e) {
+            $tx->rollBack();
+            throw $e;
+        }
+
+        $this->log('info', 'Payout deleted from admin dashboard', [
+            'payoutId' => $id,
+            'payoutReference' => $reference,
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Payout deleted.',
+            'id' => $id,
+        ];
     }
 
     /**

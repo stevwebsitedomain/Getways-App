@@ -481,6 +481,18 @@ if ($action === 'retry-payout' && $method === 'POST') {
     }, '/api/clickpesa/retry-payout', 'retry-payout');
 }
 
+if ($action === 'delete-payout' && $method === 'POST') {
+    adminHandle(static function () {
+        $body = readJsonBody();
+        $id = (int) ($body['id'] ?? 0);
+        if ($id <= 0) {
+            throw new yii\web\BadRequestHttpException('Payout id is required.');
+        }
+
+        return adminClickPesa()->deletePayout($id);
+    }, '/api/clickpesa/delete-payout', 'delete-payout');
+}
+
 if ($action === 'withdraw' && $method === 'POST') {
     adminHandle(static function () {
         $body = readJsonBody();
