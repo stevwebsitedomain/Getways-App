@@ -620,11 +620,11 @@
           <li>
             <div>
               <strong>${esc(row.orderReference || row.controlNumber || "—")}</strong>
-              <div style="color:#8b9aab;font-size:0.8rem">${statusBadge(row.status)} · ${fmtDate(row.createdAt)}</div>
+              <div class="ad-recent-meta">${statusBadge(row.status)} · ${fmtDate(row.createdAt)}</div>
             </div>
             <strong>${money(row.amount)}</strong>
           </li>`).join("")
-      : "<li>No ClickPesa transactions were found for this period.</li>";
+      : '<li class="ad-recent-empty">No ClickPesa transactions were found for this period.</li>';
     renderPager("ad-recent-pager", recentPage, rows.length, (page) => {
       recentPage = page;
       renderRecentCollections();

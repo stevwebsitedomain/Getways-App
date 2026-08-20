@@ -1327,7 +1327,7 @@ body.ad-ga-active {
   --ad-portal-card: #ffffff;
   --ad-portal-text: #1a1a2e;
   --ad-portal-link: #005691;
-  --ad-sidebar-w: 260px;
+  --ad-sidebar-w: 210px;
 }
 
 body.ad-portal.ad-body {
@@ -1820,6 +1820,97 @@ body.ad-portal.ad-body {
 .ad-portal .apexcharts-legend-text {
   fill: #334155 !important;
   color: #334155 !important;
+}
+
+/* Force light surfaces everywhere in portal (lists, pager, forms) */
+.ad-portal .ad-recent li,
+.ad-portal .ad-detail-sections li {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.ad-portal .ad-recent li strong {
+  color: #002d58 !important;
+}
+
+.ad-portal .ad-recent-meta {
+  color: #64748b !important;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.ad-portal .ad-recent-empty {
+  color: #64748b !important;
+  justify-content: center;
+}
+
+.ad-portal .ad-pager-info {
+  color: #64748b !important;
+}
+
+.ad-portal .ad-pager-btn {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #002d58 !important;
+}
+
+.ad-portal .ad-pager-btn:not(:disabled):hover {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+}
+
+.ad-portal .ad-badge--ok {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+}
+
+.ad-portal .ad-badge--pending {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+}
+
+.ad-portal .ad-badge--fail {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+.ad-portal .ad-form button,
+.ad-portal .ad-detail-sections .ad-form button {
+  background: #005691 !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+.ad-portal .ad-msg {
+  color: #334155 !important;
+}
+
+.ad-portal .ad-msg.is-ok {
+  color: #15803d !important;
+}
+
+.ad-portal .ad-msg.is-err {
+  color: #b91c1c !important;
+}
+
+.ad-portal .ad-note {
+  color: #64748b !important;
+}
+
+.ad-portal .ad-btn,
+.ad-portal .ad-btn--ghost,
+.ad-portal .ad-btn--copy {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #002d58 !important;
+}
+
+.ad-portal .ad-table-wrap {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px;
 }
 
 @media (max-width: 1000px) {

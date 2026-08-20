@@ -54,9 +54,9 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
     body.ad-body.ad-portal.ad-view-detail .ad-portal-home{display:none!important}
     body.ad-body.ad-portal.ad-view-detail .ad-detail-sections{display:grid!important}
     .ad-shell{display:flex;min-height:100svh}
-    .ad-sidebar{width:260px;flex-shrink:0;background:#002d58;color:#fff;display:flex;flex-direction:column;padding:20px 0 16px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none}
+    .ad-sidebar{width:210px;flex-shrink:0;background:#002d58;color:#fff;display:flex;flex-direction:column;padding:16px 0 12px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none}
     .ad-sidebar::-webkit-scrollbar{display:none;width:0;height:0}
-    .ad-main-wrap{flex:1;margin-left:260px;min-width:0;display:flex;flex-direction:column}
+    .ad-main-wrap{flex:1;margin-left:210px;min-width:0;display:flex;flex-direction:column}
     .ad-portal-top{position:sticky;top:0;z-index:200;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
     .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#f0f4f8}
     .ad-portal-home{display:grid!important;gap:28px}
