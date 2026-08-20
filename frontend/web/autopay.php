@@ -3,6 +3,7 @@ require __DIR__ . '/auth-guard.php';
 $cssVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
 $bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
 $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
+$autopayJsVersion = (string) (@filemtime(__DIR__ . '/autopay.js') ?: time());
 $phoneTopbarTitle = 'AutoPay';
 ?>
 <!DOCTYPE html>
@@ -35,25 +36,71 @@ $phoneTopbarTitle = 'AutoPay';
           <article class="bk-transfer-card w-searchable cp-form-card">
             <h2><i class="fa-solid fa-bolt"></i> AutoPay</h2>
             <p class="bk-form-note">USSD push — risiti inachapishwa otomatiki.</p>
-            <form id="autopay-form" class="tis-form" autocomplete="off">
+            <form id="autopay-form" class="tis-form" autocomplete="off" novalidate>
+              <!-- Honeypot: browsers may fill this instead of real fields -->
+              <input type="text" name="phone" tabindex="-1" autocomplete="tel" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
+              <input type="text" name="name" tabindex="-1" autocomplete="name" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
+
               <div class="bk-form-field">
-                <label for="customerPhone"><i class="fa-solid fa-phone"></i> Phone</label>
-                <input type="text" id="customerPhone" name="ap_phone" value="" placeholder="2557XXXXXXXX" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+                <label for="autopayPhone"><i class="fa-solid fa-phone"></i> Phone</label>
+                <input
+                  type="tel"
+                  id="autopayPhone"
+                  name="autopay_phone"
+                  placeholder="2557XXXXXXXX"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  inputmode="numeric"
+                  readonly
+                  required
+                />
               </div>
 
               <div class="bk-form-field">
-                <label for="customerName"><i class="fa-solid fa-user"></i> Name</label>
-                <input type="text" id="customerName" name="ap_name" value="" placeholder="Customer name" autocomplete="off" required />
+                <label for="autopayName"><i class="fa-solid fa-user"></i> Name</label>
+                <input
+                  type="text"
+                  id="autopayName"
+                  name="autopay_name"
+                  placeholder="Customer name"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="words"
+                  spellcheck="false"
+                  readonly
+                  required
+                />
               </div>
 
               <div class="bk-form-field">
-                <label for="description"><i class="fa-solid fa-pen-to-square"></i> Description</label>
-                <input type="text" id="description" name="ap_description" value="AutoPay HaloPesa Payment" autocomplete="off" required />
+                <label for="autopayDescription"><i class="fa-solid fa-pen-to-square"></i> Description</label>
+                <input
+                  type="text"
+                  id="autopayDescription"
+                  name="autopay_description"
+                  placeholder="Payment description"
+                  autocomplete="off"
+                  readonly
+                  required
+                />
               </div>
 
               <div class="bk-form-field">
-                <label for="amount"><i class="fa-solid fa-money-bill-wave"></i> Amount (TZS)</label>
-                <input type="number" id="amount" name="ap_amount" min="1" step="1" value="" placeholder="0" autocomplete="off" required />
+                <label for="autopayAmount"><i class="fa-solid fa-money-bill-wave"></i> Amount (TZS)</label>
+                <input
+                  type="number"
+                  id="autopayAmount"
+                  name="autopay_amount"
+                  min="1"
+                  step="1"
+                  placeholder="0"
+                  autocomplete="off"
+                  inputmode="numeric"
+                  readonly
+                  required
+                />
               </div>
 
               <div class="total-row">
@@ -82,6 +129,6 @@ $phoneTopbarTitle = 'AutoPay';
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
   <script src="receipt-actions.js?v=2"></script>
   <script src="receipt-slip.js?v=13"></script>
-  <script src="autopay.js?v=5"></script>
+  <script src="autopay.js?v=<?= urlencode($autopayJsVersion) ?>"></script>
 </body>
 </html>

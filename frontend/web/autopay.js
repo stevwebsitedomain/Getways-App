@@ -8,10 +8,10 @@ const formMessageEl = document.getElementById("form-message");
 const formEl = document.getElementById("autopay-form");
 const payBtn = document.getElementById("autopay-btn");
 const orderTotalEl = document.getElementById("order-total");
-const phoneEl = document.getElementById("customerPhone");
-const amountEl = document.getElementById("amount");
-const descriptionEl = document.getElementById("description");
-const customerNameEl = document.getElementById("customerName");
+const phoneEl = document.getElementById("autopayPhone");
+const amountEl = document.getElementById("autopayAmount");
+const descriptionEl = document.getElementById("autopayDescription");
+const customerNameEl = document.getElementById("autopayName");
 
 const POLL_INTERVAL_MS = 2500;
 const POLL_MAX_MS = 180000; // 3 minutes — customer may take time on PIN
@@ -299,6 +299,31 @@ async function createAutoPay(event) {
 updateTotalView();
 if (amountEl) amountEl.addEventListener("input", updateTotalView);
 if (formEl) formEl.addEventListener("submit", createAutoPay);
+
+function unlockAutopayField(el) {
+  if (!el) return;
+  el.removeAttribute("readonly");
+}
+
+function resetAutopayFields() {
+  [phoneEl, customerNameEl, descriptionEl, amountEl].forEach((el) => {
+    if (!el) return;
+    el.value = "";
+    el.defaultValue = "";
+    el.setAttribute("readonly", "readonly");
+  });
+  updateTotalView();
+}
+
+[phoneEl, customerNameEl, descriptionEl, amountEl].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("focus", () => unlockAutopayField(el));
+  el.addEventListener("click", () => unlockAutopayField(el));
+});
+
+resetAutopayFields();
+window.setTimeout(resetAutopayFields, 50);
+window.setTimeout(resetAutopayFields, 300);
 
 (function initAutoPrintFromUrl() {
   const params = new URLSearchParams(window.location.search);
