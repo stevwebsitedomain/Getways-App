@@ -31,6 +31,18 @@ class ClickPesaService extends Component
     private const LOG_CATEGORY = 'clickpesa';
     private const TOKEN_CACHE_KEY = 'clickpesa.access_token.v1';
     private const RATE_LIMIT_KEY = 'clickpesa.payout.rate.';
+    private const RECONCILE_LOCK_KEY = 'clickpesa.payout.reconcile_lock';
+
+    private ?ClickPesaPayoutService $payoutService = null;
+
+    private function payoutService(): ClickPesaPayoutService
+    {
+        if ($this->payoutService === null) {
+            $this->payoutService = Yii::$container->get(ClickPesaPayoutService::class);
+        }
+
+        return $this->payoutService;
+    }
 
     /**
      * @return array{
@@ -317,29 +329,52 @@ class ClickPesaService extends Component
         ];
     }
 
-    public function listPayouts(int $limit = 100): array
+    public function listPayouts(int $limit = 100, array $filters = []): array
     {
-        $models = ClickPesaPayout::find()
-            ->orderBy(['id' => SORT_DESC])
-            ->limit($limit)
-            ->all();
+        $query = ClickPesaPayout::find()->orderBy(['id' => SORT_DESC]);
+
+        if (!empty($filters['status'])) {
+            $query->andWhere(['payout_status' => strtoupper((string) $filters['status'])]);
+        }
+        if (!empty($filters['phone'])) {
+            try {
+                $normalized = $this->payoutService()->normalizePhoneNumber((string) $filters['phone']);
+                $query->andWhere(['phone_number' => $normalized]);
+            } catch (\Throwable) {
+                $query->andWhere(['destination_masked' => (string) $filters['phone']]);
+            }
+        }
+        if (!empty($filters['orderReference'])) {
+            $query->andWhere(['payout_reference' => trim((string) $filters['orderReference'])]);
+        }
+        if (!empty($filters['startDate'])) {
+            $query->andWhere(['>=', 'created_at', strtotime((string) $filters['startDate'] . ' 00:00:00')]);
+        }
+        if (!empty($filters['endDate'])) {
+            $query->andWhere(['<=', 'created_at', strtotime((string) $filters['endDate'] . ' 23:59:59')]);
+        }
+
+        $sort = strtolower((string) ($filters['sort'] ?? 'newest'));
+        if ($sort === 'oldest') {
+            $query->orderBy(['id' => SORT_ASC]);
+        }
+
+        /** @var ClickPesaPayout[] $models */
+        $models = $query->limit(max(1, min($limit, 500)))->all();
 
         return [
             'success' => true,
-            'items' => array_map(static fn(ClickPesaPayout $payout): array => [
-                'id' => $payout->id,
-                'payoutReference' => $payout->payout_reference,
-                'destinationMasked' => $payout->destination_masked,
-                'amount' => (float) $payout->amount,
-                'fee' => $payout->fee !== null ? (float) $payout->fee : null,
-                'status' => $payout->payout_status,
-                'provider' => $payout->provider,
-                'lastError' => $payout->last_error,
-                'createdAt' => $payout->created_at ? date('c', (int) $payout->created_at) : null,
-                'updatedAt' => $payout->updated_at ? date('c', (int) $payout->updated_at) : null,
-                'retryable' => $payout->canRetry(),
-            ], $models),
+            'summary' => $this->payoutService()->getDashboardSummary(),
+            'items' => array_map(static fn(ClickPesaPayout $payout): array => array_merge(
+                $payout->toAdminArray(),
+                ['retryable' => $payout->canRetry()]
+            ), $models),
         ];
+    }
+
+    public function getPayoutDashboardSummary(): array
+    {
+        return $this->payoutService()->getDashboardSummary();
     }
 
     public function getAutoPayoutSettings(): array
@@ -349,21 +384,33 @@ class ClickPesaService extends Component
         return [
             'success' => true,
             'enabled' => (bool) $settings->auto_payout_enabled,
+            'emergencyStop' => (bool) ($settings->emergency_stop ?? 0),
             'mode' => $settings->mode ?: ClickPesaSetting::MODE_TEST,
             'destinationType' => $settings->destination_type,
             'maskedDestination' => $settings->getMaskedDestination(),
+            'displayDestination' => '+' . ($settings->getDestinationPhone() ?: ClickPesaSetting::DEFAULT_PHONE),
             'mobileProvider' => $settings->mobile_provider,
             'minimumAmount' => (float) $settings->minimum_amount,
+            'maximumAmount' => (float) ($settings->maximum_amount ?? 0),
+            'manualApprovalThreshold' => (float) ($settings->manual_approval_threshold ?? 0),
             'dailyLimit' => (float) $settings->daily_limit,
             'payoutPercentage' => (float) $settings->payout_percentage,
             'delaySeconds' => (int) $settings->delay_seconds,
             'manualApprovalRequired' => (bool) $settings->require_manual_approval,
+            'testMode' => $this->payoutService()->isTestMode(),
+            'payoutEnvEnabled' => $this->payoutService()->isPayoutEnvEnabled(),
+            'credentialsConfigured' => ($this->getConfig()['clientId'] ?? '') !== '' && ($this->getConfig()['apiKey'] ?? '') !== '',
+            'webhookUrlConfigured' => ($this->getConfig()['webhookUrl'] ?? '') !== '',
             'lastSyncedAt' => $settings->last_synced_at ? date('c', (int) $settings->last_synced_at) : null,
-            'warning' => $settings->mode === ClickPesaSetting::MODE_TEST
-                ? 'TEST MODE — auto payout is off. Turn Auto payout ON and enter admin password to activate.'
-                : (($settings->auto_payout_enabled && $settings->mode === ClickPesaSetting::MODE_MANUAL_APPROVAL)
-                    ? 'Manual approval mode — payouts need approval before sending.'
-                    : null),
+            'warning' => $this->payoutService()->isTestMode()
+                ? 'TEST MODE — create payout API is disabled. No real money will be sent.'
+                : ($settings->mode === ClickPesaSetting::MODE_TEST
+                    ? 'TEST MODE — auto payout is off. Turn Auto payout ON and enter admin password to activate.'
+                    : ((bool) ($settings->emergency_stop ?? 0)
+                        ? 'EMERGENCY STOP active — all payouts are blocked.'
+                        : (($settings->auto_payout_enabled && $settings->mode === ClickPesaSetting::MODE_MANUAL_APPROVAL)
+                            ? 'Manual approval mode — payouts need approval before sending.'
+                            : null))),
         ];
     }
 
@@ -394,8 +441,13 @@ class ClickPesaService extends Component
         $settings->mobile_provider = trim((string) ($data['mobileProvider'] ?? $settings->mobile_provider));
         $settings->payout_percentage = (float) ($data['payoutPercentage'] ?? $settings->payout_percentage);
         $settings->minimum_amount = (float) ($data['minimumAmount'] ?? $settings->minimum_amount);
+        $settings->maximum_amount = (float) ($data['maximumAmount'] ?? ($settings->maximum_amount ?? 0));
+        $settings->manual_approval_threshold = (float) ($data['manualApprovalThreshold'] ?? ($settings->manual_approval_threshold ?? 0));
         $settings->daily_limit = (float) ($data['dailyLimit'] ?? $settings->daily_limit);
         $settings->delay_seconds = (int) ($data['delaySeconds'] ?? $settings->delay_seconds);
+        if (array_key_exists('emergencyStop', $data)) {
+            $settings->emergency_stop = (bool) $data['emergencyStop'] ? 1 : 0;
+        }
         $settings->require_manual_approval = array_key_exists('manualApprovalRequired', $data)
             ? ((bool) $data['manualApprovalRequired'] ? 1 : 0)
             : (int) $settings->require_manual_approval;
@@ -951,14 +1003,20 @@ class ClickPesaService extends Component
         $remote = null;
         if ($refreshFromApi) {
             try {
-                $remote = $this->request('GET', 'payouts/' . rawurlencode($orderReference));
+                $remote = $this->payoutService()->getPayoutStatus($orderReference);
                 if ($payout !== null) {
-                    $mapped = $this->mapPayoutStatus(is_array($remote) ? $remote : []);
+                    $mapped = $this->payoutService()->mapRemoteStatus(is_array($remote) ? $remote : []);
                     if ($mapped !== $payout->payout_status) {
-                        $payout->payout_status = $mapped;
+                        $this->payoutService()->applyStatusTransition(
+                            $payout,
+                            $mapped,
+                            \common\models\ClickPesaPayoutAuditLog::ACTOR_SYSTEM
+                        );
+                        $payout->refresh();
                         $payout->raw_response = json_encode($remote, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
                         if ($payout->isFinal()) {
                             $payout->processed_at = time();
+                            $payout->completed_at = time();
                         }
                         $payout->save(false);
                         $this->syncLegacyPayoutFields($payout);
@@ -1254,6 +1312,48 @@ class ClickPesaService extends Component
         return compact('processed', 'skipped', 'errors');
     }
 
+    public function syncPendingPayoutStatuses(int $limit = 50): array
+    {
+        if (Yii::$app->cache->get(self::RECONCILE_LOCK_KEY)) {
+            return ['ok' => 0, 'fail' => 0, 'skipped' => true];
+        }
+        Yii::$app->cache->set(self::RECONCILE_LOCK_KEY, 1, 300);
+
+        try {
+            /** @var ClickPesaPayout[] $rows */
+            $rows = ClickPesaPayout::find()
+                ->where(['payout_status' => [
+                    ClickPesaPayout::STATUS_AUTHORIZED,
+                    ClickPesaPayout::STATUS_PENDING,
+                    ClickPesaPayout::STATUS_PROCESSING,
+                    ClickPesaPayout::STATUS_PREVIEWED,
+                ]])
+                ->andWhere(['<', 'created_at', time() - 120])
+                ->orderBy(['id' => SORT_ASC])
+                ->limit($limit)
+                ->all();
+
+            $ok = 0;
+            $fail = 0;
+            foreach ($rows as $row) {
+                try {
+                    $this->getPayoutStatus($row->payout_reference, true);
+                    $ok++;
+                } catch (\Throwable $e) {
+                    $fail++;
+                    $this->log('warning', 'Payout reconciliation failed', [
+                        'reference' => $row->payout_reference,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return ['ok' => $ok, 'fail' => $fail, 'skipped' => false];
+        } finally {
+            Yii::$app->cache->delete(self::RECONCILE_LOCK_KEY);
+        }
+    }
+
     public function retryPayout(int $payoutId, bool $adminApproved = false): array
     {
         $this->assertPayoutRateLimit();
@@ -1284,6 +1384,12 @@ class ClickPesaService extends Component
         $payout->retry_count = (int) $payout->retry_count + 1;
         $payout->payout_status = ClickPesaPayout::STATUS_QUEUED;
         $payout->last_error = null;
+        // ClickPesa requires alphanumeric orderReference only (no hyphens).
+        if (!preg_match('/^[A-Za-z0-9]+$/', (string) $payout->payout_reference)) {
+            $payout->payout_reference = $this->payoutService()->generateOrderReference(
+                ClickPesaTransaction::findOne($payout->payment_id)
+            );
+        }
         $payout->save(false);
 
         $payout = $this->processPayout($payout, $phone);
@@ -1415,10 +1521,17 @@ class ClickPesaService extends Component
             return ['message' => 'Payout event recorded without local match', 'reference' => $ref];
         }
 
-        $payout->payout_status = $status;
+        if ($payout->isFinal()) {
+            return ['message' => 'Ignored status change on finalized payout', 'payout' => $payout->toAdminArray()];
+        }
+
+        $oldStatus = $payout->payout_status;
+        $this->payoutService()->applyStatusTransition($payout, $status, \common\models\ClickPesaPayoutAuditLog::ACTOR_WEBHOOK);
+        $payout->refresh();
         $payout->raw_response = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if (in_array($status, [ClickPesaPayout::STATUS_SUCCESS, ClickPesaPayout::STATUS_FAILED, ClickPesaPayout::STATUS_REFUNDED, ClickPesaPayout::STATUS_REVERSED], true)) {
+        if (in_array($payout->payout_status, [ClickPesaPayout::STATUS_SUCCESS, ClickPesaPayout::STATUS_FAILED, ClickPesaPayout::STATUS_REFUNDED, ClickPesaPayout::STATUS_REVERSED], true)) {
             $payout->processed_at = time();
+            $payout->completed_at = time();
         }
         $fee = $this->extractValue($payload, ['fee', 'charges', 'data.fee']);
         if ($fee !== null) {
@@ -1468,6 +1581,18 @@ class ClickPesaService extends Component
     private function maybeQueueAutomaticPayout(ClickPesaTransaction $tx): bool
     {
         $settings = ClickPesaSetting::current();
+        $payoutSvc = $this->payoutService();
+
+        if ((bool) ($settings->emergency_stop ?? 0)) {
+            $this->log('warning', 'Auto payout blocked — emergency stop', ['paymentId' => $tx->id]);
+            return false;
+        }
+
+        if (!$payoutSvc->isPayoutEnvEnabled()) {
+            $this->log('info', 'Auto payout disabled (CLICKPESA_PAYOUT_ENABLED=false)', ['paymentId' => $tx->id]);
+            return false;
+        }
+
         if (
             !(bool) $settings->auto_payout_enabled
             || ($settings->mode ?: ClickPesaSetting::MODE_TEST) === ClickPesaSetting::MODE_TEST
@@ -1489,11 +1614,17 @@ class ClickPesaService extends Component
         $amount = $this->calculatePayoutAmount($tx, $settings);
         $mode = strtoupper((string) ($settings->mode ?: ClickPesaSetting::MODE_TEST));
         $minimum = (float) $settings->minimum_amount;
+        $maximum = (float) ($settings->maximum_amount ?? 0);
+        $approvalThreshold = (float) ($settings->manual_approval_threshold ?? 0);
+
         if ($amount < $minimum) {
             if ($mode !== ClickPesaSetting::MODE_LIVE_AUTO || $amount <= 0) {
                 $this->log('info', 'Auto payout below minimum', ['amount' => $amount, 'minimum' => $minimum]);
                 return false;
             }
+        }
+        if ($maximum > 0 && $amount > $maximum) {
+            $this->log('warning', 'Auto payout exceeds maximum — requires approval', ['amount' => $amount, 'maximum' => $maximum]);
         }
 
         if (!$this->withinDailyLimit($settings, $amount)) {
@@ -1503,8 +1634,11 @@ class ClickPesaService extends Component
 
         $delay = max(0, (int) $settings->delay_seconds);
         $payout = $this->queueOrCreatePayout($tx, $amount, $phone, true);
+        $payout->phone_number = $this->payoutService()->normalizePhoneNumber($phone);
         $payout->next_retry_at = time() + $delay;
-        if ((bool) $settings->require_manual_approval) {
+        if ((bool) $settings->require_manual_approval
+            || ($approvalThreshold > 0 && $amount >= $approvalThreshold)
+            || ($maximum > 0 && $amount > $maximum)) {
             $payout->payout_status = ClickPesaPayout::STATUS_AWAITING_APPROVAL;
         }
         $payout->save(false);
@@ -1532,7 +1666,8 @@ class ClickPesaService extends Component
             return $existing;
         }
 
-        $ref = 'TIS-PAYOUT-' . $tx->id . '-' . time() . random_int(10, 99);
+        $ref = 'PAYOUT' . date('Ymd') . $tx->id . random_int(100, 999);
+        $ref = preg_replace('/[^A-Za-z0-9]/', '', $ref) ?: ('PAYOUT' . time());
         $payout = new ClickPesaPayout([
             'payment_id' => $tx->id,
             'payout_reference' => $ref,
@@ -1559,7 +1694,8 @@ class ClickPesaService extends Component
 
     private function processPayout(ClickPesaPayout $payout, string $phone): ClickPesaPayout
     {
-        $normalizedPhone = $this->normalizePhone($phone);
+        $payoutSvc = $this->payoutService();
+        $normalizedPhone = $payoutSvc->normalizePhoneNumber($phone);
         $payload = [
             'amount' => (float) $payout->amount,
             'phoneNumber' => $normalizedPhone,
@@ -1567,25 +1703,24 @@ class ClickPesaService extends Component
             'orderReference' => $payout->payout_reference,
         ];
 
+        $payout->phone_number = $normalizedPhone;
         $payout->payout_status = ClickPesaPayout::STATUS_PROCESSING;
         $payout->raw_request = json_encode($this->redactPayoutPayload($payload), JSON_UNESCAPED_SLASHES);
         $payout->save(false);
 
         try {
-            // Preview first
-            $preview = $this->request('POST', 'payouts/preview-mobile-money-payout', $payload);
+            $preview = $payoutSvc->previewPayout($payload);
             $payout->payout_status = ClickPesaPayout::STATUS_PREVIEWED;
             $payout->raw_response = json_encode($preview, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             $fee = $this->extractValue($preview, ['fee', 'charges', 'data.fee']);
             if ($fee !== null) {
                 $payout->fee = (float) $fee;
+                $payout->total_deduction = (float) $payout->amount + (float) $fee;
             }
             $payout->save(false);
 
-            // Create only after preview succeeds
-            $response = $this->request('POST', 'payouts/create-mobile-money-payout', $payload);
-            $mapped = $this->mapPayoutStatus($response);
-            // HTTP 200 on create ≠ SUCCESS — keep PENDING unless API says otherwise
+            $response = $payoutSvc->createPayout($payload);
+            $mapped = $payoutSvc->mapRemoteStatus(is_array($response) ? $response : []);
             if ($mapped === ClickPesaPayout::STATUS_SUCCESS) {
                 $mapped = ClickPesaPayout::STATUS_PENDING;
             }
@@ -1597,8 +1732,23 @@ class ClickPesaService extends Component
             if ($provider) {
                 $payout->provider = (string) $provider;
             }
+            $payout->channel = 'MOBILE MONEY';
             $payout->save(false);
             $this->syncLegacyPayoutFields($payout);
+        } catch (ConflictHttpException $e) {
+            try {
+                $remote = $payoutSvc->getPayoutStatus($payout->payout_reference);
+                $payout->payout_status = $payoutSvc->mapRemoteStatus(is_array($remote) ? $remote : []);
+                $payout->raw_response = json_encode($remote, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                $payout->save(false);
+                $this->syncLegacyPayoutFields($payout);
+            } catch (\Throwable) {
+                $payout->payout_status = ClickPesaPayout::STATUS_FAILED;
+                $payout->last_error = $e->getMessage();
+                $payout->failure_reason = $e->getMessage();
+                $payout->save(false);
+                throw $e;
+            }
         } catch (\Throwable $e) {
             $message = $e->getMessage();
             $payout->payout_status = ClickPesaPayout::STATUS_FAILED;

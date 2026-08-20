@@ -9,6 +9,7 @@ use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 use common\models\ClickPesaSetting;
 use common\services\ClickPesaService;
+use common\services\ClickPesaPayoutService;
 use Mpdf\Mpdf;
 use Yii;
 use yii\base\InvalidConfigException;
@@ -39,10 +40,12 @@ class ClickPesaController extends Controller
     public $enableCsrfValidation = false;
 
     private ClickPesaService $clickPesaService;
+    private ClickPesaPayoutService $payoutService;
 
-    public function __construct($id, $module, ClickPesaService $clickPesaService, $config = [])
+    public function __construct($id, $module, ClickPesaService $clickPesaService, ClickPesaPayoutService $payoutService, $config = [])
     {
         $this->clickPesaService = $clickPesaService;
+        $this->payoutService = $payoutService;
         parent::__construct($id, $module, $config);
     }
 
@@ -75,6 +78,10 @@ class ClickPesaController extends Controller
                     'auto-payout-settings' => ['GET', 'POST'],
                     'control-numbers' => ['GET'],
                     'payouts' => ['GET'],
+                    'payout-summary' => ['GET'],
+                    'preview-payout' => ['POST'],
+                    'confirm-payout' => ['POST'],
+                    'refresh-payout-status' => ['POST'],
                 ],
             ],
         ];
@@ -476,7 +483,78 @@ class ClickPesaController extends Controller
     {
         return $this->handle(function () {
             $this->requireDashboardOrAdminAuth();
-            return $this->clickPesaService->listPayouts((int) Yii::$app->request->get('limit', 100));
+
+            return $this->clickPesaService->listPayouts(
+                (int) Yii::$app->request->get('limit', 100),
+                [
+                    'status' => Yii::$app->request->get('status'),
+                    'phone' => Yii::$app->request->get('phone'),
+                    'orderReference' => Yii::$app->request->get('orderReference'),
+                    'startDate' => Yii::$app->request->get('startDate'),
+                    'endDate' => Yii::$app->request->get('endDate'),
+                    'sort' => Yii::$app->request->get('sort', 'newest'),
+                ]
+            );
+        });
+    }
+
+    public function actionPayoutSummary(): array
+    {
+        return $this->handle(function () {
+            $this->requireDashboardOrAdminAuth();
+
+            return $this->clickPesaService->getPayoutDashboardSummary();
+        });
+    }
+
+    public function actionPreviewPayout(): array
+    {
+        return $this->handle(function () {
+            $this->requireDashboardOrAdminAuth();
+            $this->requireSuperAdminPermission();
+            $body = $this->getJsonBody();
+            $amount = (float) ($body['amount'] ?? 0);
+            if ($amount <= 0) {
+                throw new BadRequestHttpException('amount is required.');
+            }
+
+            return $this->payoutService->initiateManualPayout(
+                $amount,
+                isset($body['phone']) ? (string) $body['phone'] : null,
+                isset($body['note']) ? (string) $body['note'] : null,
+                Yii::$app->user->isGuest ? null : (int) Yii::$app->user->id
+            );
+        });
+    }
+
+    public function actionConfirmPayout(): array
+    {
+        return $this->handle(function () {
+            $this->requireDashboardOrAdminAuth();
+            $this->requireSuperAdminPermission();
+            $body = $this->getJsonBody();
+            $orderReference = trim((string) ($body['orderReference'] ?? ''));
+            $previewToken = trim((string) ($body['previewToken'] ?? ''));
+            if ($orderReference === '' || $previewToken === '') {
+                throw new BadRequestHttpException('orderReference and previewToken are required.');
+            }
+
+            return $this->payoutService->confirmManualPayout(
+                $orderReference,
+                $previewToken,
+                Yii::$app->user->isGuest ? null : (int) Yii::$app->user->id
+            );
+        });
+    }
+
+    public function actionRefreshPayoutStatus(): array
+    {
+        return $this->handle(function () {
+            $this->requireDashboardOrAdminAuth();
+            $body = $this->getJsonBody();
+            $reference = trim((string) ($body['orderReference'] ?? $body['payoutReference'] ?? ''));
+
+            return $this->clickPesaService->getPayoutStatus($reference, true);
         });
     }
 

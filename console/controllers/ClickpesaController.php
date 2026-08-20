@@ -54,33 +54,19 @@ class ClickpesaController extends Controller
      */
     public function actionSyncPayoutStatus(int $limit = 50): int
     {
-        /** @var ClickPesaPayout[] $rows */
-        $rows = ClickPesaPayout::find()
-            ->where(['payout_status' => [
-                ClickPesaPayout::STATUS_PENDING,
-                ClickPesaPayout::STATUS_PROCESSING,
-                ClickPesaPayout::STATUS_PREVIEWED,
-            ]])
-            ->orderBy(['id' => SORT_ASC])
-            ->limit($limit)
-            ->all();
+        $this->stdout("Syncing pending ClickPesa payout statuses (limit={$limit})...\n", Console::FG_YELLOW);
+        $result = $this->service->syncPendingPayoutStatuses($limit);
+        if (!empty($result['skipped'])) {
+            $this->stdout("Skipped — another reconciliation job is running.\n", Console::FG_YELLOW);
 
-        $ok = 0;
-        $fail = 0;
-        foreach ($rows as $row) {
-            try {
-                $this->service->getPayoutStatus($row->payout_reference, true);
-                $ok++;
-                $this->stdout("Synced {$row->payout_reference}\n");
-            } catch (\Throwable $e) {
-                $fail++;
-                $this->stderr("Failed {$row->payout_reference}: {$e->getMessage()}\n");
-            }
+            return ExitCode::OK;
         }
+        $this->stdout(
+            sprintf("Sync complete. ok=%d fail=%d\n", $result['ok'], $result['fail']),
+            Console::FG_GREEN
+        );
 
-        $this->stdout("Sync complete. ok={$ok} fail={$fail}\n", Console::FG_GREEN);
-
-        return $fail > 0 ? ExitCode::UNSPECIFIED_ERROR : ExitCode::OK;
+        return $result['fail'] > 0 ? ExitCode::UNSPECIFIED_ERROR : ExitCode::OK;
     }
 
     /**

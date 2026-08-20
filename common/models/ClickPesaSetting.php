@@ -56,8 +56,8 @@ class ClickPesaSetting extends ActiveRecord
     {
         return [
             [['destination_type', 'mode'], 'required'],
-            [['auto_payout_enabled', 'require_manual_approval', 'delay_seconds', 'last_synced_at', 'created_at', 'updated_at'], 'integer'],
-            [['payout_percentage', 'minimum_amount', 'daily_limit'], 'number'],
+            [['auto_payout_enabled', 'require_manual_approval', 'delay_seconds', 'last_synced_at', 'created_at', 'updated_at', 'emergency_stop', 'last_changed_by'], 'integer'],
+            [['payout_percentage', 'minimum_amount', 'maximum_amount', 'manual_approval_threshold', 'daily_limit'], 'number'],
             [['encrypted_destination', 'bank_account_number_enc'], 'string'],
             [['mode'], 'in', 'range' => [self::MODE_TEST, self::MODE_MANUAL_APPROVAL, self::MODE_LIVE_AUTO]],
             [['destination_type'], 'in', 'range' => [self::DESTINATION_MOBILE, self::DESTINATION_BANK]],

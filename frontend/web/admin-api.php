@@ -318,6 +318,12 @@ function adminClickPesa(): \common\services\ClickPesaService
     return Yii::$container->get(\common\services\ClickPesaService::class);
 }
 
+/** @return \common\services\ClickPesaPayoutService */
+function adminPayoutService(): \common\services\ClickPesaPayoutService
+{
+    return Yii::$container->get(\common\services\ClickPesaPayoutService::class);
+}
+
 if ($action === 'balance' && $method === 'GET') {
     adminHandle(static fn() => adminClickPesa()->getAccountBalance(), '/api/clickpesa/account-balance', 'balance');
 }
@@ -407,7 +413,60 @@ if ($action === 'control-numbers' && $method === 'GET') {
 }
 
 if ($action === 'payouts' && $method === 'GET') {
-    adminHandle(static fn() => adminClickPesa()->listPayouts(100), '/api/clickpesa/payouts', 'payouts');
+    adminHandle(static fn() => adminClickPesa()->listPayouts(
+        (int) ($_GET['limit'] ?? 100),
+        [
+            'status' => $_GET['status'] ?? null,
+            'phone' => $_GET['phone'] ?? null,
+            'orderReference' => $_GET['orderReference'] ?? null,
+            'startDate' => $_GET['startDate'] ?? null,
+            'endDate' => $_GET['endDate'] ?? null,
+            'sort' => $_GET['sort'] ?? 'newest',
+        ]
+    ), '/api/clickpesa/payouts', 'payouts');
+}
+
+if ($action === 'payout-summary' && $method === 'GET') {
+    adminHandle(static fn() => adminClickPesa()->getPayoutDashboardSummary(), '/api/clickpesa/payout-summary');
+}
+
+if ($action === 'preview-payout' && $method === 'POST') {
+    adminHandle(static function () {
+        $body = readJsonBody();
+        $amount = (float) ($body['amount'] ?? 0);
+        if ($amount <= 0) {
+            throw new yii\web\BadRequestHttpException('amount is required.');
+        }
+
+        return adminPayoutService()->initiateManualPayout(
+            $amount,
+            isset($body['phone']) ? (string) $body['phone'] : null,
+            isset($body['note']) ? (string) $body['note'] : null,
+            null
+        );
+    }, '/api/clickpesa/preview-payout');
+}
+
+if ($action === 'confirm-payout' && $method === 'POST') {
+    adminHandle(static function () {
+        $body = readJsonBody();
+        $orderReference = trim((string) ($body['orderReference'] ?? ''));
+        $previewToken = trim((string) ($body['previewToken'] ?? ''));
+        if ($orderReference === '' || $previewToken === '') {
+            throw new yii\web\BadRequestHttpException('orderReference and previewToken are required.');
+        }
+
+        return adminPayoutService()->confirmManualPayout($orderReference, $previewToken, null);
+    }, '/api/clickpesa/confirm-payout');
+}
+
+if ($action === 'refresh-payout-status' && $method === 'POST') {
+    adminHandle(static function () {
+        $body = readJsonBody();
+        $reference = trim((string) ($body['orderReference'] ?? $body['payoutReference'] ?? ''));
+
+        return adminClickPesa()->getPayoutStatus($reference, true);
+    }, '/api/clickpesa/refresh-payout-status');
 }
 
 if ($action === 'retry-payout' && $method === 'POST') {

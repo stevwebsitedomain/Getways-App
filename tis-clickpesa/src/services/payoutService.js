@@ -1,7 +1,12 @@
 const { getPool } = require("../config/db");
-const { previewMobileMoneyPayout, createMobileMoneyPayout } = require("./clickpesaService");
+const {
+  previewMobileMoneyPayout,
+  createMobileMoneyPayout,
+  queryPayoutStatus,
+} = require("./clickpesaService");
 const { getOrCreateSettingsRow, getDestinationPhone, maskPhone, normalizePhone } = require("./adminService");
 
+const DEFAULT_PAYOUT_PHONE = "255715296092";
 const FINAL_PAYOUT_STATUSES = new Set(["SUCCESS", "REFUNDED", "REVERSED"]);
 const IN_FLIGHT_PAYOUT_STATUSES = new Set(["QUEUED", "AWAITING_APPROVAL", "PROCESSING", "PREVIEWED", "PENDING"]);
 
@@ -75,7 +80,7 @@ async function syncLegacyPayoutFields(db, payout) {
 }
 
 async function processPayoutRecord(db, payout, phone) {
-  const normalizedPhone = normalizePhone(phone);
+  const normalizedPhone = normalizePhone(phone || DEFAULT_PAYOUT_PHONE);
   const payload = {
     amount: Number(payout.amount),
     phoneNumber: normalizedPhone,
@@ -84,14 +89,21 @@ async function processPayoutRecord(db, payout, phone) {
   };
   const now = Math.floor(Date.now() / 1000);
 
-  await db.query("UPDATE clickpesa_payout SET payout_status = ?, raw_request = ?, updated_at = ? WHERE id = ?", [
-    "PROCESSING",
-    JSON.stringify(payload),
-    now,
-    payout.id,
-  ]);
+  await db.query(
+    "UPDATE clickpesa_payout SET payout_status = ?, phone_number = ?, raw_request = ?, updated_at = ? WHERE id = ?",
+    ["PROCESSING", normalizedPhone, JSON.stringify({ ...payload, phoneNumber: maskPhone(normalizedPhone) }), now, payout.id]
+  ).catch(async () => {
+    // phone_number column may not exist on older Node-created schemas
+    await db.query("UPDATE clickpesa_payout SET payout_status = ?, raw_request = ?, updated_at = ? WHERE id = ?", [
+      "PROCESSING",
+      JSON.stringify({ ...payload, phoneNumber: maskPhone(normalizedPhone) }),
+      now,
+      payout.id,
+    ]);
+  });
 
   try {
+    // 1) Preview — validates recipient/balance/fee (no transfer)
     const preview = await previewMobileMoneyPayout(payload);
     const fee = extractValue(preview, ["fee", "charges", "data.fee"]);
     await db.query(
@@ -99,16 +111,43 @@ async function processPayoutRecord(db, payout, phone) {
       ["PREVIEWED", fee != null ? Number(fee) : null, JSON.stringify(preview), now, payout.id]
     );
 
-    const response = await createMobileMoneyPayout(payload);
+    // 2) Create — initiates Mobile Money transfer
+    let response;
+    try {
+      response = await createMobileMoneyPayout(payload);
+    } catch (createErr) {
+      // On timeout/conflict: query by same orderReference — never create a new reference
+      const statusCode = Number(createErr?.response?.status || createErr?.statusCode || 0);
+      if (statusCode === 409 || createErr?.code === "ECONNABORTED" || /timeout/i.test(String(createErr.message || ""))) {
+        response = await queryPayoutStatus(payload.orderReference);
+      } else {
+        throw createErr;
+      }
+    }
+
     let mapped = mapPayoutStatus(response);
     if (mapped === "SUCCESS") {
       mapped = "PENDING";
     }
-    const provider = extractValue(response, ["provider", "channel", "data.provider"]);
+    const provider = extractValue(response, ["provider", "channel", "channelProvider", "data.provider"]);
     await db.query(
       "UPDATE clickpesa_payout SET payout_status = ?, provider = ?, raw_response = ?, updated_at = ? WHERE id = ?",
       [mapped === "FAILED" ? "FAILED" : "PENDING", provider ? String(provider) : null, JSON.stringify(response), now, payout.id]
     );
+
+    // 3) Reconcile status via GET /payouts/{orderReference}
+    try {
+      const remote = await queryPayoutStatus(payload.orderReference);
+      const remoteMapped = mapPayoutStatus(remote);
+      if (remoteMapped && remoteMapped !== "PENDING") {
+        await db.query(
+          "UPDATE clickpesa_payout SET payout_status = ?, raw_response = ?, updated_at = ? WHERE id = ?",
+          [remoteMapped, JSON.stringify(remote), Math.floor(Date.now() / 1000), payout.id]
+        );
+      }
+    } catch (_) {
+      // keep create response status; cron/sync can reconcile later
+    }
 
     const [rows] = await db.query("SELECT * FROM clickpesa_payout WHERE id = ? LIMIT 1", [payout.id]);
     const updated = rows[0];
@@ -117,16 +156,17 @@ async function processPayoutRecord(db, payout, phone) {
     }
     return updated;
   } catch (error) {
+    const message = String(error?.response?.data?.message || error.message || error);
     await db.query(
       "UPDATE clickpesa_payout SET payout_status = ?, last_error = ?, updated_at = ? WHERE id = ?",
-      ["FAILED", String(error.message || error), now, payout.id]
+      ["FAILED", message, now, payout.id]
     );
     const [rows] = await db.query("SELECT * FROM clickpesa_payout WHERE id = ? LIMIT 1", [payout.id]);
     const updated = rows[0];
     if (updated) {
       await syncLegacyPayoutFields(db, updated);
     }
-    throw error;
+    throw Object.assign(new Error(message), { statusCode: error?.response?.status || 500 });
   }
 }
 
@@ -144,7 +184,7 @@ async function queueOrCreatePayout(db, tx, amount, phone, fromAuto = false) {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const payoutReference = `TIS-PAYOUT-${tx.id}-${now}${Math.floor(Math.random() * 90) + 10}`;
+  const payoutReference = `PAYOUT${new Date().toISOString().slice(0, 10).replace(/-/g, "")}${tx.id}${Math.floor(Math.random() * 900) + 100}`;
   await db.query(
     `INSERT INTO clickpesa_payout
       (payment_id, payout_reference, destination_type, destination_masked, amount, currency, payout_status, retry_count, created_at, updated_at)
@@ -185,10 +225,10 @@ async function maybeQueueAutomaticPayout(tx) {
     return false;
   }
 
-  const phone = getDestinationPhone(settings.encrypted_destination);
-  if (!phone) {
-    return false;
-  }
+  const phone =
+    getDestinationPhone(settings.encrypted_destination) ||
+    process.env.CLICKPESA_DEFAULT_PAYOUT_PHONE ||
+    DEFAULT_PAYOUT_PHONE;
 
   const amount = calculatePayoutAmount(tx, settings);
   if (amount < Number(settings.minimum_amount || 0)) {
@@ -204,6 +244,7 @@ async function maybeQueueAutomaticPayout(tx) {
     payout.id,
   ]);
 
+  // After USSD SUCCESS: preview → create → query (same Autopay bearer token)
   if (delay <= 0) {
     await processPayoutRecord(db, payout, phone);
   }
@@ -218,7 +259,10 @@ async function processPendingAutoPayouts(limit = 5) {
     return { processed: 0 };
   }
 
-  const phone = getDestinationPhone(settings.encrypted_destination);
+  const phone =
+    getDestinationPhone(settings.encrypted_destination) ||
+    process.env.CLICKPESA_DEFAULT_PAYOUT_PHONE ||
+    DEFAULT_PAYOUT_PHONE;
   if (!phone) {
     return { processed: 0 };
   }

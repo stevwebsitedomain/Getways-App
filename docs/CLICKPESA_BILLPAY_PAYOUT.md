@@ -47,32 +47,36 @@ php yii clickpesa/sync-payout-status
 php yii clickpesa/generate-token
 ```
 
-## Environment variables
+## Environment variables (Payout v2)
+
+See full guide: [docs/CLICKPESA_PAYOUT_SETUP.md](CLICKPESA_PAYOUT_SETUP.md)
 
 | Variable | Purpose |
 |----------|---------|
+| `CLICKPESA_BASE_URL` | Default `https://api.clickpesa.com/third-parties` |
 | `CLICKPESA_CLIENT_ID` | API client id |
 | `CLICKPESA_API_KEY` | API key |
-| `CLICKPESA_CHECKSUM_KEY` | Canonical HMAC key |
-| `CLICKPESA_API_BASE_URL` | Default `https://api.clickpesa.com/third-parties` |
-| `TIS_API_UPSTREAM` | Node backend URL — default `https://getways-app.onrender.com` |
-| `BASE_API_URL` | Same as `TIS_API_UPSTREAM` for frontend JS |
-| `BASE_URL` | Public URL for Node webhooks — default `https://getways-app.onrender.com` |
-| `CORS_ORIGINS` | Comma-separated frontend origins allowed by Node CORS |
-| `CLICKPESA_WEBHOOK_TOKEN` | Optional shared webhook token |
-| `CLICKPESA_ENCRYPTION_KEY` | Encrypts payout destination at rest |
-| `CLICKPESA_INTERNAL_API_TOKEN` | Protects control-number / payout-status APIs |
-| `CLICKPESA_AUTO_PAYOUT_ENABLED` | `false` until tests pass |
-| `CLICKPESA_AUTO_PAYOUT_PHONE` | Default `255715296092` |
-| `CLICKPESA_AUTO_PAYOUT_PERCENTAGE` | Default `100` |
-| `CLICKPESA_AUTO_PAYOUT_MINIMUM_AMOUNT` | Default `1000` |
-| `CLICKPESA_AUTO_PAYOUT_DELAY_SECONDS` | Default `60` |
+| `CLICKPESA_CHECKSUM_ENABLED` | `true` when checksum required |
+| `CLICKPESA_CHECKSUM_SECRET` | HMAC secret |
+| `CLICKPESA_WEBHOOK_URL` | Public webhook URL |
+| `CLICKPESA_PAYOUT_ENABLED` | `false` until tested |
+| `CLICKPESA_PAYOUT_TEST_MODE` | `true` in dev — skips real create API |
+| `CLICKPESA_DEFAULT_PAYOUT_PHONE` | Default `255715296092` |
+| `CLICKPESA_HTTP_TIMEOUT_SECONDS` | Default `30` |
+| `CLICKPESA_TOKEN_REFRESH_BEFORE_EXPIRY_SECONDS` | Default `300` |
 
-## Deployment stages
+Legacy aliases still work: `CLICKPESA_API_BASE_URL`, `CLICKPESA_AUTO_PAYOUT_*`, `CLICKPESA_CHECKSUM_KEY`.
 
-1. **TEST MODE** — Auto payout OFF (default). Webhooks saved, no payout sent.
-2. **MANUAL APPROVAL** — Enable auto payout + keep “Require manual approval”.
-3. **LIVE AUTO PAYOUT** — Disable manual approval only after tests pass.
+## Automatic payout after USSD (same credentials — no separate Payout product)
+
+USSD AutoPay uses `AUTOPAY_CLIENT_ID` / `AUTOPAY_API_KEY` to `generate-token`, then:
+
+1. `POST /payouts/preview-mobile-money-payout`
+2. `POST /payouts/create-mobile-money-payout`
+3. `GET /payouts/{orderReference}`
+
+Recipient: `255715296092`. Order references must be **alphanumeric only**.
+
 
 ## Admin UI
 

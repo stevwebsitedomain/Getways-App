@@ -271,8 +271,10 @@ async function getAccountBalance(channel = "default") {
 }
 
 async function previewMobileMoneyPayout(payload) {
-  const token = await getAccessToken("default");
-  const body = withChecksum(payload, "default");
+  // Same Autopay application credentials used for USSD collection — bearer from generate-token.
+  // Do not use a separate "Payout API" product or second API key.
+  const token = await getAccessToken("autopay");
+  const body = withChecksum(payload, "autopay");
   const response = await clickpesaApi.post("/payouts/preview-mobile-money-payout", body, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -283,8 +285,8 @@ async function previewMobileMoneyPayout(payload) {
 }
 
 async function createMobileMoneyPayout(payload) {
-  const token = await getAccessToken("default");
-  const body = withChecksum(payload, "default");
+  const token = await getAccessToken("autopay");
+  const body = withChecksum(payload, "autopay");
   const response = await clickpesaApi.post("/payouts/create-mobile-money-payout", body, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -292,6 +294,31 @@ async function createMobileMoneyPayout(payload) {
     },
   });
   return response.data;
+}
+
+/**
+ * Query a single payout by orderReference.
+ * @see ClickPesa API Explorer — GET /payouts/{orderReference}
+ */
+async function queryPayoutStatus(orderReference) {
+  const token = await getAccessToken("autopay");
+  const ref = encodeURIComponent(String(orderReference || "").trim());
+  if (!ref) {
+    throw new Error("orderReference is required.");
+  }
+  const response = await clickpesaApi.get(`/payouts/${ref}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+  let data = response?.data;
+  if (Array.isArray(data)) {
+    const wanted = String(orderReference || "").trim();
+    const match = data.find((row) => String(row?.orderReference || "") === wanted);
+    data = match || data[0] || {};
+  }
+  return data;
 }
 
 async function createOrderControlNumber(payload) {
@@ -316,5 +343,6 @@ module.exports = {
   createPayloadChecksum,
   previewMobileMoneyPayout,
   createMobileMoneyPayout,
+  queryPayoutStatus,
   createOrderControlNumber,
 };

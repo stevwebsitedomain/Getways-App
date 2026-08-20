@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'bootstrap' => [
+        \common\bootstrap\EnvBootstrap::class,
         \common\bootstrap\MailerBootstrap::class,
     ],
     'aliases' => [
@@ -14,6 +15,7 @@ return [
     'container' => [
         'singletons' => [
             \common\services\ClickPesaService::class => \common\services\ClickPesaService::class,
+            \common\services\ClickPesaPayoutService::class => \common\services\ClickPesaPayoutService::class,
         ],
     ],
     'components' => [

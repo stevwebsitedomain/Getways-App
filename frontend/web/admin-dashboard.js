@@ -507,6 +507,10 @@
       if (result.warning) {
         setBanner("ad-payouts-error", result.warning, "warning", { toast: true });
       }
+      const testBadge = document.getElementById("ad-test-mode-badge");
+      if (testBadge) {
+        testBadge.hidden = !result.testMode;
+      }
       syncPortalCards();
     } catch (error) {
       setAutoPayoutUi(false, "ERROR");
@@ -750,11 +754,28 @@
           <td>
             ${fmtDate(row.updatedAt)}
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+              <button type="button" data-refresh-payout="${row.payoutReference}">Status</button>
               ${row.retryable ? `<button type="button" data-retry-payout="${row.id}">Retry</button>` : ""}
               <button type="button" data-view-payout="${row.id}">View</button>
             </div>
           </td>
         </tr>`).join("") : `<tr><td colspan="8">No automatic payouts have been processed.</td></tr>`;
+    body.querySelectorAll("[data-refresh-payout]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await requestJson("refresh-payout-status", {
+            method: "POST",
+            body: { orderReference: btn.getAttribute("data-refresh-payout") },
+          });
+          await loadPayouts();
+        } catch (error) {
+          setBanner("ad-payouts-error", error.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
     body.querySelectorAll("[data-retry-payout]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         btn.disabled = true;
@@ -781,15 +802,83 @@
     syncPortalCards();
   }
 
+  async function loadPayoutSummary() {
+    try {
+      const result = await requestJson("payout-summary");
+      const counts = result.counts || {};
+      const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(val ?? "0");
+      };
+      set("ad-payout-success", counts.successful);
+      set("ad-payout-pending", counts.pending);
+      set("ad-payout-failed", counts.failed);
+      set("ad-payout-refunded", counts.refunded);
+      set("ad-payout-reversed", counts.reversed);
+      const feesEl = document.getElementById("ad-payout-fees");
+      if (feesEl) feesEl.textContent = `TZS ${new Intl.NumberFormat("en-US").format(Number(result.totalFees || 0))}`;
+      const testBadge = document.getElementById("ad-test-mode-badge");
+      if (testBadge) testBadge.hidden = !result.testMode;
+    } catch (_) {
+      // summary optional when DB/API unavailable
+    }
+  }
+
+  async function openManualPayoutDialog() {
+    const amountStr = window.prompt("Enter payout amount (TZS):", "10000");
+    if (amountStr === null) return;
+    const amount = Number(amountStr);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setBanner("ad-payouts-error", "Invalid amount.", "error");
+      return;
+    }
+    const note = window.prompt("Optional internal note:", "") || "";
+    try {
+      const preview = await requestJson("preview-payout", { method: "POST", body: { amount, note } });
+      const confirmMsg = [
+        `Recipient: ${preview.recipientPhone || "+" + (latestSettings?.displayDestination || "255715296092")}`,
+        preview.recipientName ? `Name: ${preview.recipientName}` : "",
+        `Provider: ${preview.provider || "—"}`,
+        `Amount: TZS ${Number(preview.amount || amount).toLocaleString()}`,
+        `Fee: TZS ${Number(preview.fee || 0).toLocaleString()}`,
+        `Total: TZS ${Number(preview.totalDeduction || amount).toLocaleString()}`,
+        preview.testMode ? "TEST MODE — no real transfer" : "",
+        "",
+        "Confirm payout?",
+      ].filter(Boolean).join("\n");
+      if (!window.confirm(confirmMsg)) return;
+      await requestJson("confirm-payout", {
+        method: "POST",
+        body: { orderReference: preview.orderReference, previewToken: preview.previewToken },
+      });
+      setBanner("ad-payouts-error", preview.testMode ? "TEST MODE payout recorded." : "Payout submitted.", "success", { toast: true });
+      await loadPayouts();
+      await loadPayoutSummary();
+    } catch (error) {
+      setBanner("ad-payouts-error", error.message, "error");
+    }
+  }
+
   async function loadPayouts() {
     const body = document.getElementById("ad-payouts-body");
     body.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
     try {
-      const result = await requestJson("payouts");
+      const [result] = await Promise.all([requestJson("payouts"), loadPayoutSummary()]);
       latestPayoutRows = result.items || [];
+      if (result.summary?.counts) {
+        const c = result.summary.counts;
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = String(val ?? "0"); };
+        set("ad-payout-success", c.successful);
+        set("ad-payout-pending", c.pending);
+        set("ad-payout-failed", c.failed);
+        set("ad-payout-refunded", c.refunded);
+        set("ad-payout-reversed", c.reversed);
+      }
       payoutsPage = 1;
       renderPayoutsTable();
-      setBanner("ad-payouts-error", latestSettings?.warning || "", latestSettings?.warning ? "warning" : "info", { toast: true });
+      if (latestSettings?.warning) {
+        setBanner("ad-payouts-error", latestSettings.warning, "warning");
+      }
     } catch (error) {
       body.innerHTML = `<tr><td colspan="8">No automatic payouts have been processed.</td></tr>`;
       setBanner("ad-payouts-error", error.message);
@@ -1199,6 +1288,7 @@
 
   document.getElementById("ad-refresh")?.addEventListener("click", () => loadAll());
   document.getElementById("ad-balance-refresh")?.addEventListener("click", () => loadBalance({ manual: true }));
+  document.getElementById("ad-manual-payout-open")?.addEventListener("click", () => openManualPayoutDialog());
   document.getElementById("ad-payouts-refresh")?.addEventListener("click", () => loadPayouts());
   document.getElementById("ad-users-refresh")?.addEventListener("click", () => loadUsers());
   document.getElementById("ad-sync-transactions")?.addEventListener("click", () => syncTransactions());
