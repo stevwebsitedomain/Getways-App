@@ -35,25 +35,25 @@ $phoneTopbarTitle = 'AutoPay';
           <article class="bk-transfer-card w-searchable cp-form-card">
             <h2><i class="fa-solid fa-bolt"></i> AutoPay</h2>
             <p class="bk-form-note">USSD push — risiti inachapishwa otomatiki.</p>
-            <form id="autopay-form" class="tis-form">
+            <form id="autopay-form" class="tis-form" autocomplete="off">
               <div class="bk-form-field">
                 <label for="customerPhone"><i class="fa-solid fa-phone"></i> Phone</label>
-                <input type="text" id="customerPhone" value="255765149991" required />
+                <input type="text" id="customerPhone" name="ap_phone" value="" placeholder="2557XXXXXXXX" autocomplete="off" autocapitalize="off" spellcheck="false" required />
               </div>
 
               <div class="bk-form-field">
                 <label for="customerName"><i class="fa-solid fa-user"></i> Name</label>
-                <input type="text" id="customerName" value="Customer" required />
+                <input type="text" id="customerName" name="ap_name" value="" placeholder="Customer name" autocomplete="off" required />
               </div>
 
               <div class="bk-form-field">
                 <label for="description"><i class="fa-solid fa-pen-to-square"></i> Description</label>
-                <input type="text" id="description" value="AutoPay HaloPesa Payment" required />
+                <input type="text" id="description" name="ap_description" value="AutoPay HaloPesa Payment" autocomplete="off" required />
               </div>
 
               <div class="bk-form-field">
                 <label for="amount"><i class="fa-solid fa-money-bill-wave"></i> Amount (TZS)</label>
-                <input type="number" id="amount" min="1" step="1" value="0" placeholder="0" required />
+                <input type="number" id="amount" name="ap_amount" min="1" step="1" value="" placeholder="0" autocomplete="off" required />
               </div>
 
               <div class="total-row">
@@ -82,6 +82,6 @@ $phoneTopbarTitle = 'AutoPay';
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
   <script src="receipt-actions.js?v=2"></script>
   <script src="receipt-slip.js?v=13"></script>
-  <script src="autopay.js?v=4"></script>
+  <script src="autopay.js?v=5"></script>
 </body>
 </html>

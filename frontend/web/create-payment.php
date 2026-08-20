@@ -37,7 +37,7 @@ $phoneTopbarTitle = 'Transfer money';
         <section class="tis-grid">
           <article class="bk-transfer-card w-searchable cp-form-card">
             <h2><i class="fa-solid fa-right-left"></i> Transfer money</h2>
-            <form id="payment-form" class="tis-form">
+            <form id="payment-form" class="tis-form" autocomplete="off">
               <div class="bk-form-field">
                 <label for="custom-product-amount"><i class="fa-solid fa-money-bill-wave"></i> Amount (TZS)</label>
                 <input type="number" id="custom-product-amount" min="0" step="1" value="0" placeholder="0" />
@@ -45,12 +45,12 @@ $phoneTopbarTitle = 'Transfer money';
 
               <div class="bk-form-field">
                 <label for="customerPhone"><i class="fa-solid fa-phone"></i> From (Your phone)</label>
-                <input type="text" id="customerPhone" value="255765149991" required />
+                <input type="text" id="customerPhone" name="cp_phone" value="" placeholder="2557XXXXXXXX" autocomplete="off" autocapitalize="off" spellcheck="false" required />
               </div>
 
               <div class="bk-form-field">
                 <label for="customerName"><i class="fa-solid fa-user"></i> To (Recipient)</label>
-                <input type="text" id="customerName" value="Customer" required />
+                <input type="text" id="customerName" name="cp_name" value="" placeholder="Recipient name" autocomplete="off" required />
               </div>
 
               <label for="customerEmail" class="w-visually-hidden">Customer Email</label>
