@@ -43,60 +43,232 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
   <link rel="stylesheet" href="admin-dashboard.css?v=<?php echo $cssV; ?>" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
 </head>
-<body class="ad-body">
-  <header class="ad-top">
-    <div>
-      <p class="ad-eyebrow">Getway Admin</p>
-      <h1>Payout &amp; Collections</h1>
-    </div>
-    <div class="ad-top-actions">
-      <button type="button" class="ad-ga-open" id="ad-ga-open">
-        <i class="fa-solid fa-circle-nodes" aria-hidden="true"></i>
-        <span>General Analysis</span>
+<body class="ad-body ad-portal">
+  <div class="ad-shell">
+    <aside class="ad-sidebar" id="ad-sidebar">
+      <div class="ad-sidebar-head">
+        <p class="ad-sidebar-brand">Getway</p>
+        <button type="button" class="ad-sidebar-toggle" id="ad-sidebar-close" aria-label="Close menu">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <button type="button" class="ad-sidebar-catalogue is-active" data-ad-nav="home">
+        <i class="fa-solid fa-folder-open"></i>
+        <span>Service catalogue</span>
       </button>
-      <span class="ad-user"><?php echo $authName; ?></span>
-      <a class="ad-link" href="part-two.php">User wallet</a>
-      <a class="ad-link ad-link--danger" href="logout.php">Logout</a>
-    </div>
-  </header>
+      <nav class="ad-sidebar-nav" aria-label="Admin modules">
+        <p class="ad-sidebar-label">COLLECTIONS</p>
+        <button type="button" class="ad-sidebar-link" data-ad-target="analytics"><i class="fa-solid fa-chart-line"></i> Payment analysis</button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="control-number"><i class="fa-solid fa-file-invoice-dollar"></i> Control number</button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="transactions"><i class="fa-solid fa-receipt"></i> Transactions</button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="recent"><i class="fa-solid fa-clock-rotate-left"></i> Recent collections</button>
+        <p class="ad-sidebar-label">PAYOUTS</p>
+        <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest"><i class="fa-solid fa-mobile-screen"></i> Payout destination</button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="payouts"><i class="fa-solid fa-money-bill-transfer"></i> Automatic payouts</button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="users"><i class="fa-solid fa-users"></i> Registered users</button>
+      </nav>
+      <div class="ad-sidebar-foot">
+        <span class="ad-sidebar-user"><?php echo $authName; ?></span>
+        <a class="ad-sidebar-link ad-sidebar-link--quiet" href="part-two.php">User wallet</a>
+        <a class="ad-sidebar-link ad-sidebar-link--danger" href="logout.php">Logout</a>
+      </div>
+    </aside>
+    <div class="ad-sidebar-backdrop" id="ad-sidebar-backdrop" hidden></div>
 
-  <main class="ad-main">
-    <p id="ad-db-banner" class="ad-db-banner" hidden></p>
+    <div class="ad-main-wrap">
+      <header class="ad-portal-top">
+        <button type="button" class="ad-menu-btn" id="ad-menu-open" aria-label="Open menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="ad-portal-top-text">
+          <p class="ad-eyebrow">Getway Admin</p>
+          <h1 id="ad-portal-title">Service catalogue</h1>
+        </div>
+        <div class="ad-top-actions">
+          <button type="button" class="ad-ga-open" id="ad-ga-open">
+            <i class="fa-solid fa-circle-nodes" aria-hidden="true"></i>
+            <span>General Analysis</span>
+          </button>
+          <button type="button" class="ad-refresh" id="ad-refresh">Refresh all</button>
+        </div>
+      </header>
 
-    <section class="ad-stats" id="ad-stats">
-      <article class="ad-stat ad-stat--money">
-        <p>Available ClickPesa Balance</p>
-        <strong id="stat-balance">Loading...</strong>
-        <small id="stat-balance-updated">Last updated: --</small>
-      </article>
-      <article class="ad-stat ad-stat--money">
-        <p>Money in (paid)</p>
-        <strong id="stat-incoming">TZS 0</strong>
-        <small id="stat-incoming-period">All time</small>
-      </article>
-      <article class="ad-stat ad-stat--compact">
-        <p>Success</p>
-        <strong id="stat-success">0</strong>
-      </article>
-      <article class="ad-stat ad-stat--compact">
-        <p>Pending</p>
-        <strong id="stat-pending">0</strong>
-      </article>
-      <article class="ad-stat ad-stat--compact">
-        <p>Failed</p>
-        <strong id="stat-failed">0</strong>
-      </article>
-      <article class="ad-stat ad-stat--toggle" id="stat-auto-card" role="button" tabindex="0" title="Bofya kubadilisha auto payout">
-        <p>Auto payout <span class="ad-hint">(bofya)</span></p>
-        <strong id="stat-auto" class="ad-auto-off">OFF</strong>
-        <small id="stat-auto-mode">TEST</small>
-      </article>
-      <article class="ad-stat">
-        <p>Destination</p>
-        <strong id="stat-dest">2557******92</strong>
-      </article>
-    </section>
+      <main class="ad-main">
+        <p id="ad-db-banner" class="ad-db-banner" hidden></p>
 
+        <!-- Hidden stats — JS updates these; portal cards mirror values -->
+        <section class="ad-stats ad-stats--hidden" id="ad-stats" aria-hidden="true">
+          <article class="ad-stat ad-stat--money">
+            <p>Available ClickPesa Balance</p>
+            <strong id="stat-balance">Loading...</strong>
+            <small id="stat-balance-updated">Last updated: --</small>
+          </article>
+          <article class="ad-stat ad-stat--money">
+            <p>Money in (paid)</p>
+            <strong id="stat-incoming">TZS 0</strong>
+            <small id="stat-incoming-period">All time</small>
+          </article>
+          <article class="ad-stat ad-stat--compact">
+            <p>Success</p>
+            <strong id="stat-success">0</strong>
+          </article>
+          <article class="ad-stat ad-stat--compact">
+            <p>Pending</p>
+            <strong id="stat-pending">0</strong>
+          </article>
+          <article class="ad-stat ad-stat--compact">
+            <p>Failed</p>
+            <strong id="stat-failed">0</strong>
+          </article>
+          <article class="ad-stat ad-stat--toggle" id="stat-auto-card" role="button" tabindex="0" title="Bofya kubadilisha auto payout">
+            <p>Auto payout</p>
+            <strong id="stat-auto" class="ad-auto-off">OFF</strong>
+            <small id="stat-auto-mode">TEST</small>
+          </article>
+          <article class="ad-stat">
+            <p>Destination</p>
+            <strong id="stat-dest">2557******92</strong>
+          </article>
+        </section>
+
+        <!-- Portal home — e-services style cards with live data -->
+        <section class="ad-portal-home" id="ad-view-home">
+          <div class="ad-portal-block">
+            <div class="ad-portal-block-head">
+              <h2>E-services for collections</h2>
+              <div class="ad-portal-illus" aria-hidden="true">
+                <i class="fa-solid fa-wallet"></i>
+              </div>
+            </div>
+            <div class="ad-service-grid">
+              <button type="button" class="ad-service-card" data-ad-target="analytics">
+                <span class="ad-service-ico"><i class="fa-solid fa-chart-pie"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Payment analysis</span>
+                  <strong class="ad-service-value" id="ad-portal-incoming">TZS 0</strong>
+                  <small id="ad-portal-period">All time</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="control-number">
+                <span class="ad-service-ico"><i class="fa-solid fa-hashtag"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Create control number</span>
+                  <strong class="ad-service-value" id="ad-portal-controls">—</strong>
+                  <small>BillPay collections</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="transactions">
+                <span class="ad-service-ico"><i class="fa-solid fa-circle-check"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Successful payments</span>
+                  <strong class="ad-service-value" id="ad-portal-success">0</strong>
+                  <small>Paid transactions</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="transactions">
+                <span class="ad-service-ico"><i class="fa-solid fa-hourglass-half"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Pending payments</span>
+                  <strong class="ad-service-value" id="ad-portal-pending">0</strong>
+                  <small>Awaiting payment</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="transactions">
+                <span class="ad-service-ico"><i class="fa-solid fa-circle-xmark"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Failed payments</span>
+                  <strong class="ad-service-value" id="ad-portal-failed">0</strong>
+                  <small>Unsuccessful attempts</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="recent">
+                <span class="ad-service-ico"><i class="fa-solid fa-receipt"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Recent collections</span>
+                  <strong class="ad-service-value" id="ad-portal-recent">0</strong>
+                  <small id="ad-portal-recent-sub">Latest records</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-action="sync">
+                <span class="ad-service-ico"><i class="fa-solid fa-rotate"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Sync ClickPesa</span>
+                  <strong class="ad-service-value">Sync</strong>
+                  <small>Update transaction records</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="transactions">
+                <span class="ad-service-ico"><i class="fa-solid fa-building-columns"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">ClickPesa balance</span>
+                  <strong class="ad-service-value" id="ad-portal-balance">Loading...</strong>
+                  <small id="ad-portal-balance-updated">Last updated: --</small>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div class="ad-portal-block">
+            <div class="ad-portal-block-head">
+              <h2>E-services for payouts</h2>
+              <div class="ad-portal-illus ad-portal-illus--biz" aria-hidden="true">
+                <i class="fa-solid fa-briefcase"></i>
+              </div>
+            </div>
+            <div class="ad-service-grid">
+              <button type="button" class="ad-service-card" data-ad-target="payout-dest">
+                <span class="ad-service-ico"><i class="fa-solid fa-mobile-screen-button"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Payout destination</span>
+                  <strong class="ad-service-value" id="ad-portal-dest">—</strong>
+                  <small>Mobile money number</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" id="ad-portal-auto-card">
+                <span class="ad-service-ico"><i class="fa-solid fa-bolt"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Auto payout</span>
+                  <strong class="ad-service-value" id="ad-portal-auto">OFF</strong>
+                  <small id="ad-portal-auto-mode">TEST</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="payouts">
+                <span class="ad-service-ico"><i class="fa-solid fa-money-bill-transfer"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Automatic payouts</span>
+                  <strong class="ad-service-value" id="ad-portal-payouts">0</strong>
+                  <small>Payout history</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="users">
+                <span class="ad-service-ico"><i class="fa-solid fa-users"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Registered users</span>
+                  <strong class="ad-service-value" id="ad-portal-users">0</strong>
+                  <small>Wallet accounts</small>
+                </span>
+              </button>
+              <button type="button" class="ad-service-card" data-ad-target="analytics">
+                <span class="ad-service-ico"><i class="fa-solid fa-chart-column"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">Transaction trend</span>
+                  <strong class="ad-service-value" id="ad-portal-trend">14 days</strong>
+                  <small>Charts &amp; breakdown</small>
+                </span>
+              </button>
+              <a class="ad-service-card ad-service-card--link" href="autopay.php">
+                <span class="ad-service-ico"><i class="fa-solid fa-wifi"></i></span>
+                <span class="ad-service-body">
+                  <span class="ad-service-title">AutoPay USSD</span>
+                  <strong class="ad-service-value">Open</strong>
+                  <small>POS &amp; mobile push</small>
+                </span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <div class="ad-detail-sections" id="ad-detail-sections">
     <section class="ad-grid">
       <div class="ad-card" id="ad-section-analytics">
         <div class="ad-card-head ad-card-head--stack">
@@ -268,7 +440,10 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       <ul class="ad-recent" id="ad-recent"></ul>
       <nav class="ad-pager" id="ad-recent-pager" hidden aria-label="Recent collections pages"></nav>
     </section>
-  </main>
+        </div>
+      </main>
+    </div>
+  </div>
 
   <div id="ad-ga-overlay" class="ad-ga" hidden aria-hidden="true" style="--ad-ga-bg: url('<?php echo $gaBgUrl; ?>');">
     <div class="ad-ga-bg" aria-hidden="true"></div>

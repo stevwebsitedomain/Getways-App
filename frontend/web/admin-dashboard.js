@@ -332,6 +332,7 @@
     el.classList.toggle("ad-auto-off", !enabled);
     const modeEl = document.getElementById("stat-auto-mode");
     if (modeEl) modeEl.textContent = mode || "TEST";
+    syncPortalCards();
   }
 
   function drawPie(el, pie) {
@@ -485,6 +486,7 @@
       if (valueEl) valueEl.textContent = `${esc(result.currency || "TZS")} ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(result.balance || 0))}`;
       if (updatedEl) updatedEl.textContent = `Last updated: ${fmtDate(result.lastUpdated)}`;
       setBanner("ad-db-banner", "");
+      syncPortalCards();
     } catch (error) {
       if (valueEl) valueEl.textContent = "Balance unavailable";
       if (updatedEl) updatedEl.textContent = "Last updated: --";
@@ -505,6 +507,7 @@
       if (result.warning) {
         setBanner("ad-payouts-error", result.warning, "warning", { toast: true });
       }
+      syncPortalCards();
     } catch (error) {
       setAutoPayoutUi(false, "ERROR");
       setBanner("ad-payouts-error", error.message, "error", { toast: true });
@@ -540,6 +543,7 @@
       recentPage = page;
       renderRecentCollections();
     });
+    syncPortalCards();
   }
 
   async function loadStatement() {
@@ -561,6 +565,7 @@
       renderRecentCollections();
       setBanner("ad-statement-error", "");
       setBanner("ad-recent-error", "");
+      syncPortalCards();
     } catch (error) {
       drawTrend(document.getElementById("ad-trend"), []);
       drawPie(document.getElementById("ad-pie"), {});
@@ -705,6 +710,7 @@
       controlsPage = page;
       renderControlsTable();
     });
+    syncPortalCards();
   }
 
   async function loadControls() {
@@ -772,6 +778,7 @@
       payoutsPage = page;
       renderPayoutsTable();
     });
+    syncPortalCards();
   }
 
   async function loadPayouts() {
@@ -808,6 +815,7 @@
       usersPage = page;
       renderUsersTable();
     });
+    syncPortalCards();
   }
 
   async function loadUsers() {
@@ -952,6 +960,114 @@
     }
   }
 
+  function syncPortalCards() {
+    const map = [
+      ["stat-balance", "ad-portal-balance"],
+      ["stat-balance-updated", "ad-portal-balance-updated"],
+      ["stat-incoming", "ad-portal-incoming"],
+      ["stat-incoming-period", "ad-portal-period"],
+      ["stat-success", "ad-portal-success"],
+      ["stat-pending", "ad-portal-pending"],
+      ["stat-failed", "ad-portal-failed"],
+      ["stat-dest", "ad-portal-dest"],
+      ["stat-auto", "ad-portal-auto"],
+      ["stat-auto-mode", "ad-portal-auto-mode"],
+    ];
+    map.forEach(([fromId, toId]) => {
+      const from = document.getElementById(fromId);
+      const to = document.getElementById(toId);
+      if (from && to) {
+        to.textContent = from.textContent || "";
+        if (fromId === "stat-auto") {
+          to.className = "ad-service-value " + (from.className || "");
+        }
+      }
+    });
+    const recentSub = document.getElementById("ad-portal-recent-sub");
+    if (recentSub) {
+      recentSub.textContent = `${latestRecentRows.length} record${latestRecentRows.length === 1 ? "" : "s"}`;
+    }
+    document.getElementById("ad-portal-recent").textContent = String(latestRecentRows.length);
+    document.getElementById("ad-portal-controls").textContent = String(latestControlRows.length);
+    document.getElementById("ad-portal-payouts").textContent = String(latestPayoutRows.length);
+    document.getElementById("ad-portal-users").textContent = String(latestUserRows.length);
+  }
+
+  const PORTAL_SECTION_TITLES = {
+    home: "Service catalogue",
+    analytics: "Payment analysis",
+    "control-number": "Create control number",
+    transactions: "Transactions",
+    "payout-dest": "Payout destination",
+    payouts: "Automatic payouts",
+    users: "Registered users",
+    recent: "Recent collections",
+  };
+
+  function scrollToPortalSection(key) {
+    const idMap = {
+      analytics: "ad-section-analytics",
+      "control-number": "ad-section-control-number",
+      transactions: "ad-section-transactions",
+      "payout-dest": "ad-section-payout-dest",
+      payouts: "ad-section-payouts",
+      users: "ad-section-users",
+      recent: "ad-section-recent",
+    };
+    const el = document.getElementById(idMap[key] || "");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const titleEl = document.getElementById("ad-portal-title");
+    if (titleEl && PORTAL_SECTION_TITLES[key]) {
+      titleEl.textContent = PORTAL_SECTION_TITLES[key];
+    }
+    document.querySelectorAll(".ad-sidebar-link[data-ad-target]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.adTarget === key);
+    });
+    document.querySelector(".ad-sidebar-catalogue")?.classList.toggle("is-active", false);
+    closeSidebar();
+  }
+
+  function showPortalHome() {
+    const home = document.getElementById("ad-view-home");
+    if (home) home.scrollIntoView({ behavior: "smooth", block: "start" });
+    const titleEl = document.getElementById("ad-portal-title");
+    if (titleEl) titleEl.textContent = PORTAL_SECTION_TITLES.home;
+    document.querySelector(".ad-sidebar-catalogue")?.classList.add("is-active");
+    document.querySelectorAll(".ad-sidebar-link[data-ad-target]").forEach((btn) => btn.classList.remove("is-active"));
+    closeSidebar();
+  }
+
+  function closeSidebar() {
+    document.getElementById("ad-sidebar")?.classList.remove("is-open");
+    const backdrop = document.getElementById("ad-sidebar-backdrop");
+    if (backdrop) backdrop.hidden = true;
+  }
+
+  function openSidebar() {
+    document.getElementById("ad-sidebar")?.classList.add("is-open");
+    const backdrop = document.getElementById("ad-sidebar-backdrop");
+    if (backdrop) backdrop.hidden = false;
+  }
+
+  function bindPortalNavigation() {
+    document.querySelector(".ad-sidebar-catalogue")?.addEventListener("click", showPortalHome);
+    document.querySelectorAll(".ad-sidebar-link[data-ad-target]").forEach((btn) => {
+      btn.addEventListener("click", () => scrollToPortalSection(btn.dataset.adTarget || ""));
+    });
+    document.querySelectorAll(".ad-service-card[data-ad-target]").forEach((btn) => {
+      btn.addEventListener("click", () => scrollToPortalSection(btn.dataset.adTarget || ""));
+    });
+    document.querySelectorAll(".ad-service-card[data-ad-action='sync']").forEach((btn) => {
+      btn.addEventListener("click", () => syncTransactions());
+    });
+    document.getElementById("ad-portal-auto-card")?.addEventListener("click", () => toggleAutoPayout());
+    document.getElementById("ad-menu-open")?.addEventListener("click", openSidebar);
+    document.getElementById("ad-sidebar-close")?.addEventListener("click", closeSidebar);
+    document.getElementById("ad-sidebar-backdrop")?.addEventListener("click", closeSidebar);
+  }
+
   function bindGeneralAnalysis() {
     const overlay = document.getElementById("ad-ga-overlay");
     const openBtn = document.getElementById("ad-ga-open");
@@ -1081,6 +1197,7 @@
   document.getElementById("ad-payouts-refresh")?.insertAdjacentHTML("afterend", ' <button type="button" class="ad-refresh" id="ad-payouts-export">Export CSV</button>');
   document.getElementById("ad-payouts-export")?.addEventListener("click", exportPayoutCsv);
   bindGeneralAnalysis();
+  bindPortalNavigation();
 
   loadAll().catch((error) => {
     setBanner("ad-db-banner", error.message, "error", { toast: true });
