@@ -1017,7 +1017,10 @@
     document.body.classList.add("ad-view-detail");
     document.body.classList.remove("ad-view-home");
     const detailWrap = document.getElementById("ad-detail-sections");
-    if (detailWrap) detailWrap.classList.remove("is-collapsed");
+    if (detailWrap) {
+      detailWrap.classList.remove("is-collapsed");
+      detailWrap.hidden = false;
+    }
     const el = document.getElementById(idMap[key] || "");
     if (el) {
       window.setTimeout(() => {
@@ -1039,7 +1042,10 @@
     document.body.classList.remove("ad-view-detail");
     document.body.classList.add("ad-view-home");
     const detailWrap = document.getElementById("ad-detail-sections");
-    if (detailWrap) detailWrap.classList.add("is-collapsed");
+    if (detailWrap) {
+      detailWrap.classList.add("is-collapsed");
+      detailWrap.hidden = true;
+    }
     const home = document.getElementById("ad-view-home");
     if (home) home.scrollIntoView({ behavior: "smooth", block: "start" });
     const titleEl = document.getElementById("ad-portal-title");
@@ -1214,6 +1220,11 @@
   bindGeneralAnalysis();
   bindPortalNavigation();
   document.body.classList.add("ad-view-home");
+  const detailOnLoad = document.getElementById("ad-detail-sections");
+  if (detailOnLoad) {
+    detailOnLoad.classList.add("is-collapsed");
+    detailOnLoad.hidden = true;
+  }
 
   loadAll().catch((error) => {
     setBanner("ad-db-banner", error.message, "error", { toast: true });

@@ -45,6 +45,26 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="admin-dashboard.css?v=<?php echo $cssV; ?>" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+  <!-- Portal layout v2 — inline so production cannot show stale dark dashboard -->
+  <style id="ad-portal-critical">
+    body.ad-body.ad-portal{background:#eef2f7!important;color:#1a1a2e!important;background-image:none!important}
+    body.ad-body.ad-portal .ad-top{display:none!important}
+    body.ad-body.ad-portal .ad-stats:not(.ad-stats--hidden){display:none!important}
+    body.ad-body.ad-portal .ad-detail-sections.is-collapsed{display:none!important}
+    body.ad-body.ad-portal.ad-view-detail .ad-portal-home{display:none!important}
+    body.ad-body.ad-portal.ad-view-detail .ad-detail-sections{display:grid!important}
+    .ad-shell{display:flex;min-height:100svh}
+    .ad-sidebar{width:260px;flex-shrink:0;background:linear-gradient(180deg,#0000a0 0%,#001a72 100%);color:#fff;display:flex;flex-direction:column;padding:20px 0 16px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto}
+    .ad-main-wrap{flex:1;margin-left:260px;min-width:0;display:flex;flex-direction:column}
+    .ad-portal-top{position:sticky;top:0;z-index:200;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#eef2f7;border-bottom:1px solid #d8dee8}
+    .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#eef2f7}
+    .ad-portal-home{display:grid!important;gap:28px}
+    .ad-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .ad-service-card{display:flex;align-items:flex-start;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:88px}
+    .ad-service-title{font-size:.88rem;font-weight:700;color:#0054a6}
+    .ad-service-value{font-size:1.05rem;font-weight:800;color:#1a1a2e}
+    @media(max-width:900px){.ad-sidebar{transform:translateX(-100%)}.ad-sidebar.is-open{transform:translateX(0)}.ad-main-wrap{margin-left:0}.ad-menu-btn{display:grid!important;place-items:center;width:40px;height:40px;border:1px solid #c5cdd8;border-radius:8px;background:#fff;color:#0054a6;cursor:pointer}.ad-service-grid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body class="ad-body ad-portal ad-view-home">
   <div class="ad-shell">
@@ -271,7 +291,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
           </div>
         </section>
 
-        <div class="ad-detail-sections is-collapsed" id="ad-detail-sections">
+        <div class="ad-detail-sections is-collapsed" id="ad-detail-sections" hidden>
     <section class="ad-grid">
       <div class="ad-card" id="ad-section-analytics">
         <div class="ad-card-head ad-card-head--stack">
@@ -382,8 +402,20 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
 
     <section class="ad-card" id="ad-section-payouts">
       <div class="ad-card-head">
-        <h2>Automatic payouts</h2>
-        <button type="button" class="ad-refresh" id="ad-payouts-refresh">Refresh</button>
+        <h2>Payout dashboard</h2>
+        <div class="ad-card-actions">
+          <span id="ad-test-mode-badge" class="ad-badge ad-badge--warn" hidden>TEST MODE</span>
+          <button type="button" class="ad-btn ad-btn--primary" id="ad-manual-payout-open">Manual payout</button>
+          <button type="button" class="ad-refresh" id="ad-payouts-refresh">Refresh</button>
+        </div>
+      </div>
+      <div class="ad-stats ad-stats--payout" id="ad-payout-stats">
+        <article class="ad-stat ad-stat--compact"><p>Successful</p><strong id="ad-payout-success">0</strong></article>
+        <article class="ad-stat ad-stat--compact"><p>Pending</p><strong id="ad-payout-pending">0</strong></article>
+        <article class="ad-stat ad-stat--compact"><p>Failed</p><strong id="ad-payout-failed">0</strong></article>
+        <article class="ad-stat ad-stat--compact"><p>Refunded</p><strong id="ad-payout-refunded">0</strong></article>
+        <article class="ad-stat ad-stat--compact"><p>Reversed</p><strong id="ad-payout-reversed">0</strong></article>
+        <article class="ad-stat ad-stat--money"><p>Total fees</p><strong id="ad-payout-fees">TZS 0</strong></article>
       </div>
       <p class="ad-note">Configure the real destination in settings. Only the masked destination is shown here.</p>
       <p id="ad-payouts-error" class="ad-db-banner" hidden></p>
