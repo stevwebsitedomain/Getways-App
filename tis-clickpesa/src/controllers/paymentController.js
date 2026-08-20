@@ -648,27 +648,31 @@ async function getAutoPayStatus(req, res, next) {
         result = await queryPaymentStatus(orderReference, "autopay");
         mapped = mapAutoPayStatus(result.status);
       } catch (queryErr) {
-        // If ClickPesa query fails, keep PENDING (or DB) instead of hard-failing the poller.
-        console.warn("getAutoPayStatus ClickPesa query failed:", queryErr.message);
+        const statusCode = Number(queryErr?.response?.status || queryErr?.statusCode || 0);
+        const apiMessage = String(
+          queryErr?.response?.data?.message || queryErr.message || "ClickPesa status query failed"
+        );
+        console.warn("getAutoPayStatus ClickPesa query failed:", apiMessage);
         mapped = dbRow ? dbRow.status : "PENDING";
-        result.message = queryErr.message || "ClickPesa status query failed";
+        result.message = apiMessage;
+        result.rateLimited = statusCode === 429 || /daily api limit|429/i.test(apiMessage);
       }
     }
 
     const amountNum = Number(result.amount || previous?.amount || dbRow?.amount || 0);
 
-      rememberPayment({
-        id: orderReference,
-        orderReference,
-        amount: amountNum > 0 ? amountNum : Number(previous?.amount || 0),
-        status: mapped === "PENDING" ? "PENDING" : mapped,
-        phone: String(result.phone || previous?.phone || dbRow?.phone || "").trim(),
-        customerName: String(previous?.customerName || "").trim(),
-        channel: "autopay",
-        paymentMode: "ussd-push",
-        createdAt: previous?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+    rememberPayment({
+      id: orderReference,
+      orderReference,
+      amount: amountNum > 0 ? amountNum : Number(previous?.amount || 0),
+      status: mapped === "PENDING" ? "PENDING" : mapped,
+      phone: String(result.phone || previous?.phone || dbRow?.phone || "").trim(),
+      customerName: String(previous?.customerName || "").trim(),
+      channel: "autopay",
+      paymentMode: "ussd-push",
+      createdAt: previous?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
 
     if (mapped === "SUCCESS") {
       void finalizeSuccessfulPayment(
@@ -697,6 +701,7 @@ async function getAutoPayStatus(req, res, next) {
       phone: result.phone || previous?.phone || dbRow?.phone || "",
       mobileChannel: result.channelName || "",
       message: result.message || "",
+      rateLimited: Boolean(result.rateLimited),
       clickpesaResponse: result.raw,
     });
   } catch (error) {

@@ -13,8 +13,9 @@ const amountEl = document.getElementById("autopayAmount");
 const descriptionEl = document.getElementById("autopayDescription");
 const customerNameEl = document.getElementById("autopayName");
 
-const POLL_INTERVAL_MS = 2500;
-const POLL_MAX_MS = 180000; // 3 minutes — customer may take time on PIN
+const POLL_INTERVAL_MS = 5000; // fewer ClickPesa status calls (daily KYC limit is 100)
+const POLL_MAX_MS = 240000; // 4 minutes
+const POLL_INTERVAL_RATE_LIMIT_MS = 15000;
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US", {
@@ -128,6 +129,7 @@ function showReceipt(kind, data) {
 
 async function pollPaymentStatus(orderReference, fallbackAmount, fallbackPhone) {
   const started = Date.now();
+  let intervalMs = POLL_INTERVAL_MS;
   showWaitSwal(
     "Waiting for PIN…",
     '<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Customer should enter PIN on the phone.<br>We will show the receipt when done.</p>'
@@ -141,6 +143,13 @@ async function pollPaymentStatus(orderReference, fallbackAmount, fallbackPhone) 
       );
       const data = await readResponsePayload(response);
       if (response.ok) {
+        if (data.rateLimited) {
+          intervalMs = POLL_INTERVAL_RATE_LIMIT_MS;
+          showWaitSwal(
+            "Checking payment…",
+            '<p style="margin:0.35rem 0 0;font-size:0.9rem;font-weight:600;color:#b45309">ClickPesa API daily limit reached. Waiting longer between checks. Complete KYC on ClickPesa to remove the 100/day limit.</p>'
+          );
+        }
         const status = String(data.status || data.rawStatus || "")
           .trim()
           .toUpperCase()
@@ -185,7 +194,7 @@ async function pollPaymentStatus(orderReference, fallbackAmount, fallbackPhone) 
     } catch (_) {
       /* keep polling */
     }
-    await new Promise((r) => window.setTimeout(r, POLL_INTERVAL_MS));
+    await new Promise((r) => window.setTimeout(r, intervalMs));
   }
 
   dismissWaitSwal();
@@ -196,7 +205,7 @@ async function pollPaymentStatus(orderReference, fallbackAmount, fallbackPhone) 
       html: `<p style="margin:0;font-weight:600;color:#334155">No final status yet for <strong>${escapeHtml(
         orderReference
       )}</strong>.</p>
-      <p style="margin:8px 0 0;font-size:0.85rem;color:#64748b">Customer may still be entering PIN, or the push timed out. Try again if needed.</p>`,
+      <p style="margin:8px 0 0;font-size:0.85rem;color:#64748b">Payment may have succeeded on the phone, but ClickPesa status could not be confirmed (timeout or API daily limit). Check ClickPesa dashboard / complete KYC, then use admin Withdraw if needed.</p>`,
       confirmButtonText: "OK",
     });
   }
