@@ -524,6 +524,18 @@ if ($action === 'resend-payment' && $method === 'POST') {
     }, '/api/clickpesa/resend-payment', 'resend-payment');
 }
 
+if ($action === 'delete-payment' && $method === 'POST') {
+    adminHandle(static function () {
+        $body = readJsonBody();
+        $id = (int) ($body['id'] ?? $body['paymentId'] ?? 0);
+        if ($id <= 0) {
+            throw new yii\web\BadRequestHttpException('Payment id is required.');
+        }
+
+        return adminClickPesa()->deletePayment($id);
+    }, '/api/clickpesa/delete-payment', 'delete-payment');
+}
+
 if ($action === 'sync-transactions' && $method === 'POST') {
     adminHandle(static function () {
         $body = readJsonBody();

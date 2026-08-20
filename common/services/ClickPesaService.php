@@ -330,6 +330,53 @@ class ClickPesaService extends Component
         ];
     }
 
+    /**
+     * Remove a payment/transaction from the admin dashboard (local DB only).
+     *
+     * @return array{success:bool,message:string,id:int}
+     */
+    public function deletePayment(int $paymentId): array
+    {
+        $tx = ClickPesaTransaction::findOne($paymentId);
+        if ($tx === null) {
+            throw new NotFoundHttpException('Payment not found.');
+        }
+
+        $id = (int) $tx->id;
+        $reference = (string) $tx->order_reference;
+
+        $dbTx = Yii::$app->db->beginTransaction();
+        try {
+            /** @var ClickPesaPayout[] $payouts */
+            $payouts = ClickPesaPayout::find()->where(['payment_id' => $id])->all();
+            foreach ($payouts as $payout) {
+                ClickPesaPayoutAuditLog::deleteAll(['payout_id' => (int) $payout->id]);
+                if ($payout->delete() === false) {
+                    throw new ServerErrorHttpException('Failed to delete related payout.');
+                }
+            }
+
+            if ($tx->delete() === false) {
+                throw new ServerErrorHttpException('Failed to delete payment.');
+            }
+            $dbTx->commit();
+        } catch (\Throwable $e) {
+            $dbTx->rollBack();
+            throw $e;
+        }
+
+        $this->log('info', 'Payment deleted from admin dashboard', [
+            'paymentId' => $id,
+            'orderReference' => $reference,
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Transaction deleted.',
+            'id' => $id,
+        ];
+    }
+
     public function listPayouts(int $limit = 100, array $filters = []): array
     {
         $query = ClickPesaPayout::find()->orderBy(['id' => SORT_DESC]);

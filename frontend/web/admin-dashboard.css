@@ -312,7 +312,7 @@ body.ad-body {
 }
 
 .ad-pie {
-  min-height: 220px;
+  min-height: 0;
 }
 
 .ad-card-head--stack {
@@ -478,7 +478,7 @@ body.ad-body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   width: 100%;
-  max-width: 168px;
+  max-width: 188px;
 }
 
 .ad-btn {
@@ -1451,6 +1451,7 @@ body.ad-portal.ad-body {
   overflow-x: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  transition: width 0.2s ease;
 }
 
 .ad-sidebar::-webkit-scrollbar {
@@ -1466,11 +1467,34 @@ body.ad-portal.ad-body {
   padding: 0 18px 16px;
 }
 
+.ad-sidebar-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ad-sidebar-brand {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: 0.02em;
+}
+
+.ad-sidebar-minimize {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.2s;
+}
+
+.ad-sidebar-minimize:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .ad-sidebar-toggle {
@@ -1550,17 +1574,37 @@ body.ad-portal.ad-body {
   min-width: 0;
 }
 
-.ad-sidebar-link i {
+.ad-sidebar-link i:not(.ad-nav-ico) {
   width: 18px;
   opacity: 0.85;
   font-size: 0.82rem;
 }
+
+.ad-nav-ico {
+  width: 1.15rem;
+  text-align: center;
+  font-size: 0.92rem;
+  opacity: 1 !important;
+  flex-shrink: 0;
+}
+
+.ad-nav-ico--catalogue { color: #fbbf24; }
+.ad-nav-ico--chart { color: #38bdf8; }
+.ad-nav-ico--invoice { color: #facc15; }
+.ad-nav-ico--receipt { color: #4ade80; }
+.ad-nav-ico--recent { color: #c084fc; }
+.ad-nav-ico--mobile { color: #fb923c; }
+.ad-nav-ico--money { color: #34d399; }
+.ad-nav-ico--users { color: #f472b6; }
+.ad-nav-ico--wallet { color: #60a5fa; }
+.ad-nav-ico--logout { color: #f87171; }
 
 .ad-sidebar-chevron {
   width: auto !important;
   font-size: 0.65rem !important;
   opacity: 0.45 !important;
   margin-left: auto;
+  color: rgba(255, 255, 255, 0.7) !important;
 }
 
 .ad-sidebar-link:hover,
@@ -1570,12 +1614,12 @@ body.ad-portal.ad-body {
 }
 
 .ad-sidebar-link--quiet {
-  opacity: 0.75;
+  opacity: 0.9;
   font-size: 0.78rem;
 }
 
 .ad-sidebar-link--danger {
-  color: #fca5a5;
+  color: #fecaca;
 }
 
 .ad-sidebar-foot {
@@ -1585,10 +1629,63 @@ body.ad-portal.ad-body {
   gap: 4px;
 }
 
+.ad-sidebar-foot .ad-sidebar-link {
+  justify-content: flex-start;
+}
+
 .ad-sidebar-user {
   font-size: 0.82rem;
   font-weight: 700;
   margin-bottom: 4px;
+}
+
+body.ad-sidebar-collapsed .ad-sidebar {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+body.ad-sidebar-collapsed .ad-sidebar-brand,
+body.ad-sidebar-collapsed .ad-sidebar-text,
+body.ad-sidebar-collapsed .ad-sidebar-label,
+body.ad-sidebar-collapsed .ad-sidebar-chevron,
+body.ad-sidebar-collapsed .ad-sidebar-user {
+  display: none !important;
+}
+
+body.ad-sidebar-collapsed .ad-sidebar-head {
+  justify-content: center;
+  padding: 0 8px 12px;
+}
+
+body.ad-sidebar-collapsed .ad-sidebar-catalogue,
+body.ad-sidebar-collapsed .ad-sidebar-link {
+  width: calc(100% - 16px);
+  margin-left: 8px;
+  margin-right: 8px;
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+body.ad-sidebar-collapsed .ad-sidebar-catalogue {
+  margin: 0 8px 12px;
+}
+
+body.ad-sidebar-collapsed .ad-sidebar-link-text {
+  justify-content: center;
+  gap: 0;
+}
+
+body.ad-sidebar-collapsed .ad-sidebar-minimize i {
+  transform: rotate(180deg);
+}
+
+body.ad-sidebar-collapsed .ad-sidebar-foot {
+  padding: 12px 8px 0;
+  justify-items: center;
+}
+
+body.ad-sidebar-collapsed .ad-nav-ico {
+  font-size: 1.05rem;
 }
 
 .ad-sidebar-backdrop {
@@ -1605,6 +1702,7 @@ body.ad-portal.ad-body {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.2s ease;
 }
 
 .ad-portal-top {
@@ -1797,20 +1895,44 @@ body.ad-portal.ad-body {
   border-color: #fca5a5;
 }
 
-.ad-portal .ad-pie,
 .ad-portal .ad-trend {
-  min-height: 300px;
+  min-height: 0;
+  height: auto;
   width: 100%;
   max-width: 100%;
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   border-radius: 8px;
-  padding: 8px;
+  padding: 4px 6px 0;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.ad-portal .ad-trend .apexcharts-canvas,
+.ad-portal .ad-trend .apexcharts-svg {
+  display: block !important;
+}
+
+.ad-portal .ad-pie {
+  min-height: 0;
+  height: auto;
+  width: 100%;
+  max-width: 100%;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px;
+  padding: 6px;
   overflow: hidden;
 }
 
+.ad-portal .ad-pie.is-empty {
+  min-height: 0;
+  padding: 10px 12px;
+  line-height: 1.4;
+}
+
 .ad-portal .ad-trend-wrap {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   max-width: 100%;
   overflow: hidden;
 }
@@ -2063,6 +2185,12 @@ body.ad-portal.ad-body {
   background: rgba(3, 105, 161, 0.08) !important;
 }
 
+.ad-portal .ad-btn--download,
+.ad-portal .ad-btn--download i,
+.ad-portal .ad-btn--download span {
+  color: #b91c1c !important;
+}
+
 .ad-portal .ad-btn--delete,
 .ad-portal .ad-btn--delete i,
 .ad-portal .ad-btn--delete span {
@@ -2071,6 +2199,12 @@ body.ad-portal.ad-body {
 
 .ad-portal .ad-btn--delete:hover {
   background: rgba(185, 28, 28, 0.08) !important;
+}
+
+.ad-portal .ad-actions .ad-btn {
+  background: #fff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
 }
 
 .ad-portal .ad-actions--payout .ad-btn {
@@ -2113,6 +2247,26 @@ body.ad-portal.ad-body {
   .ad-sidebar-toggle {
     display: grid;
     place-items: center;
+  }
+
+  .ad-sidebar-minimize {
+    display: none;
+  }
+
+  body.ad-sidebar-collapsed {
+    --ad-sidebar-w: 210px;
+  }
+
+  body.ad-sidebar-collapsed .ad-sidebar-brand,
+  body.ad-sidebar-collapsed .ad-sidebar-text,
+  body.ad-sidebar-collapsed .ad-sidebar-label,
+  body.ad-sidebar-collapsed .ad-sidebar-chevron,
+  body.ad-sidebar-collapsed .ad-sidebar-user {
+    display: initial !important;
+  }
+
+  body.ad-sidebar-collapsed .ad-sidebar-link-text .ad-sidebar-text {
+    display: inline !important;
   }
 
   .ad-main-wrap {

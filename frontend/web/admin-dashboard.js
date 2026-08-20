@@ -355,12 +355,15 @@
     const failed = Number(pie.failed || 0);
     const total = success + pending + failed;
     destroyChart("pie");
+    el.classList.remove("is-empty");
     if (!total) {
-      el.innerHTML = `<p>No ClickPesa transactions were found for this period.</p>`;
+      el.classList.add("is-empty");
+      el.innerHTML = `<p class="ad-trend-empty">No ClickPesa transactions were found for this period.</p>`;
       return;
     }
     if (typeof ApexCharts === "undefined") {
-      el.innerHTML = `<p>Chart library failed to load.</p>`;
+      el.classList.add("is-empty");
+      el.innerHTML = `<p class="ad-trend-empty">Chart library failed to load.</p>`;
       return;
     }
 
@@ -389,7 +392,7 @@
       chart: {
         type: "donut",
         width: "100%",
-        height: 360,
+        height: 260,
         parentHeightOffset: 0,
         toolbar: { show: false },
         background: "#ffffff",
@@ -435,7 +438,7 @@
       },
       colors,
       tooltip: { fillSeriesColor: false, theme: "light" },
-      responsive: [{ breakpoint: 480, options: { chart: { height: 280 } } }],
+      responsive: [{ breakpoint: 480, options: { chart: { height: 220 } } }],
     });
     chartStore.pie = chart;
     chart.render();
@@ -490,7 +493,7 @@
     const chart = new ApexCharts(el, {
       series: [{ name: "Transactions", data: seriesData }],
       chart: {
-        height: 340,
+        height: 220,
         type: "line",
         id: "ad-annotation-trend",
         zoom: { enabled: false },
@@ -498,13 +501,15 @@
         toolbar: { show: false },
         background: "#ffffff",
         foreColor: "#334155",
+        parentHeightOffset: 0,
+        sparkline: { enabled: false },
       },
       theme: { mode: "light" },
       annotations: { points },
       dataLabels: { enabled: false },
       stroke: { curve: "smooth", width: 3 },
       grid: {
-        padding: { right: 24, left: 12 },
+        padding: { top: 8, right: 16, bottom: 0, left: 8 },
         borderColor: "#e2e8f0",
         row: { colors: ["#ffffff", "#f8fafc"], opacity: 0.6 },
       },
@@ -749,6 +754,7 @@
             ${showWithdraw ? `<button type="button" class="ad-btn ad-btn--withdraw" data-withdraw="${row.id}"><i class="fa-solid fa-money-bill-wave"></i><span>Withdraw</span></button>` : ""}
             ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--view" data-invoice="${esc(row.invoiceUrl)}"><i class="fa-solid fa-receipt"></i><span>View</span></button>` : ""}
             ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--download" data-invoice-download="${esc(row.invoiceUrl)}"><i class="fa-solid fa-file-pdf"></i><span>PDF</span></button>` : ""}
+            <button type="button" class="ad-btn ad-btn--delete" data-delete-payment="${row.id}" data-delete-ref="${esc(row.reference || row.orderId || row.id)}" title="Delete transaction"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
             </div>
           </td>
         </tr>`;
@@ -787,6 +793,24 @@
           await Promise.all([loadControls(), loadPayouts(), loadBalance()]);
         } catch (error) {
           notify(error.message || "Withdraw failed.", "error");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+    body.querySelectorAll("[data-delete-payment]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const paymentId = Number(btn.getAttribute("data-delete-payment"));
+        const ref = btn.getAttribute("data-delete-ref") || String(paymentId);
+        if (!paymentId) return;
+        if (!window.confirm(`Delete transaction ${ref}? This removes it from the dashboard only.`)) return;
+        btn.disabled = true;
+        try {
+          const result = await requestJson("delete-payment", { method: "POST", body: { id: paymentId } });
+          notify(result.message || "Transaction deleted.", "success");
+          await Promise.all([loadControls(), loadStatement(), loadPayouts(), loadBalance()]);
+        } catch (error) {
+          notify(error.message || "Delete failed.", "error");
         } finally {
           btn.disabled = false;
         }
@@ -1258,6 +1282,56 @@
     if (backdrop) backdrop.hidden = false;
   }
 
+  const SIDEBAR_COLLAPSE_KEY = "gw_admin_sidebar_collapsed";
+
+  function setSidebarCollapsed(collapsed) {
+    document.body.classList.toggle("ad-sidebar-collapsed", collapsed);
+    const btn = document.getElementById("ad-sidebar-minimize");
+    if (btn) {
+      btn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Minimize sidebar");
+      btn.title = collapsed ? "Expand sidebar" : "Minimize sidebar";
+    }
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSE_KEY, collapsed ? "1" : "0");
+    } catch (_) {
+      /* ignore */
+    }
+    window.setTimeout(() => {
+      try {
+        chartStore.trend?.resize?.();
+        chartStore.pie?.resize?.();
+      } catch (_) {
+        /* ignore */
+      }
+    }, 220);
+  }
+
+  function bindSidebarMinimize() {
+    const btn = document.getElementById("ad-sidebar-minimize");
+    if (!btn) return;
+    try {
+      if (localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === "1" && window.matchMedia("(min-width: 901px)").matches) {
+        setSidebarCollapsed(true);
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    btn.addEventListener("click", () => {
+      if (window.matchMedia("(max-width: 900px)").matches) {
+        closeSidebar();
+        return;
+      }
+      setSidebarCollapsed(!document.body.classList.contains("ad-sidebar-collapsed"));
+    });
+    window.matchMedia("(max-width: 900px)").addEventListener("change", (event) => {
+      if (event.matches) {
+        document.body.classList.remove("ad-sidebar-collapsed");
+      } else if (localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === "1") {
+        setSidebarCollapsed(true);
+      }
+    });
+  }
+
   function bindPortalNavigation() {
     document.querySelector(".ad-sidebar-catalogue")?.addEventListener("click", showPortalHome);
     document.querySelectorAll(".ad-sidebar-link[data-ad-target]").forEach((btn) => {
@@ -1273,6 +1347,7 @@
     document.getElementById("ad-menu-open")?.addEventListener("click", openSidebar);
     document.getElementById("ad-sidebar-close")?.addEventListener("click", closeSidebar);
     document.getElementById("ad-sidebar-backdrop")?.addEventListener("click", closeSidebar);
+    bindSidebarMinimize();
   }
 
   function bindGeneralAnalysis() {

@@ -54,9 +54,10 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
     body.ad-body.ad-portal.ad-view-detail .ad-portal-home{display:none!important}
     body.ad-body.ad-portal.ad-view-detail .ad-detail-sections{display:grid!important}
     .ad-shell{display:flex;min-height:100svh}
-    .ad-sidebar{width:210px;flex-shrink:0;background:#002d58;color:#fff;display:flex;flex-direction:column;padding:16px 0 12px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none}
+    .ad-sidebar{width:var(--ad-sidebar-w,210px);flex-shrink:0;background:#002d58;color:#fff;display:flex;flex-direction:column;padding:16px 0 12px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;transition:width .2s ease}
     .ad-sidebar::-webkit-scrollbar{display:none;width:0;height:0}
-    .ad-main-wrap{flex:1;margin-left:210px;min-width:0;display:flex;flex-direction:column}
+    .ad-main-wrap{flex:1;margin-left:var(--ad-sidebar-w,210px);min-width:0;display:flex;flex-direction:column;transition:margin-left .2s ease}
+    body.ad-sidebar-collapsed{--ad-sidebar-w:72px}
     .ad-portal-top{position:sticky;top:0;z-index:200;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
     .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#f0f4f8}
     .ad-portal-home{display:grid!important;gap:28px}
@@ -73,29 +74,34 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
     <aside class="ad-sidebar" id="ad-sidebar">
       <div class="ad-sidebar-head">
         <p class="ad-sidebar-brand">Getway</p>
-        <button type="button" class="ad-sidebar-toggle" id="ad-sidebar-close" aria-label="Close menu">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
+        <div class="ad-sidebar-head-actions">
+          <button type="button" class="ad-sidebar-minimize" id="ad-sidebar-minimize" aria-label="Minimize sidebar" title="Minimize sidebar">
+            <i class="fa-solid fa-angles-left"></i>
+          </button>
+          <button type="button" class="ad-sidebar-toggle" id="ad-sidebar-close" aria-label="Close menu">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
       </div>
       <button type="button" class="ad-sidebar-catalogue is-active" data-ad-nav="home">
-        <i class="fa-solid fa-folder-open"></i>
-        <span>Service catalogue</span>
+        <i class="fa-solid fa-folder-open ad-nav-ico ad-nav-ico--catalogue"></i>
+        <span class="ad-sidebar-text">Service catalogue</span>
       </button>
       <nav class="ad-sidebar-nav" aria-label="Admin modules">
         <p class="ad-sidebar-label">COLLECTIONS</p>
-        <button type="button" class="ad-sidebar-link" data-ad-target="analytics"><span class="ad-sidebar-link-text"><i class="fa-solid fa-chart-line"></i> Payment analysis</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="control-number"><span class="ad-sidebar-link-text"><i class="fa-solid fa-file-invoice-dollar"></i> Control number</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="transactions"><span class="ad-sidebar-link-text"><i class="fa-solid fa-receipt"></i> Transactions</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="recent"><span class="ad-sidebar-link-text"><i class="fa-solid fa-clock-rotate-left"></i> Recent collections</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="analytics"><span class="ad-sidebar-link-text"><i class="fa-solid fa-chart-line ad-nav-ico ad-nav-ico--chart"></i> <span class="ad-sidebar-text">Payment analysis</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="control-number"><span class="ad-sidebar-link-text"><i class="fa-solid fa-file-invoice-dollar ad-nav-ico ad-nav-ico--invoice"></i> <span class="ad-sidebar-text">Control number</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="transactions"><span class="ad-sidebar-link-text"><i class="fa-solid fa-receipt ad-nav-ico ad-nav-ico--receipt"></i> <span class="ad-sidebar-text">Transactions</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="recent"><span class="ad-sidebar-link-text"><i class="fa-solid fa-clock-rotate-left ad-nav-ico ad-nav-ico--recent"></i> <span class="ad-sidebar-text">Recent collections</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <p class="ad-sidebar-label">PAYOUTS</p>
-        <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest"><span class="ad-sidebar-link-text"><i class="fa-solid fa-mobile-screen"></i> Payout destination</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="payouts"><span class="ad-sidebar-link-text"><i class="fa-solid fa-money-bill-transfer"></i> Automatic payouts</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="users"><span class="ad-sidebar-link-text"><i class="fa-solid fa-users"></i> Registered users</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest"><span class="ad-sidebar-link-text"><i class="fa-solid fa-mobile-screen ad-nav-ico ad-nav-ico--mobile"></i> <span class="ad-sidebar-text">Payout destination</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="payouts"><span class="ad-sidebar-link-text"><i class="fa-solid fa-money-bill-transfer ad-nav-ico ad-nav-ico--money"></i> <span class="ad-sidebar-text">Automatic payouts</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="users"><span class="ad-sidebar-link-text"><i class="fa-solid fa-users ad-nav-ico ad-nav-ico--users"></i> <span class="ad-sidebar-text">Registered users</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
       </nav>
       <div class="ad-sidebar-foot">
-        <span class="ad-sidebar-user"><?php echo $authName; ?></span>
-        <a class="ad-sidebar-link ad-sidebar-link--quiet" href="part-two.php">User wallet</a>
-        <a class="ad-sidebar-link ad-sidebar-link--danger" href="logout.php">Logout</a>
+        <span class="ad-sidebar-user ad-sidebar-text"><?php echo $authName; ?></span>
+        <a class="ad-sidebar-link ad-sidebar-link--quiet" href="part-two.php"><i class="fa-solid fa-wallet ad-nav-ico ad-nav-ico--wallet"></i> <span class="ad-sidebar-text">User wallet</span></a>
+        <a class="ad-sidebar-link ad-sidebar-link--danger" href="logout.php"><i class="fa-solid fa-right-from-bracket ad-nav-ico ad-nav-ico--logout"></i> <span class="ad-sidebar-text">Logout</span></a>
       </div>
     </aside>
     <div class="ad-sidebar-backdrop" id="ad-sidebar-backdrop" hidden></div>
