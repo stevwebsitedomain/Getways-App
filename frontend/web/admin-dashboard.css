@@ -12,9 +12,10 @@
 
 /* Portal mode overrides dark theme immediately */
 body.ad-body.ad-portal {
-  background: #eef2f7 !important;
+  background: #f0f4f8 !important;
   color: #1a1a2e !important;
   background-image: none !important;
+  overflow-x: hidden !important;
 }
 
 body.ad-body.ad-portal .ad-detail-sections.is-collapsed {
@@ -1706,67 +1707,125 @@ body.ad-portal.ad-body {
 .ad-portal .ad-trend {
   min-height: 300px;
   width: 100%;
+  max-width: 100%;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px;
+  padding: 8px;
+  overflow: hidden;
 }
 
 .ad-portal .ad-trend-wrap {
   margin-bottom: 18px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
-.ad-detail-sections {
-  margin-top: 32px;
+.ad-portal .ad-main-wrap {
+  overflow-x: hidden;
+  max-width: 100vw;
+  min-width: 0;
+}
+
+.ad-portal .ad-main {
+  overflow-x: hidden;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ad-portal .ad-detail-sections {
+  margin-top: 8px;
   display: grid;
   gap: 16px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.ad-portal .ad-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 16px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .ad-portal .ad-detail-sections .ad-card {
-  background: var(--ad-portal-card);
-  border: 1px solid #e2e8f0;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
-  color: var(--ad-portal-text);
+  color: #1a1a2e !important;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .ad-portal .ad-detail-sections .ad-card h2 {
-  color: var(--ad-portal-text);
+  color: #1a1a2e !important;
 }
 
 .ad-portal .ad-detail-sections .ad-note,
 .ad-portal .ad-detail-sections .ad-period-sub,
-.ad-portal .ad-detail-sections .ad-trend-title {
-  color: #64748b;
+.ad-portal .ad-detail-sections .ad-trend-title,
+.ad-portal .ad-detail-sections .ad-trend-empty {
+  color: #64748b !important;
 }
 
 .ad-portal .ad-detail-sections .ad-form label {
-  color: #334155;
+  color: #334155 !important;
 }
 
 .ad-portal .ad-detail-sections .ad-form input,
-.ad-portal .ad-detail-sections .ad-form select {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: var(--ad-portal-text);
+.ad-portal .ad-detail-sections .ad-form select,
+.ad-portal .ad-period-select {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1a1a2e !important;
+}
+
+.ad-portal .ad-detail-sections .ad-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .ad-portal .ad-detail-sections .ad-table th {
-  color: #64748b;
-  background: #f8fafc;
+  color: #64748b !important;
+  background: #f8fafc !important;
 }
 
 .ad-portal .ad-detail-sections .ad-table td {
-  color: var(--ad-portal-text);
-  border-color: #e2e8f0;
+  color: #1a1a2e !important;
+  border-color: #e2e8f0 !important;
 }
 
 .ad-portal .ad-refresh {
-  background: #fff;
-  border-color: #cbd5e1;
-  color: var(--ad-portal-link);
+  background: #fff !important;
+  border-color: #cbd5e1 !important;
+  color: #005691 !important;
 }
 
 .ad-portal .ad-ga-open {
-  background: var(--ad-portal-link);
-  border-color: var(--ad-portal-link);
-  color: #fff;
+  background: #005691 !important;
+  border-color: #005691 !important;
+  color: #fff !important;
+}
+
+.ad-portal .apexcharts-canvas,
+.ad-portal .apexcharts-svg {
+  background: transparent !important;
+}
+
+.ad-portal .apexcharts-text tspan,
+.ad-portal .apexcharts-legend-text {
+  fill: #334155 !important;
+  color: #334155 !important;
+}
+
+@media (max-width: 1000px) {
+  .ad-portal .ad-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {

@@ -392,14 +392,17 @@
         height: 360,
         parentHeightOffset: 0,
         toolbar: { show: false },
+        background: "#ffffff",
+        foreColor: "#334155",
       },
+      theme: { mode: "light" },
       labels,
       title: {
         text: "Payment status",
         align: "center",
         style: { fontSize: "14px", fontWeight: 700, color: "#002d58" },
       },
-      legend: { show: true, position: "bottom", fontWeight: 600 },
+      legend: { show: true, position: "bottom", fontWeight: 600, labels: { colors: "#334155" } },
       stroke: { show: true, width: 2, colors: ["#fff"] },
       dataLabels: {
         enabled: true,
@@ -416,9 +419,12 @@
             size: "56%",
             labels: {
               show: true,
+              name: { color: "#334155" },
+              value: { color: "#002d58" },
               total: {
                 show: true,
                 label: "TOTAL",
+                color: "#64748b",
                 formatter: function () {
                   return String(total);
                 },
@@ -428,7 +434,7 @@
         },
       },
       colors,
-      tooltip: { fillSeriesColor: false },
+      tooltip: { fillSeriesColor: false, theme: "light" },
       responsive: [{ breakpoint: 480, options: { chart: { height: 280 } } }],
     });
     chartStore.pie = chart;
@@ -490,11 +496,18 @@
         zoom: { enabled: false },
         selection: { enabled: false },
         toolbar: { show: false },
+        background: "#ffffff",
+        foreColor: "#334155",
       },
+      theme: { mode: "light" },
       annotations: { points },
       dataLabels: { enabled: false },
       stroke: { curve: "smooth", width: 3 },
-      grid: { padding: { right: 40, left: 20 }, borderColor: "#d8dee8" },
+      grid: {
+        padding: { right: 24, left: 12 },
+        borderColor: "#e2e8f0",
+        row: { colors: ["#ffffff", "#f8fafc"], opacity: 0.6 },
+      },
       title: {
         text: "Transaction trend · last 14 days",
         align: "left",
@@ -505,6 +518,8 @@
       xaxis: {
         type: "category",
         labels: { style: { colors: "#64748b", fontSize: "11px" } },
+        axisBorder: { color: "#e2e8f0" },
+        axisTicks: { color: "#e2e8f0" },
       },
       yaxis: {
         min: 0,

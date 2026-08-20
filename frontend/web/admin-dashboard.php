@@ -47,7 +47,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <!-- Portal layout v2 — inline so production cannot show stale dark dashboard -->
   <style id="ad-portal-critical">
-    body.ad-body.ad-portal{background:#f0f4f8!important;color:#1a1a2e!important;background-image:none!important}
+    body.ad-body.ad-portal{background:#f0f4f8!important;color:#1a1a2e!important;background-image:none!important;overflow-x:hidden!important}
     body.ad-body.ad-portal .ad-top{display:none!important}
     body.ad-body.ad-portal .ad-stats:not(.ad-stats--hidden){display:none!important}
     body.ad-body.ad-portal .ad-detail-sections.is-collapsed{display:none!important}
