@@ -10,6 +10,25 @@
   --ad-red: #ef4444;
 }
 
+/* Portal mode overrides dark theme immediately */
+body.ad-body.ad-portal {
+  background: #eef2f7 !important;
+  color: #1a1a2e !important;
+  background-image: none !important;
+}
+
+body.ad-body.ad-portal .ad-detail-sections.is-collapsed {
+  display: none !important;
+}
+
+body.ad-body.ad-portal.ad-view-detail .ad-portal-home {
+  display: none !important;
+}
+
+body.ad-body.ad-portal.ad-view-detail .ad-detail-sections {
+  display: grid !important;
+}
+
 * { box-sizing: border-box; }
 
 body.ad-body {

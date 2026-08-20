@@ -1014,9 +1014,15 @@
       users: "ad-section-users",
       recent: "ad-section-recent",
     };
+    document.body.classList.add("ad-view-detail");
+    document.body.classList.remove("ad-view-home");
+    const detailWrap = document.getElementById("ad-detail-sections");
+    if (detailWrap) detailWrap.classList.remove("is-collapsed");
     const el = document.getElementById(idMap[key] || "");
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
     }
     const titleEl = document.getElementById("ad-portal-title");
     if (titleEl && PORTAL_SECTION_TITLES[key]) {
@@ -1030,6 +1036,10 @@
   }
 
   function showPortalHome() {
+    document.body.classList.remove("ad-view-detail");
+    document.body.classList.add("ad-view-home");
+    const detailWrap = document.getElementById("ad-detail-sections");
+    if (detailWrap) detailWrap.classList.add("is-collapsed");
     const home = document.getElementById("ad-view-home");
     if (home) home.scrollIntoView({ behavior: "smooth", block: "start" });
     const titleEl = document.getElementById("ad-portal-title");
@@ -1111,15 +1121,20 @@
     }
 
     function scrollToSection(key) {
-      const id = sectionMap[key];
-      if (!id) return;
+      if (!sectionMap[key]) return;
       closeOverlay();
+      if (key === "autopay") {
+        toggleAutoPayout();
+        return;
+      }
       window.setTimeout(() => {
+        scrollToPortalSection(key);
+        const id = sectionMap[key];
         const el = document.getElementById(id);
-        if (!el) return;
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        el.classList.add("ad-ga-highlight");
-        window.setTimeout(() => el.classList.remove("ad-ga-highlight"), 1400);
+        if (el) {
+          el.classList.add("ad-ga-highlight");
+          window.setTimeout(() => el.classList.remove("ad-ga-highlight"), 1400);
+        }
       }, 120);
     }
 
@@ -1198,6 +1213,7 @@
   document.getElementById("ad-payouts-export")?.addEventListener("click", exportPayoutCsv);
   bindGeneralAnalysis();
   bindPortalNavigation();
+  document.body.classList.add("ad-view-home");
 
   loadAll().catch((error) => {
     setBanner("ad-db-banner", error.message, "error", { toast: true });

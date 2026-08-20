@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 try {
     require __DIR__ . '/admin-guard.php';
 } catch (Throwable $e) {
@@ -43,7 +46,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
   <link rel="stylesheet" href="admin-dashboard.css?v=<?php echo $cssV; ?>" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
 </head>
-<body class="ad-body ad-portal">
+<body class="ad-body ad-portal ad-view-home">
   <div class="ad-shell">
     <aside class="ad-sidebar" id="ad-sidebar">
       <div class="ad-sidebar-head">
@@ -268,7 +271,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
           </div>
         </section>
 
-        <div class="ad-detail-sections" id="ad-detail-sections">
+        <div class="ad-detail-sections is-collapsed" id="ad-detail-sections">
     <section class="ad-grid">
       <div class="ad-card" id="ad-section-analytics">
         <div class="ad-card-head ad-card-head--stack">
