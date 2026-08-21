@@ -1906,7 +1906,7 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 .ad-service-value {
   font-size: 1.02rem;
   font-weight: 800;
-  color: var(--ad-portal-text);
+  color: #0369a1;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1915,6 +1915,22 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 
 .ad-service-value--money {
   color: #15803d;
+}
+
+.ad-service-value--success {
+  color: #16a34a;
+}
+
+.ad-service-value--pending {
+  color: #ca8a04;
+}
+
+.ad-service-value--failed {
+  color: #dc2626;
+}
+
+.ad-service-value--accent {
+  color: #0369a1;
 }
 
 .ad-service-body small {

@@ -87,8 +87,12 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     .ad-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .ad-service-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:72px}
     .ad-service-title{font-size:.88rem;font-weight:700;color:#005691}
-    .ad-service-value{font-size:1.05rem;font-weight:800;color:#1a1a2e}
+    .ad-service-value{font-size:1.05rem;font-weight:800;color:#0369a1}
     .ad-service-value--money{color:#15803d!important}
+    .ad-service-value--success{color:#16a34a!important}
+    .ad-service-value--pending{color:#ca8a04!important}
+    .ad-service-value--failed{color:#dc2626!important}
+    .ad-service-value--accent{color:#0369a1!important}
     @media(max-width:900px){.ad-sidebar{transform:translateX(-100%)}.ad-sidebar.is-open{transform:translateX(0)}.ad-main-wrap{margin-left:0}.ad-menu-btn{display:grid!important;place-items:center;width:40px;height:40px;border:1px solid #c5cdd8;border-radius:8px;background:#fff;color:#005691;cursor:pointer}.ad-service-grid{grid-template-columns:1fr}}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
@@ -211,7 +215,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-hashtag"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Create control number</span>
-                  <strong class="ad-service-value" id="ad-portal-controls">—</strong>
+                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-controls">—</strong>
                   <small>BillPay collections</small>
                 </span>
               </button>
@@ -219,7 +223,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-circle-check"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Successful payments</span>
-                  <strong class="ad-service-value" id="ad-portal-success">0</strong>
+                  <strong class="ad-service-value ad-service-value--success" id="ad-portal-success">0</strong>
                   <small>Paid transactions</small>
                 </span>
               </button>
@@ -227,7 +231,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-hourglass-half"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Pending payments</span>
-                  <strong class="ad-service-value" id="ad-portal-pending">0</strong>
+                  <strong class="ad-service-value ad-service-value--pending" id="ad-portal-pending">0</strong>
                   <small>Awaiting payment</small>
                 </span>
               </button>
@@ -235,7 +239,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-circle-xmark"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Failed payments</span>
-                  <strong class="ad-service-value" id="ad-portal-failed">0</strong>
+                  <strong class="ad-service-value ad-service-value--failed" id="ad-portal-failed">0</strong>
                   <small>Unsuccessful attempts</small>
                 </span>
               </button>
@@ -243,7 +247,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-receipt"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Recent collections</span>
-                  <strong class="ad-service-value" id="ad-portal-recent">0</strong>
+                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-recent">0</strong>
                   <small id="ad-portal-recent-sub">Latest records</small>
                 </span>
               </button>
@@ -251,7 +255,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-rotate"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Sync ClickPesa</span>
-                  <strong class="ad-service-value">Sync</strong>
+                  <strong class="ad-service-value ad-service-value--accent">Sync</strong>
                   <small>Update transaction records</small>
                 </span>
               </button>
@@ -278,7 +282,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-mobile-screen-button"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Payout destination</span>
-                  <strong class="ad-service-value" id="ad-portal-dest">—</strong>
+                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-dest">—</strong>
                   <small>Mobile money number</small>
                 </span>
               </button>
@@ -286,7 +290,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-bolt"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Auto payout</span>
-                  <strong class="ad-service-value" id="ad-portal-auto">OFF</strong>
+                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-auto">OFF</strong>
                   <small id="ad-portal-auto-mode">TEST</small>
                 </span>
               </button>
@@ -294,7 +298,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-money-bill-transfer"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Automatic payouts</span>
-                  <strong class="ad-service-value" id="ad-portal-payouts">0</strong>
+                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-payouts">0</strong>
                   <small>Payout history</small>
                 </span>
               </button>
@@ -302,7 +306,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-users"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Registered users</span>
-                  <strong class="ad-service-value" id="ad-portal-users">0</strong>
+                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-users">0</strong>
                   <small>Wallet accounts</small>
                 </span>
               </button>
@@ -310,7 +314,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-chart-column"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Transaction trend</span>
-                  <strong class="ad-service-value" id="ad-portal-trend">14 days</strong>
+                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-trend">14 days</strong>
                   <small>Charts &amp; breakdown</small>
                 </span>
               </button>
@@ -318,7 +322,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-wifi"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">AutoPay USSD</span>
-                  <strong class="ad-service-value">Open</strong>
+                  <strong class="ad-service-value ad-service-value--accent">Open</strong>
                   <small>POS &amp; mobile push</small>
                 </span>
               </a>
