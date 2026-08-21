@@ -99,17 +99,30 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
           <div class="ch-acct-body">
             <a href="create-payment.php" class="ch-acct-name">Getway Wallet · Mobile</a>
             <div class="ch-acct-row">
-              <div>
-                <p class="ch-acct-balance" id="success-amount">TZS 0</p>
+              <div class="ch-acct-main">
+                <p class="ch-acct-balance" id="success-amount" data-amount-visible="1">TZS 0</p>
                 <p class="ch-acct-label">Daily Net Sales</p>
                 <p class="ch-acct-meta">
                   Gross <span id="failed-amount">TZS 0</span>
                   · Pending <span id="pending-transactions">0</span>
                 </p>
               </div>
-              <button type="button" class="ch-acct-more" aria-label="More options" data-top-action="history">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
-              </button>
+              <div class="ch-acct-side">
+                <button type="button" class="ch-acct-more" aria-label="More options" data-top-action="history">
+                  <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+                <button
+                  type="button"
+                  class="ch-amt-toggle"
+                  id="merchant-amount-toggle"
+                  aria-pressed="false"
+                  aria-controls="success-amount"
+                  title="Hide amount"
+                >
+                  <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
+                  <span>Hide amount</span>
+                </button>
+              </div>
             </div>
             <p class="ch-acct-deposit">Depositing to Business Wallet</p>
             <div class="ch-acct-actions">
@@ -222,9 +235,11 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
       var src = document.getElementById("success-amount");
       var dest = document.getElementById("deposit-available");
       if (!src || !dest) return;
-      var sync = function () { dest.textContent = src.textContent; };
+      var sync = function () {
+        dest.textContent = src.getAttribute("data-amount-raw") || src.textContent;
+      };
       sync();
-      new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
+      new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["data-amount-raw"] });
     })();
   </script>
 </body>

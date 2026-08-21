@@ -26,8 +26,19 @@ function animateCount(el, target, options = {}) {
   const end = Number(target || 0);
   const prefix = options.prefix || "";
   const duration = options.duration || 900;
+  const masked = "••••••";
+  const applyVisibleText = (valueText) => {
+    el.setAttribute("data-amount-raw", valueText);
+    if (el.getAttribute("data-amount-visible") === "0") {
+      el.textContent = masked;
+      el.classList.add("is-amount-hidden");
+    } else {
+      el.textContent = valueText;
+      el.classList.remove("is-amount-hidden");
+    }
+  };
   if (prefersReducedMotion() || !Number.isFinite(end)) {
-    el.textContent = `${prefix}${formatNumber(end)}`;
+    applyVisibleText(`${prefix}${formatNumber(end)}`);
     return;
   }
   const start = 0;
@@ -36,15 +47,71 @@ function animateCount(el, target, options = {}) {
     const p = Math.min(1, (now - t0) / duration);
     const eased = 1 - Math.pow(1 - p, 3);
     const current = Math.round(start + (end - start) * eased);
-    el.textContent = `${prefix}${formatNumber(current)}`;
+    applyVisibleText(`${prefix}${formatNumber(current)}`);
     if (p < 1) {
       requestAnimationFrame(frame);
     } else {
-      el.textContent = `${prefix}${formatNumber(end)}`;
+      applyVisibleText(`${prefix}${formatNumber(end)}`);
     }
   }
   requestAnimationFrame(frame);
 }
+
+function initMerchantAmountToggle() {
+  const amountEl = document.getElementById("success-amount");
+  const toggleBtn = document.getElementById("merchant-amount-toggle");
+  if (!amountEl || !toggleBtn) return;
+
+  const storageKey = "gw_merchant_amount_visible";
+  const labelEl = toggleBtn.querySelector("span");
+  const iconEl = toggleBtn.querySelector("i");
+
+  const setVisible = (visible) => {
+    const show = Boolean(visible);
+    amountEl.setAttribute("data-amount-visible", show ? "1" : "0");
+    const raw = amountEl.getAttribute("data-amount-raw") || amountEl.textContent || "TZS 0";
+    if (!amountEl.getAttribute("data-amount-raw")) {
+      amountEl.setAttribute("data-amount-raw", raw);
+    }
+    if (show) {
+      amountEl.textContent = amountEl.getAttribute("data-amount-raw") || raw;
+      amountEl.classList.remove("is-amount-hidden");
+      toggleBtn.setAttribute("aria-pressed", "false");
+      toggleBtn.setAttribute("title", "Hide amount");
+      if (labelEl) labelEl.textContent = "Hide amount";
+      if (iconEl) iconEl.className = "fa-solid fa-eye-slash";
+    } else {
+      amountEl.textContent = "••••••";
+      amountEl.classList.add("is-amount-hidden");
+      toggleBtn.setAttribute("aria-pressed", "true");
+      toggleBtn.setAttribute("title", "View amount");
+      if (labelEl) labelEl.textContent = "View amount";
+      if (iconEl) iconEl.className = "fa-solid fa-eye";
+    }
+    try {
+      localStorage.setItem(storageKey, show ? "1" : "0");
+    } catch (_) {
+      /* ignore */
+    }
+  };
+
+  let initial = true;
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved === "0") initial = false;
+    if (saved === "1") initial = true;
+  } catch (_) {
+    /* ignore */
+  }
+  setVisible(initial);
+
+  toggleBtn.addEventListener("click", () => {
+    const currentlyVisible = amountEl.getAttribute("data-amount-visible") !== "0";
+    setVisible(!currentlyVisible);
+  });
+}
+
+initMerchantAmountToggle();
 
 function animateCountElements(root) {
   const scope = root || document;

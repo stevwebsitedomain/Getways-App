@@ -1521,6 +1521,20 @@
   gap: 12px;
 }
 
+.ch-acct-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.ch-acct-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+  min-width: 7.5rem;
+}
+
 .ch-acct-balance {
   margin: 0;
   font-size: clamp(1.55rem, 4.5vw + 0.5rem, 2rem);
@@ -1529,6 +1543,11 @@
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+}
+
+.ch-acct-balance.is-amount-hidden {
+  letter-spacing: 0.12em;
+  color: #334155;
 }
 
 .ch-acct-label {
@@ -1556,6 +1575,45 @@
   cursor: pointer;
   text-decoration: none;
   flex-shrink: 0;
+}
+
+.ch-amt-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid #d0d7e2;
+  border-radius: 999px;
+  background: #f4f7fb;
+  color: #0b1f3a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ch-amt-toggle i {
+  font-size: 0.78rem;
+  color: #117aca;
+}
+
+.ch-amt-toggle:hover {
+  background: #e8eef6;
+  border-color: #b8c4d6;
+}
+
+.ch-amt-toggle[aria-pressed="true"] {
+  background: #0b1f3a;
+  border-color: #0b1f3a;
+  color: #fff;
+}
+
+.ch-amt-toggle[aria-pressed="true"] i {
+  color: #fff;
 }
 
 .ch-acct-deposit {
