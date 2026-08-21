@@ -572,41 +572,15 @@ body.mb-login.mb-login--efaw .mb-lang-option.is-active {
 
 body.mb-login.mb-login--efaw .mb-brand {
   text-align: center;
-  margin: 8px 0 28px;
+  margin: 4px 0 24px;
 }
 
-body.mb-login.mb-login--efaw .mb-logo-mark {
-  width: 56px;
-  height: 56px;
-  margin: 0 auto 10px;
-  border-radius: 50% 50% 50% 12%;
-  background: linear-gradient(145deg, #3cb35a, #1f8a3c);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 6px 16px rgba(46, 158, 75, 0.28);
-  transform: rotate(-18deg);
-}
-
-body.mb-login.mb-login--efaw .mb-logo-mark span {
-  color: #fff;
-  font-size: 1.45rem;
-  font-weight: 800;
-  transform: rotate(18deg);
-}
-
-body.mb-login.mb-login--efaw .mb-logo-text {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #1a2332;
-}
-
-body.mb-login.mb-login--efaw .mb-logo-sub {
-  margin: 4px 0 0;
-  font-size: 0.82rem;
-  color: var(--mb-muted);
-  font-weight: 500;
+body.mb-login.mb-login--efaw .mb-logo-img {
+  display: block;
+  width: min(280px, 88%);
+  height: auto;
+  margin: 0 auto;
+  object-fit: contain;
 }
 
 body.mb-login.mb-login--efaw .mb-tabs {

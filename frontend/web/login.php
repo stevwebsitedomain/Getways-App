@@ -21,7 +21,7 @@ $next = trim((string) ($_GET['next'] ?? ''));
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="mb-login.css?v=10" />
+  <link rel="stylesheet" href="mb-login.css?v=11" />
   <script>
     window.GETWAY_GOOGLE_CLIENT_ID = <?= json_encode($googleClientId, JSON_UNESCAPED_SLASHES) ?>;
     window.GETWAY_NEXT = <?= json_encode($next, JSON_UNESCAPED_SLASHES) ?>;
@@ -34,9 +34,13 @@ $next = trim((string) ($_GET['next'] ?? ''));
     </header>
 
     <div class="mb-brand">
-      <div class="mb-logo-mark" aria-hidden="true"><span>G</span></div>
-      <h1 class="mb-logo-text">Getway</h1>
-      <p class="mb-logo-sub">Secure wallet &amp; BillPay</p>
+      <img
+        class="mb-logo-img"
+        src="images/digital-matrix-technology.png?v=1"
+        alt="Digital Matrix Technology"
+        width="320"
+        height="80"
+      />
     </div>
 
     <div class="mb-tabs" role="tablist" aria-label="Login as">
