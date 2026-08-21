@@ -1599,6 +1599,8 @@
   const WA_AUTO_BODY_KEY = "gw_wa_auto_body";
   const WA_HIDDEN_KEY = "gw_wa_hidden_ids";
   const WA_SCHEDULE_KEY = "gw_wa_schedule";
+  const WA_DELAY_VALUE_KEY = "gw_wa_delay_value";
+  const WA_DELAY_UNIT_KEY = "gw_wa_delay_unit";
 
   function setWaMsg(text, isError) {
     const el = document.getElementById("ad-wa-msg");
@@ -1652,6 +1654,43 @@
     if (unit === "days") return value * 24 * 60 * 60 * 1000;
     if (unit === "months") return value * 30 * 24 * 60 * 60 * 1000;
     return value * 60 * 1000;
+  }
+
+  function saveWaDelaySettings() {
+    const valueEl = document.getElementById("ad-wa-delay-value");
+    const unitEl = document.getElementById("ad-wa-delay-unit");
+    if (!valueEl || !unitEl) return;
+    try {
+      const raw = valueEl.value;
+      const num = Number(raw);
+      const value = Number.isFinite(num) && num >= 0 ? String(Math.floor(num)) : "0";
+      if (valueEl.value !== value) valueEl.value = value;
+      const unit = ["minutes", "days", "months"].includes(unitEl.value) ? unitEl.value : "minutes";
+      unitEl.value = unit;
+      localStorage.setItem(WA_DELAY_VALUE_KEY, value);
+      localStorage.setItem(WA_DELAY_UNIT_KEY, unit);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function loadWaDelaySettings() {
+    const valueEl = document.getElementById("ad-wa-delay-value");
+    const unitEl = document.getElementById("ad-wa-delay-unit");
+    if (!valueEl || !unitEl) return;
+    try {
+      const savedValue = localStorage.getItem(WA_DELAY_VALUE_KEY);
+      const savedUnit = localStorage.getItem(WA_DELAY_UNIT_KEY);
+      if (savedValue !== null && savedValue !== "") {
+        const num = Number(savedValue);
+        valueEl.value = Number.isFinite(num) && num >= 0 ? String(Math.floor(num)) : "0";
+      }
+      if (savedUnit && ["minutes", "days", "months"].includes(savedUnit)) {
+        unitEl.value = savedUnit;
+      }
+    } catch (_) {
+      /* keep HTML defaults */
+    }
   }
 
   function applyWaMode(mode) {
@@ -2064,6 +2103,7 @@
   function bindWhatsappSection() {
     if (!document.getElementById("ad-section-whatsapp")) return;
     loadWaHidden();
+    loadWaDelaySettings();
 
     try {
       const savedMode = localStorage.getItem(WA_MODE_KEY);
@@ -2101,13 +2141,16 @@
       if (waMode === "auto") scheduleAutoSend();
     });
 
+    document.getElementById("ad-wa-delay-value")?.addEventListener("input", saveWaDelaySettings);
     document.getElementById("ad-wa-delay-value")?.addEventListener("change", () => {
+      saveWaDelaySettings();
       if (waMode === "auto") {
         waLastAutoSentTo = "";
         scheduleAutoSend();
       }
     });
     document.getElementById("ad-wa-delay-unit")?.addEventListener("change", () => {
+      saveWaDelaySettings();
       if (waMode === "auto") {
         waLastAutoSentTo = "";
         scheduleAutoSend();
