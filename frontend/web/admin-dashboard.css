@@ -11,11 +11,16 @@
 }
 
 /* Portal mode overrides dark theme immediately */
+html.ad-html,
+body.ad-body.ad-portal {
+  height: 100%;
+}
+
 body.ad-body.ad-portal {
   background: #f0f4f8 !important;
   color: #1a1a2e !important;
   background-image: none !important;
-  overflow-x: hidden !important;
+  overflow: hidden !important;
 }
 
 body.ad-body.ad-portal .ad-detail-sections.is-collapsed {
@@ -414,7 +419,9 @@ body.ad-body {
 }
 
 .ad-table-wrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(62vh, 560px);
+  -webkit-overflow-scrolling: touch;
 }
 
 .ad-table {
@@ -696,6 +703,9 @@ body.ad-body {
   padding: 0;
   display: grid;
   gap: 8px;
+  max-height: min(62vh, 560px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ad-recent li {
@@ -1711,7 +1721,7 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 }
 
 .ad-portal-top {
-  position: sticky;
+  position: relative;
   top: 0;
   z-index: 200;
   flex-shrink: 0;
@@ -2028,7 +2038,7 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: auto !important;
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
 }
@@ -2058,12 +2068,58 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   color: #1a1a2e !important;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: 20px 22px;
 }
 
 .ad-portal .ad-page-section {
-  min-height: 60vh;
+  min-height: 0;
+}
+
+/* Scrollable tables & lists (nav stays fixed; these scroll inside) */
+.ad-portal .ad-table-wrap,
+.ad-portal .ad-detail-sections .ad-table-wrap {
+  max-height: min(62vh, 560px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ad-portal .ad-recent {
+  max-height: min(62vh, 560px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+}
+
+.ad-portal .ad-wa-layout {
+  align-items: stretch;
+}
+
+.ad-portal .ad-wa-list-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ad-portal .ad-wa-list {
+  flex: 1 1 auto;
+  max-height: min(68vh, 640px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
+.ad-portal .ad-users-list,
+.ad-portal .ad-payout-list {
+  max-height: min(62vh, 560px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ad-charts-row {
@@ -2125,7 +2181,9 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 
 .ad-portal .ad-detail-sections .ad-table-wrap {
   max-width: 100%;
-  overflow-x: auto;
+  max-height: min(62vh, 560px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ad-portal .ad-detail-sections .ad-table th {
@@ -2620,8 +2678,11 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   padding: 0;
   display: grid;
   gap: 10px;
-  max-height: 620px;
-  overflow: auto;
+  max-height: min(68vh, 640px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .ad-wa-list > li {
   border: 1px solid #e8ecf2;
