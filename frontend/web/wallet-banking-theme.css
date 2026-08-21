@@ -1529,7 +1529,7 @@
 .ch-acct-balance-line {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -1576,40 +1576,42 @@
 }
 
 .ch-amt-toggle {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   margin: 0;
   padding: 0;
   border: none;
-  border-radius: 50%;
-  background: linear-gradient(160deg, #117aca 0%, #0b4f8a 100%);
-  color: #fff;
+  border-radius: 0;
+  background: transparent;
+  color: #117aca;
   display: grid;
   place-items: center;
   flex-shrink: 0;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(17, 122, 202, 0.35);
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: none;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .ch-amt-toggle i {
-  font-size: 0.82rem;
-  color: #fff;
+  font-size: 1.05rem;
+  color: inherit;
 }
 
 .ch-amt-toggle:hover {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(17, 122, 202, 0.42);
+  color: #0b4f8a;
+  transform: scale(1.08);
+  filter: none;
+  box-shadow: none;
 }
 
 .ch-amt-toggle:active {
-  transform: translateY(0);
+  transform: scale(0.96);
 }
 
 .ch-amt-toggle[aria-pressed="true"] {
-  background: linear-gradient(160deg, #f37021 0%, #d4550f 100%);
-  box-shadow: 0 2px 8px rgba(243, 112, 33, 0.38);
+  color: #f37021;
+  background: transparent;
+  box-shadow: none;
 }
 
 .ch-acct-deposit {

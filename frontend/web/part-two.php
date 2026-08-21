@@ -101,6 +101,7 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
             <div class="ch-acct-row">
               <div class="ch-acct-main">
                 <div class="ch-acct-balance-line">
+                  <p class="ch-acct-balance" id="success-amount" data-amount-visible="1">TZS 0</p>
                   <button
                     type="button"
                     class="ch-amt-toggle"
@@ -112,7 +113,6 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
                   >
                     <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
                   </button>
-                  <p class="ch-acct-balance" id="success-amount" data-amount-visible="1">TZS 0</p>
                 </div>
                 <p class="ch-acct-label">Daily Net Sales</p>
                 <p class="ch-acct-meta">
