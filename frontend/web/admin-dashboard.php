@@ -547,8 +547,15 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
               <textarea id="ad-wa-body" name="body" rows="5" placeholder="Andika ujumbe…" required></textarea>
             </label>
             <label class="ad-wa-label" id="ad-wa-auto-wrap" hidden>Auto message
-              <textarea id="ad-wa-auto-body" rows="5" placeholder="Ujumbe wa automatic…"></textarea>
+              <textarea id="ad-wa-auto-body" rows="5" placeholder="Andika ujumbe wowote unaotaka utumwe automatic…"></textarea>
+              <small class="ad-wa-hint">Unaweza kubadilisha ujumbe wakati wowote — si lazima ule wa mfano. Hubaki kuhifadhiwa.</small>
             </label>
+
+            <div class="ad-wa-excel-hint" id="ad-wa-excel-hint">
+              <strong>Excel format:</strong> column <code>phone</code> (au namba moja kwa safu).
+              Mfano: <code>2557XXXXXXXX</code>
+              <button type="button" class="ad-btn ad-btn--ghost" id="ad-wa-excel-sample">Download sample Excel</button>
+            </div>
 
             <div class="ad-wa-schedule" id="ad-wa-schedule" hidden>
               <label class="ad-wa-label">Send after

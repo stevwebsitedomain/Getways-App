@@ -1527,8 +1527,6 @@
   const WA_AUTO_BODY_KEY = "gw_wa_auto_body";
   const WA_HIDDEN_KEY = "gw_wa_hidden_ids";
   const WA_SCHEDULE_KEY = "gw_wa_schedule";
-  const WA_DEFAULT_AUTO =
-    "Habari, ujumbe huu umetumwa na Digital Matrix Technology kupitia Getway.";
 
   function setWaMsg(text, isError) {
     const el = document.getElementById("ad-wa-msg");
@@ -1853,18 +1851,37 @@
     writeWaSchedule(keep);
   }
 
+  function getAutoMessageBody() {
+    return String(document.getElementById("ad-wa-auto-body")?.value || "").trim();
+  }
+
+  function saveAutoMessageBody() {
+    const el = document.getElementById("ad-wa-auto-body");
+    if (!el) return;
+    try {
+      localStorage.setItem(WA_AUTO_BODY_KEY, el.value || "");
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
   function scheduleAutoSend() {
     if (waMode !== "auto") return;
     window.clearTimeout(waAutoTimer);
     const delay = delayMsFromUi();
     waAutoTimer = window.setTimeout(async () => {
       const targets = collectWaTargets();
-      const body = String(document.getElementById("ad-wa-auto-body")?.value || "").trim() || WA_DEFAULT_AUTO;
+      const body = getAutoMessageBody();
       const priority = document.getElementById("ad-wa-priority")?.value || "10";
       if (!targets.length) return;
+      if (!body) {
+        setWaMsg("Andika ujumbe wa automatic kwanza (unaweza kuandika ujumbe wowote).", true);
+        return;
+      }
       const key = targets.join(",");
       if (key === waLastAutoSentTo) return;
       try {
+        saveAutoMessageBody();
         if (delay > 0) {
           const at = Date.now() + delay;
           targets.forEach((to) => queueWaSchedule({ to, body, priority, at }));
@@ -1877,11 +1894,6 @@
           await sendWhatsappMessage({ to, body, priority });
         }
         waLastAutoSentTo = key;
-        try {
-          localStorage.setItem(WA_AUTO_BODY_KEY, body);
-        } catch (_) {
-          /* ignore */
-        }
         await waSwalSent("Sent", `Sent to ${targets.length} number(s).`);
       } catch (_) {
         /* message already shown */
@@ -1893,14 +1905,55 @@
     const phones = [];
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-    rows.forEach((row) => {
-      (Array.isArray(row) ? row : []).forEach((cell) => {
-        const phone = normalizeWaPhone(cell);
-        if (phone.length >= 9) phones.push(phone);
+
+    // Prefer objects with a phone/simu/mobile column header.
+    const objects = window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+    if (objects.length) {
+      objects.forEach((row) => {
+        if (!row || typeof row !== "object") return;
+        const keys = Object.keys(row);
+        const phoneKey = keys.find((k) => /^(phone|simu|mobile|msisdn|number|namba)$/i.test(String(k).trim()))
+          || keys.find((k) => /phone|simu|mobile|msisdn|namba/i.test(String(k)));
+        if (phoneKey) {
+          const phone = normalizeWaPhone(row[phoneKey]);
+          if (phone.length >= 9) phones.push(phone);
+          return;
+        }
+        keys.forEach((k) => {
+          const phone = normalizeWaPhone(row[k]);
+          if (phone.length >= 9) phones.push(phone);
+        });
       });
-    });
+    }
+
+    if (!phones.length) {
+      const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+      rows.forEach((row) => {
+        (Array.isArray(row) ? row : []).forEach((cell) => {
+          const phone = normalizeWaPhone(cell);
+          if (phone.length >= 9) phones.push(phone);
+        });
+      });
+    }
+
     return [...new Set(phones)];
+  }
+
+  function downloadWaExcelSample() {
+    if (typeof window.XLSX === "undefined") {
+      setWaMsg("Excel library failed to load.", true);
+      return;
+    }
+    const rows = [
+      { phone: "255715296092" },
+      { phone: "255716260292" },
+      { phone: "2557XXXXXXXX" },
+    ];
+    const sheet = window.XLSX.utils.json_to_sheet(rows);
+    const book = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(book, sheet, "phones");
+    window.XLSX.writeFile(book, "getway-whatsapp-phones-sample.xlsx");
+    setWaMsg("Sample Excel downloaded. Fill column phone then upload.");
   }
 
   function bindWhatsappSection() {
@@ -1909,11 +1962,11 @@
 
     try {
       const savedMode = localStorage.getItem(WA_MODE_KEY);
-      const savedBody = localStorage.getItem(WA_AUTO_BODY_KEY);
-      if (savedBody && document.getElementById("ad-wa-auto-body")) {
-        document.getElementById("ad-wa-auto-body").value = savedBody;
-      } else if (document.getElementById("ad-wa-auto-body")) {
-        document.getElementById("ad-wa-auto-body").value = WA_DEFAULT_AUTO;
+      const autoEl = document.getElementById("ad-wa-auto-body");
+      if (autoEl) {
+        // Keep whatever the user saved — even empty. Do not force the sample text.
+        const savedBody = localStorage.getItem(WA_AUTO_BODY_KEY);
+        autoEl.value = savedBody !== null ? savedBody : "";
       }
       applyWaMode(savedMode === "auto" ? "auto" : "manual");
     } catch (_) {
@@ -1956,13 +2009,14 @@
       }
     });
 
-    document.getElementById("ad-wa-auto-body")?.addEventListener("change", () => {
-      try {
-        localStorage.setItem(WA_AUTO_BODY_KEY, document.getElementById("ad-wa-auto-body").value || "");
-      } catch (_) {
-        /* ignore */
-      }
+    document.getElementById("ad-wa-auto-body")?.addEventListener("input", () => {
+      saveAutoMessageBody();
+      waLastAutoSentTo = "";
     });
+    document.getElementById("ad-wa-auto-body")?.addEventListener("change", saveAutoMessageBody);
+    document.getElementById("ad-wa-auto-body")?.addEventListener("blur", saveAutoMessageBody);
+
+    document.getElementById("ad-wa-excel-sample")?.addEventListener("click", downloadWaExcelSample);
 
     document.getElementById("ad-wa-excel")?.addEventListener("change", async (event) => {
       const file = event.target.files?.[0];
@@ -2001,17 +2055,20 @@
       const targets = collectWaTargets();
       const priority = document.getElementById("ad-wa-priority")?.value || "10";
       const body = waMode === "auto"
-        ? (String(document.getElementById("ad-wa-auto-body")?.value || "").trim() || WA_DEFAULT_AUTO)
+        ? getAutoMessageBody()
         : String(document.getElementById("ad-wa-body")?.value || "").trim();
       if (!targets.length) {
         setWaMsg("Enter a phone number or upload Excel.", true);
         return;
       }
       if (!body) {
-        setWaMsg("Message is required.", true);
+        setWaMsg(waMode === "auto"
+          ? "Andika ujumbe wa automatic kwanza (unaweza kuandika ujumbe wowote)."
+          : "Message is required.", true);
         return;
       }
       try {
+        if (waMode === "auto") saveAutoMessageBody();
         if (waMode === "auto") {
           const delay = delayMsFromUi();
           if (delay > 0) {

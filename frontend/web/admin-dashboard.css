@@ -2692,4 +2692,33 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   border-color: #fecaca !important;
 }
 
+.ad-wa-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.74rem;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ad-wa-excel-hint {
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  font-size: 0.76rem;
+  color: #334155;
+  font-weight: 600;
+  display: grid;
+  gap: 8px;
+}
+
+.ad-wa-excel-hint code {
+  font-size: 0.72rem;
+  background: #eef2ff;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
 
