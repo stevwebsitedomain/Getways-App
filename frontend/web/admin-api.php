@@ -339,7 +339,31 @@ if ($action === 'analytics' && $method === 'GET') {
             $filters['endDate'] = (string) $_GET['endDate'];
         }
 
-        return adminClickPesa()->getDashboardAnalytics($filters);
+        try {
+            return adminClickPesa()->getDashboardAnalytics($filters);
+        } catch (Throwable $e) {
+            // Keep dashboard charts usable even when DB/query fails.
+            return [
+                'success' => true,
+                'source' => 'fallback',
+                'warning' => $e->getMessage(),
+                'period' => $period,
+                'analytics' => [
+                    'moneyIn' => 0,
+                    'failedSales' => 0,
+                    'success' => 0,
+                    'pending' => 0,
+                    'failed' => 0,
+                    'recordCount' => 0,
+                    'periodLabel' => 'Unavailable',
+                    'firstTransactionAt' => null,
+                    'lastTransactionAt' => null,
+                    'trendDays' => [],
+                    'recentCollections' => [],
+                ],
+                'payments' => [],
+            ];
+        }
     }, '/admin-api.php?action=analytics', 'analytics');
 }
 

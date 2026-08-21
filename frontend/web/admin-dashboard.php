@@ -31,6 +31,14 @@ $cssV = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
 $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
 $cssV = htmlspecialchars($cssV, ENT_QUOTES);
 $jsV = htmlspecialchars($jsV, ENT_QUOTES);
+
+require_once __DIR__ . '/env-load.php';
+$waConfig = function_exists('gwUltamsgConfig') ? gwUltamsgConfig() : [
+    'senderName' => 'Digital Matrix Technology',
+    'webhookUrl' => 'https://getway.legitconsult.co.tz/whatsapp-webhook.php',
+];
+$waSender = htmlspecialchars((string) ($waConfig['senderName'] ?? 'Digital Matrix Technology'), ENT_QUOTES);
+$waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getway.legitconsult.co.tz/whatsapp-webhook.php'), ENT_QUOTES);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -99,7 +107,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
         <button type="button" class="ad-sidebar-link" data-ad-target="payouts"><span class="ad-sidebar-link-text"><i class="fa-solid fa-money-bill-transfer ad-nav-ico ad-nav-ico--money"></i> <span class="ad-sidebar-text">Automatic payouts</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <button type="button" class="ad-sidebar-link" data-ad-target="users"><span class="ad-sidebar-link-text"><i class="fa-solid fa-users ad-nav-ico ad-nav-ico--users"></i> <span class="ad-sidebar-text">Registered users</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <p class="ad-sidebar-label">MESSAGING</p>
-        <a class="ad-sidebar-link" href="whatsapp-send.php"><span class="ad-sidebar-link-text"><i class="fa-brands fa-whatsapp ad-nav-ico" style="color:#25d366"></i> <span class="ad-sidebar-text">Send WhatsApp</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></a>
+        <button type="button" class="ad-sidebar-link" data-ad-target="whatsapp"><span class="ad-sidebar-link-text"><i class="fa-brands fa-whatsapp ad-nav-ico" style="color:#25d366"></i> <span class="ad-sidebar-text">Send WhatsApp</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
       </nav>
       <div class="ad-sidebar-foot">
         <span class="ad-sidebar-user ad-sidebar-text"><?php echo $authName; ?></span>
@@ -487,6 +495,71 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
       <p id="ad-recent-error" class="ad-db-banner" hidden></p>
       <ul class="ad-recent" id="ad-recent"></ul>
       <nav class="ad-pager" id="ad-recent-pager" hidden aria-label="Recent collections pages"></nav>
+    </section>
+
+    <section class="ad-card" id="ad-section-whatsapp">
+      <div class="ad-card-head ad-card-head--stack">
+        <div>
+          <h2><i class="fa-brands fa-whatsapp" style="color:#25d366"></i> WhatsApp messages</h2>
+          <p class="ad-period-sub">Sender: <strong id="ad-wa-sender-label"><?php echo $waSender; ?></strong></p>
+        </div>
+        <div class="ad-card-actions">
+          <button type="button" class="ad-refresh" id="ad-wa-refresh">Refresh recent</button>
+        </div>
+      </div>
+
+      <div class="ad-wa-layout">
+        <div class="ad-wa-send-col">
+          <div class="ad-wa-mode" role="group" aria-label="Send mode">
+            <button type="button" class="ad-wa-mode-btn is-active" data-wa-mode="manual">Manual</button>
+            <button type="button" class="ad-wa-mode-btn" data-wa-mode="auto">Automatic</button>
+          </div>
+          <p class="ad-note" id="ad-wa-mode-hint">Manual: andika namba + ujumbe, kisha Send.</p>
+
+          <form id="ad-wa-form" class="ad-form" autocomplete="off">
+            <label>Phone (international)
+              <input id="ad-wa-to" name="to" type="tel" placeholder="2557XXXXXXXX" required />
+            </label>
+            <label id="ad-wa-body-wrap">Message
+              <textarea id="ad-wa-body" name="body" rows="4" placeholder="Habari…" required></textarea>
+            </label>
+            <label id="ad-wa-auto-wrap" hidden>Automatic message (inatumiwa peke yake ukiweka namba)
+              <textarea id="ad-wa-auto-body" rows="4" placeholder="Habari kutoka Digital Matrix Technology…"></textarea>
+            </label>
+            <label>Priority
+              <select id="ad-wa-priority">
+                <option value="0">High</option>
+                <option value="5">Normal</option>
+                <option value="10" selected>Low</option>
+              </select>
+            </label>
+            <div class="ad-wa-actions">
+              <button type="submit" id="ad-wa-send">Send message</button>
+              <button type="button" class="ad-refresh" id="ad-wa-status">Check status</button>
+            </div>
+          </form>
+          <p id="ad-wa-msg" class="ad-msg"></p>
+          <div class="ad-wa-hook">
+            <strong>Webhook URL (Ultramsg → Settings)</strong>
+            <code id="ad-wa-webhook"><?php echo $waWebhook; ?></code>
+            <button type="button" class="ad-refresh" id="ad-wa-copy-hook">Copy webhook</button>
+          </div>
+        </div>
+
+        <div class="ad-wa-list-col">
+          <div class="ad-wa-tabs" role="tablist">
+            <button type="button" class="ad-wa-tab is-active" data-wa-status="all">All</button>
+            <button type="button" class="ad-wa-tab" data-wa-status="sent">Sent</button>
+            <button type="button" class="ad-wa-tab" data-wa-status="queue">Queue</button>
+            <button type="button" class="ad-wa-tab" data-wa-status="unsent">Unsent</button>
+            <button type="button" class="ad-wa-tab" data-wa-status="invalid">Invalid</button>
+            <button type="button" class="ad-wa-tab" data-wa-status="expired">Expired</button>
+          </div>
+          <ul class="ad-wa-list" id="ad-wa-list">
+            <li class="ad-wa-empty">Open this section to load messages…</li>
+          </ul>
+        </div>
+      </div>
     </section>
         </div>
       </main>

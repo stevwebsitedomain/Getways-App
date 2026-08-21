@@ -2309,3 +2309,125 @@ body.ad-sidebar-collapsed .ad-nav-ico {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ---- WhatsApp section inside admin portal ---- */
+.ad-wa-layout {
+  display: grid;
+  gap: 18px;
+}
+@media (min-width: 960px) {
+  .ad-wa-layout {
+    grid-template-columns: minmax(280px, 1fr) minmax(280px, 1.1fr);
+    align-items: start;
+  }
+}
+.ad-wa-mode {
+  display: inline-flex;
+  gap: 0;
+  margin-bottom: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ad-wa-mode-btn {
+  border: none;
+  background: #f8fafc;
+  color: #475569;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.ad-wa-mode-btn.is-active {
+  background: #25d366;
+  color: #fff;
+}
+.ad-wa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.ad-wa-hook {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: grid;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+.ad-wa-hook code {
+  word-break: break-all;
+  font-size: 0.72rem;
+}
+.ad-wa-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.ad-wa-tab {
+  border: 1px solid #dbe3ee;
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ad-wa-tab.is-active {
+  background: #002d58;
+  border-color: #002d58;
+  color: #fff;
+}
+.ad-wa-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 520px;
+  overflow: auto;
+}
+.ad-wa-list li {
+  border: 1px solid #e8ecf2;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fbfdff;
+}
+.ad-wa-list .ad-wa-empty {
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 700;
+  border-style: dashed;
+}
+.ad-wa-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.ad-wa-item-body {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #334155;
+  font-weight: 600;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ad-wa-item-meta {
+  margin: 6px 0 0;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+

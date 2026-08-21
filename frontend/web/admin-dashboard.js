@@ -637,27 +637,82 @@
     syncPortalCards();
   }
 
+  let latestAnalytics = null;
+  let chartsNeedRedraw = false;
+
+  function chartsContainerVisible() {
+    const detail = document.getElementById("ad-detail-sections");
+    const analytics = document.getElementById("ad-section-analytics");
+    if (!detail || !analytics) return false;
+    if (detail.hidden || detail.classList.contains("is-collapsed")) return false;
+    if (!document.body.classList.contains("ad-view-detail")) return false;
+    return analytics.getClientRects().length > 0;
+  }
+
+  function applyAnalyticsToCharts(analytics) {
+    const data = analytics || {};
+    drawTrend(document.getElementById("ad-trend"), data.trendDays || []);
+    drawPie(document.getElementById("ad-pie"), data);
+  }
+
+  function redrawChartsIfVisible() {
+    if (!latestAnalytics) return;
+    if (!chartsContainerVisible()) {
+      chartsNeedRedraw = true;
+      return;
+    }
+    chartsNeedRedraw = false;
+    window.requestAnimationFrame(() => {
+      applyAnalyticsToCharts(latestAnalytics);
+      window.setTimeout(() => {
+        try {
+          chartStore.trend?.resize?.();
+          chartStore.pie?.resize?.();
+        } catch (_) {
+          /* ignore */
+        }
+      }, 60);
+    });
+  }
+
   async function loadStatement() {
     try {
       const result = await requestJson("analytics", {
         query: { period: analyticsPeriod },
       });
       const analytics = result.analytics || {};
+      latestAnalytics = analytics;
       document.getElementById("stat-incoming").textContent = money(analytics.moneyIn || 0);
       document.getElementById("stat-success").textContent = String(analytics.success || 0);
       document.getElementById("stat-pending").textContent = String(analytics.pending || 0);
       document.getElementById("stat-failed").textContent = String(analytics.failed || 0);
       updatePeriodLabels(analytics);
-      drawTrend(document.getElementById("ad-trend"), analytics.trendDays || []);
-      drawPie(document.getElementById("ad-pie"), analytics);
+      if (chartsContainerVisible()) {
+        applyAnalyticsToCharts(analytics);
+        chartsNeedRedraw = false;
+      } else {
+        chartsNeedRedraw = true;
+        const trend = document.getElementById("ad-trend");
+        const pie = document.getElementById("ad-pie");
+        if (trend) trend.innerHTML = '<p class="ad-trend-empty">Open Payment analysis to render charts.</p>';
+        if (pie) {
+          pie.classList.add("is-empty");
+          pie.innerHTML = '<p class="ad-trend-empty">Open Payment analysis to render charts.</p>';
+        }
+      }
       const recent = document.getElementById("ad-recent");
       latestRecentRows = analytics.recentCollections || [];
       recentPage = 1;
       renderRecentCollections();
-      setBanner("ad-statement-error", "");
+      if (result.warning) {
+        setBanner("ad-statement-error", result.warning, "error");
+      } else {
+        setBanner("ad-statement-error", "");
+      }
       setBanner("ad-recent-error", "");
       syncPortalCards();
     } catch (error) {
+      latestAnalytics = { success: 0, pending: 0, failed: 0, trendDays: [], recentCollections: [] };
       drawTrend(document.getElementById("ad-trend"), []);
       drawPie(document.getElementById("ad-pie"), {});
       latestRecentRows = [];
@@ -1217,6 +1272,7 @@
     payouts: "Automatic payouts",
     users: "Registered users",
     recent: "Recent collections",
+    whatsapp: "WhatsApp messages",
   };
 
   function scrollToPortalSection(key) {
@@ -1228,6 +1284,7 @@
       payouts: "ad-section-payouts",
       users: "ad-section-users",
       recent: "ad-section-recent",
+      whatsapp: "ad-section-whatsapp",
     };
     document.body.classList.add("ad-view-detail");
     document.body.classList.remove("ad-view-home");
@@ -1240,6 +1297,12 @@
     if (el) {
       window.setTimeout(() => {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (key === "analytics" || chartsNeedRedraw) {
+          redrawChartsIfVisible();
+        }
+        if (key === "whatsapp") {
+          loadWhatsappMessages(waCurrentStatus);
+        }
       }, 80);
     }
     const titleEl = document.getElementById("ad-portal-title");
@@ -1350,6 +1413,237 @@
     bindSidebarMinimize();
   }
 
+  let waCurrentStatus = "all";
+  let waMode = "manual";
+  let waAutoTimer = null;
+  let waLastAutoSentTo = "";
+  let waSending = false;
+  const WA_MODE_KEY = "gw_wa_send_mode";
+  const WA_AUTO_BODY_KEY = "gw_wa_auto_body";
+  const WA_DEFAULT_AUTO =
+    "Habari, ujumbe huu umetumwa na Digital Matrix Technology kupitia Getway.";
+
+  function setWaMsg(text, isError) {
+    const el = document.getElementById("ad-wa-msg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("is-err", Boolean(isError));
+    el.classList.toggle("is-ok", Boolean(text) && !isError);
+  }
+
+  function applyWaMode(mode) {
+    waMode = mode === "auto" ? "auto" : "manual";
+    document.querySelectorAll(".ad-wa-mode-btn").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.waMode === waMode);
+    });
+    const hint = document.getElementById("ad-wa-mode-hint");
+    const bodyWrap = document.getElementById("ad-wa-body-wrap");
+    const autoWrap = document.getElementById("ad-wa-auto-wrap");
+    const sendBtn = document.getElementById("ad-wa-send");
+    if (hint) {
+      hint.textContent = waMode === "auto"
+        ? "Automatic: weka namba ya simu — system itatuma ujumbe wa automatic yenyewe."
+        : "Manual: andika namba + ujumbe, kisha Send.";
+    }
+    if (bodyWrap) bodyWrap.hidden = waMode === "auto";
+    if (autoWrap) autoWrap.hidden = waMode !== "auto";
+    if (sendBtn) sendBtn.textContent = waMode === "auto" ? "Send now" : "Send message";
+    try {
+      localStorage.setItem(WA_MODE_KEY, waMode);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function normalizeWaPhone(value) {
+    return String(value || "").replace(/\D+/g, "");
+  }
+
+  function renderWaMessages(messages) {
+    const list = document.getElementById("ad-wa-list");
+    if (!list) return;
+    if (!messages || !messages.length) {
+      list.innerHTML = '<li class="ad-wa-empty">Hakuna messages kwa status hii.</li>';
+      return;
+    }
+    list.innerHTML = messages.map((m) => {
+      const to = m.to || m.chatId || m.from || m.id || "—";
+      const body = m.body || m.message || m.text || m.caption || "";
+      const st = String(m.status || m.ack || m.state || waCurrentStatus || "all").toLowerCase();
+      let when = m.timestamp || m.time || m.created || m.date || m.sent_at || "";
+      if (typeof when === "number" && when > 1000000000) {
+        when = new Date(when * (when < 1e12 ? 1000 : 1)).toLocaleString();
+      }
+      const id = m.id || m.messageId || m.msgId || "";
+      return `<li>
+        <div class="ad-wa-item-top"><span>${esc(to)}</span><span>${esc(st)}</span></div>
+        <p class="ad-wa-item-body">${esc(body)}</p>
+        <p class="ad-wa-item-meta">ID: ${esc(id)}${when ? " · " + esc(when) : ""}</p>
+      </li>`;
+    }).join("");
+  }
+
+  async function loadWhatsappMessages(status) {
+    const list = document.getElementById("ad-wa-list");
+    if (!list) return;
+    waCurrentStatus = status || waCurrentStatus || "all";
+    list.innerHTML = '<li class="ad-wa-empty">Loading…</li>';
+    try {
+      const res = await fetch(
+        `whatsapp-api.php?action=messages&status=${encodeURIComponent(waCurrentStatus)}&limit=50&sort=desc`,
+        { credentials: "same-origin", cache: "no-store" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        list.innerHTML = `<li class="ad-wa-empty">${esc(data.message || "Failed to load messages")}</li>`;
+        return;
+      }
+      renderWaMessages(data.messages || []);
+    } catch (error) {
+      list.innerHTML = `<li class="ad-wa-empty">${esc(error.message || error)}</li>`;
+    }
+  }
+
+  async function sendWhatsappMessage({ to, body, priority }) {
+    if (waSending) return null;
+    waSending = true;
+    setWaMsg("Sending…");
+    try {
+      const res = await fetch("whatsapp-api.php?action=send", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, body, priority }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || "Send failed");
+      }
+      setWaMsg(`Sent to ${data.to || to}`);
+      loadWhatsappMessages(waCurrentStatus);
+      return data;
+    } catch (error) {
+      setWaMsg(error.message || String(error), true);
+      throw error;
+    } finally {
+      waSending = false;
+    }
+  }
+
+  function scheduleAutoSend() {
+    if (waMode !== "auto") return;
+    window.clearTimeout(waAutoTimer);
+    waAutoTimer = window.setTimeout(async () => {
+      const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+      const body = String(document.getElementById("ad-wa-auto-body")?.value || "").trim() || WA_DEFAULT_AUTO;
+      const priority = document.getElementById("ad-wa-priority")?.value || "10";
+      if (to.length < 12) return;
+      if (to === waLastAutoSentTo) return;
+      try {
+        await sendWhatsappMessage({ to, body, priority });
+        waLastAutoSentTo = to;
+        try {
+          localStorage.setItem(WA_AUTO_BODY_KEY, body);
+        } catch (_) {
+          /* ignore */
+        }
+      } catch (_) {
+        /* message already shown */
+      }
+    }, 900);
+  }
+
+  function bindWhatsappSection() {
+    if (!document.getElementById("ad-section-whatsapp")) return;
+
+    try {
+      const savedMode = localStorage.getItem(WA_MODE_KEY);
+      const savedBody = localStorage.getItem(WA_AUTO_BODY_KEY);
+      if (savedBody && document.getElementById("ad-wa-auto-body")) {
+        document.getElementById("ad-wa-auto-body").value = savedBody;
+      } else if (document.getElementById("ad-wa-auto-body")) {
+        document.getElementById("ad-wa-auto-body").value = WA_DEFAULT_AUTO;
+      }
+      applyWaMode(savedMode === "auto" ? "auto" : "manual");
+    } catch (_) {
+      applyWaMode("manual");
+    }
+
+    document.querySelectorAll(".ad-wa-mode-btn").forEach((btn) => {
+      btn.addEventListener("click", () => applyWaMode(btn.dataset.waMode || "manual"));
+    });
+
+    document.querySelectorAll(".ad-wa-tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".ad-wa-tab").forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        loadWhatsappMessages(btn.dataset.waStatus || "all");
+      });
+    });
+
+    document.getElementById("ad-wa-refresh")?.addEventListener("click", () => {
+      loadWhatsappMessages(waCurrentStatus);
+    });
+
+    document.getElementById("ad-wa-to")?.addEventListener("input", () => {
+      const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+      if (to !== waLastAutoSentTo) waLastAutoSentTo = "";
+      scheduleAutoSend();
+    });
+
+    document.getElementById("ad-wa-auto-body")?.addEventListener("change", () => {
+      try {
+        localStorage.setItem(WA_AUTO_BODY_KEY, document.getElementById("ad-wa-auto-body").value || "");
+      } catch (_) {
+        /* ignore */
+      }
+    });
+
+    document.getElementById("ad-wa-form")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+      const priority = document.getElementById("ad-wa-priority")?.value || "10";
+      const body = waMode === "auto"
+        ? (String(document.getElementById("ad-wa-auto-body")?.value || "").trim() || WA_DEFAULT_AUTO)
+        : String(document.getElementById("ad-wa-body")?.value || "").trim();
+      if (to.length < 9) {
+        setWaMsg("Enter a valid international phone number.", true);
+        return;
+      }
+      if (!body) {
+        setWaMsg("Message body is required.", true);
+        return;
+      }
+      try {
+        await sendWhatsappMessage({ to, body, priority });
+        if (waMode === "auto") waLastAutoSentTo = to;
+      } catch (_) {
+        /* shown */
+      }
+    });
+
+    document.getElementById("ad-wa-status")?.addEventListener("click", async () => {
+      setWaMsg("Checking status…");
+      try {
+        const res = await fetch("whatsapp-api.php?action=status", { credentials: "same-origin" });
+        const data = await res.json().catch(() => ({}));
+        setWaMsg(data.ok ? JSON.stringify(data.data || data, null, 2) : (data.message || "Status failed"), !data.ok);
+      } catch (error) {
+        setWaMsg(error.message || String(error), true);
+      }
+    });
+
+    document.getElementById("ad-wa-copy-hook")?.addEventListener("click", async () => {
+      const url = document.getElementById("ad-wa-webhook")?.textContent?.trim() || "";
+      try {
+        await navigator.clipboard?.writeText(url);
+        setWaMsg("Webhook URL copied.");
+      } catch (_) {
+        setWaMsg(url);
+      }
+    });
+  }
+
   function bindGeneralAnalysis() {
     const overlay = document.getElementById("ad-ga-overlay");
     const openBtn = document.getElementById("ad-ga-open");
@@ -1364,6 +1658,7 @@
       payouts: "ad-section-payouts",
       users: "ad-section-users",
       recent: "ad-section-recent",
+      whatsapp: "ad-section-whatsapp",
       autopay: "stat-auto-card",
     };
 
@@ -1485,6 +1780,7 @@
   document.getElementById("ad-payouts-export")?.addEventListener("click", exportPayoutCsv);
   bindGeneralAnalysis();
   bindPortalNavigation();
+  bindWhatsappSection();
   document.body.classList.add("ad-view-home");
   const detailOnLoad = document.getElementById("ad-detail-sections");
   if (detailOnLoad) {
@@ -1494,6 +1790,12 @@
 
   loadAll().catch((error) => {
     setBanner("ad-db-banner", error.message, "error", { toast: true });
+  }).finally(() => {
+    const section = new URLSearchParams(window.location.search).get("section")
+      || (window.location.hash || "").replace(/^#/, "");
+    if (section && PORTAL_SECTION_TITLES[section] && section !== "home") {
+      scrollToPortalSection(section);
+    }
   });
   window.setInterval(loadBalance, REFRESH_MS);
 })();
