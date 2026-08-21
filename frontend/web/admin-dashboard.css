@@ -1750,27 +1750,36 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 24px;
+  gap: 10px;
+  padding: 8px 16px;
+  min-height: 0;
   background: var(--ad-portal-bg);
   border-bottom: 1px solid #d8dee8;
 }
 
 .ad-menu-btn {
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border: 1px solid #c5cdd8;
   border-radius: 8px;
   background: #fff;
   color: var(--ad-portal-link);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9rem;
+}
+
+.ad-portal-top-text .ad-eyebrow {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  margin: 0;
 }
 
 .ad-portal-top-text h1 {
-  margin: 2px 0 0;
-  font-size: clamp(1.2rem, 3vw, 1.55rem);
+  margin: 0;
+  font-size: clamp(0.98rem, 2.2vw, 1.15rem);
+  line-height: 1.2;
   color: var(--ad-portal-text);
 }
 
@@ -1778,10 +1787,34 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   color: var(--ad-portal-link);
 }
 
+.ad-portal .ad-top-actions {
+  gap: 6px;
+}
+
+.ad-portal .ad-ga-open {
+  gap: 6px;
+  padding: 6px 10px !important;
+  font-size: 0.75rem !important;
+  border-radius: 7px !important;
+}
+
+.ad-portal .ad-refresh {
+  padding: 6px 10px !important;
+  font-size: 0.75rem !important;
+  border-radius: 7px !important;
+}
+
+.ad-portal .ad-logout-top {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  border-radius: 7px;
+  gap: 5px;
+}
+
 .ad-portal .ad-main {
   max-width: none;
   margin: 0;
-  padding: 20px 24px 48px;
+  padding: 12px 16px 28px;
   background: var(--ad-portal-bg);
   flex: 1 1 auto;
   min-height: 0;
@@ -2103,14 +2136,10 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   max-width: 100%;
   min-width: 0;
   overflow-x: hidden;
-}
-
-.ad-portal .ad-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: 16px;
-  max-width: 100%;
-  min-width: 0;
+  min-height: calc(100svh - 130px);
+  padding-bottom: 40px;
+  background: #f0f4f8;
+  box-sizing: border-box;
 }
 
 .ad-portal .ad-detail-sections .ad-card {
@@ -2123,10 +2152,67 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   min-width: 0;
   overflow: visible;
   padding: 20px 22px;
+  height: auto;
+  max-height: none;
 }
 
 .ad-portal .ad-page-section {
   min-height: 0;
+}
+
+/* WhatsApp: full-height page surface so bg never cuts mid-list */
+.ad-portal #ad-section-whatsapp.ad-card {
+  min-height: calc(100svh - 100px);
+  height: auto !important;
+  max-height: none !important;
+  display: flex;
+  flex-direction: column;
+  background: #f0f4f8 !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 4px 0 24px !important;
+  overflow: visible !important;
+}
+
+.ad-portal #ad-section-whatsapp > .ad-card-head {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+
+.ad-portal #ad-section-whatsapp .ad-wa-layout {
+  flex: 1 1 auto;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.ad-portal #ad-section-whatsapp .ad-wa-send-col,
+.ad-portal #ad-section-whatsapp .ad-wa-list-col {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+  padding: 16px 16px 18px;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.ad-portal #ad-section-whatsapp .ad-wa-list-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+}
+
+.ad-portal #ad-section-whatsapp .ad-wa-list {
+  flex: none;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 /* Scrollable tables & lists (nav stays fixed; these scroll inside) */
@@ -2214,7 +2300,7 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   box-shadow: none !important;
   border-radius: 0 !important;
   padding: 8px 0 32px !important;
-  min-height: calc(100svh - 120px);
+  min-height: calc(100svh - 88px);
   height: auto;
   display: flex;
   flex-direction: column;
@@ -2226,9 +2312,9 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   display: grid;
   place-items: center;
   align-content: center;
-  min-height: calc(100svh - 140px);
+  min-height: calc(100svh - 100px);
   width: 100%;
-  padding: 36px 12px 48px;
+  padding: 20px 12px 28px;
   background: #f0f4f8;
   box-sizing: border-box;
 }

@@ -79,12 +79,14 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     .ad-sidebar::-webkit-scrollbar{display:none;width:0;height:0}
     body.ad-sidebar-collapsed{--ad-sidebar-w:72px}
     .ad-main-wrap{flex:1;margin-left:var(--ad-sidebar-w,210px);min-width:0;min-height:0;height:100svh;display:flex;flex-direction:column;overflow:hidden;transition:margin-left .2s ease}
-    .ad-portal-top{position:relative;top:0;z-index:200;flex-shrink:0;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
-    .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#f0f4f8!important;flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
+    .ad-portal-top{position:relative;top:0;z-index:200;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:8px 16px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
+    .ad-portal-top-text .ad-eyebrow{font-size:.62rem;margin:0;line-height:1.1}
+    .ad-portal-top-text h1{margin:0;font-size:clamp(.98rem,2.2vw,1.15rem);line-height:1.2}
+    .ad-portal .ad-main{max-width:none;margin:0;padding:12px 16px 28px;background:#f0f4f8!important;flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
     .ad-portal .ad-table-wrap,.ad-portal .ad-recent{max-height:min(65vh,560px);overflow:auto;-webkit-overflow-scrolling:touch}
     .ad-portal .ad-wa-list{max-height:none;overflow:visible}
-    .ad-portal .ad-detail-sections .ad-cn-page.ad-card{min-height:calc(100svh - 120px);height:auto;display:flex;flex-direction:column;background:#f0f4f8!important;border:none!important;box-shadow:none!important;border-radius:0!important;padding:8px 0 32px!important}
-    .ad-cn-stage{flex:1 1 auto;display:grid;place-items:center;align-content:center;min-height:calc(100svh - 140px);width:100%;background:#f0f4f8;padding:36px 12px 48px;box-sizing:border-box}
+    .ad-portal .ad-detail-sections .ad-cn-page.ad-card{min-height:calc(100svh - 88px);height:auto;display:flex;flex-direction:column;background:#f0f4f8!important;border:none!important;box-shadow:none!important;border-radius:0!important;padding:4px 0 24px!important}
+    .ad-cn-stage{flex:1 1 auto;display:grid;place-items:center;align-content:center;min-height:calc(100svh - 100px);width:100%;background:#f0f4f8;padding:20px 12px 28px;box-sizing:border-box}
     .ad-portal-home{display:grid!important;gap:28px}
     .ad-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .ad-service-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:72px}
