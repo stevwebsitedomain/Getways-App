@@ -17,22 +17,31 @@
       otp_again: "Send again",
       user: "User",
       admin: "Admin",
+      user_tab: "Login as User",
+      admin_tab: "Login as Admin",
       username: "Username",
+      username_label: "Mobile number / username",
+      username_ph_admin: "admin",
+      username_ph_user: "Phone number or full name",
       password: "Password",
+      password_ph_admin: "Password (admin: 0000)",
+      password_ph_user: "Your registered password",
       new_password: "New password",
       phone: "Phone number",
       full_name: "Full name",
-      forgot_link: "FORGOT?",
-      login_btn: "LOGIN",
+      forgot_link: "Forgot password?",
+      login_btn: "Login",
       register_btn: "REGISTER",
       send_otp: "SEND OTP",
       confirm_otp: "CONFIRM OTP",
       pin_title: "Enter PIN",
-      pin_hint: "Default admin PIN:",
-      pin_login: "LOGIN WITH PIN",
+      pin_hint: "Admin PIN:",
+      pin_login: "Login with PIN",
       pin_cancel: "Cancel",
       temp_id: "Have a temporary User ID & Password?",
       register_here: "Register Here",
+      new_user: "New user?",
+      sign_up_now: "Sign up now!",
       have_account: "Already have an account?",
       login_here: "Login Here",
       remember_pw: "Remember your password?",
@@ -55,22 +64,31 @@
       otp_again: "Tuma tena",
       user: "Mtumiaji",
       admin: "Msimamizi",
+      user_tab: "Ingia kama Mtumiaji",
+      admin_tab: "Ingia kama Msimamizi",
       username: "Jina la mtumiaji",
+      username_label: "Namba ya simu / jina",
+      username_ph_admin: "admin",
+      username_ph_user: "Namba ya simu au jina kamili",
       password: "Nenosiri",
+      password_ph_admin: "Nenosiri (msimamizi: 0000)",
+      password_ph_user: "Nenosiri ulilosajili",
       new_password: "Nenosiri jipya",
       phone: "Namba ya simu",
       full_name: "Jina kamili",
-      forgot_link: "SAHAU?",
-      login_btn: "INGIA",
+      forgot_link: "Umesahau nenosiri?",
+      login_btn: "Ingia",
       register_btn: "JISAJILI",
       send_otp: "TUMA OTP",
       confirm_otp: "THIBITISHA OTP",
       pin_title: "Weka PIN",
-      pin_hint: "PIN ya msimamizi (chaguo-msingi):",
-      pin_login: "INGIA KWA PIN",
+      pin_hint: "PIN ya msimamizi:",
+      pin_login: "Ingia kwa PIN",
       pin_cancel: "Ghairi",
       temp_id: "Una User ID na Password ya muda?",
       register_here: "Jisajili Hapa",
+      new_user: "Mtumiaji mpya?",
+      sign_up_now: "Jisajili sasa!",
       have_account: "Tayari una akaunti?",
       login_here: "Ingia Hapa",
       remember_pw: "Unakumbuka nenosiri?",
@@ -108,6 +126,12 @@
       }
     });
 
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+      const key = node.getAttribute("data-i18n-placeholder") || "";
+      if (!dict[key] || !(node instanceof HTMLInputElement)) return;
+      node.placeholder = dict[key];
+    });
+
     const flagImg = document.querySelector("[data-mb-lang-flag]");
     if (flagImg) {
       flagImg.src = FLAGS[code];
@@ -121,7 +145,7 @@
     });
 
     document.querySelectorAll("[data-password-toggle]").forEach((btn) => {
-      const wrap = btn.closest(".mb-field--pass") || btn.closest(".auth-password-wrap");
+      const wrap = btn.closest(".mb-field--pass") || btn.closest(".mb-input-box--pass") || btn.closest(".auth-password-wrap");
       const input = wrap?.querySelector("input[type='password'], input[type='text']");
       const visible = input instanceof HTMLInputElement && input.type === "text";
       btn.setAttribute("aria-label", dict[visible ? "hide_password" : "show_password"] || "");

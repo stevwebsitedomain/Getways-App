@@ -470,6 +470,13 @@ if ($action === 'login') {
         jsonResponse(422, ['ok' => false, 'message' => 'Please enter your password.']);
     }
 
+    if ($wantedRole === 'user' && $password === '0000') {
+        jsonResponse(403, [
+            'ok' => false,
+            'message' => 'Password 0000 is for Admin only. Switch to the Admin tab.',
+        ]);
+    }
+
     if ($wantedRole === 'admin' && $password === '0000') {
         $adminUser = loginAdminFromStore($store, $storePath);
         if ($adminUser !== null) {
@@ -490,14 +497,12 @@ if ($action === 'login') {
             }
             $role = strtolower((string) ($user['role'] ?? 'user'));
             if ($wantedRole === 'admin' && $role !== 'admin') {
-                jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin.']);
+                jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin. Use Admin password 0000 or an admin account.']);
             }
             if ($wantedRole === 'user' && $role === 'admin') {
-                // Allow admin to also open user mode explicitly if they chose User tab
-                $user['role'] = 'user';
-                $user['_actualRole'] = 'admin';
+                jsonResponse(403, ['ok' => false, 'message' => 'This is an admin account. Switch to the Admin tab.']);
             }
-            jsonResponse(200, loginSession($user, 'pin'));
+            jsonResponse(200, loginSession($user, 'password'));
         }
         jsonResponse(404, ['ok' => false, 'message' => 'Account not found. Use your phone number or full name from registration.']);
     }
@@ -518,7 +523,10 @@ if ($action === 'login') {
     }
     $user = $matches[0];
     if ($wantedRole === 'admin' && ($user['role'] ?? '') !== 'admin') {
-        jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin.']);
+        jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin. Use Admin password 0000 or an admin account.']);
+    }
+    if ($wantedRole === 'user' && strtolower((string) ($user['role'] ?? 'user')) === 'admin') {
+        jsonResponse(403, ['ok' => false, 'message' => 'This is an admin account. Switch to the Admin tab.']);
     }
     jsonResponse(200, loginSession($user, 'password'));
 }
@@ -526,12 +534,18 @@ if ($action === 'login') {
 if ($action === 'pin-login') {
     $pin = preg_replace('/\D+/', '', (string) ($input['pin'] ?? '')) ?? '';
     $wantedRole = strtolower(trim((string) ($input['role'] ?? 'admin')));
+    if ($wantedRole !== 'admin') {
+        $wantedRole = 'user';
+    }
     if (strlen($pin) !== 4) {
         jsonResponse(422, ['ok' => false, 'message' => 'Enter a 4-digit PIN.']);
     }
 
-    // Default PIN 0000 → admin
+    // Default PIN 0000 → admin dashboard only when Admin tab is selected
     if ($pin === '0000') {
+        if ($wantedRole !== 'admin') {
+            jsonResponse(403, ['ok' => false, 'message' => 'Admin PIN only works on the Admin tab. Switch to Admin to continue.']);
+        }
         $adminUser = loginAdminFromStore($store, $storePath);
         if ($adminUser !== null) {
             jsonResponse(200, loginSession($adminUser, 'pin'));
@@ -542,8 +556,12 @@ if ($action === 'pin-login') {
     foreach ($users as $user) {
         $pinHash = (string) ($user['pinHash'] ?? '');
         if ($pinHash !== '' && password_verify($pin, $pinHash)) {
-            if ($wantedRole === 'admin' && ($user['role'] ?? '') !== 'admin') {
+            $role = strtolower((string) ($user['role'] ?? 'user'));
+            if ($wantedRole === 'admin' && $role !== 'admin') {
                 jsonResponse(403, ['ok' => false, 'message' => 'PIN is not for an admin account.']);
+            }
+            if ($wantedRole === 'user' && $role === 'admin') {
+                jsonResponse(403, ['ok' => false, 'message' => 'Use the Admin tab for admin accounts.']);
             }
             jsonResponse(200, loginSession($user, 'pin'));
         }

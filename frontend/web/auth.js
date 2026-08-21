@@ -48,10 +48,17 @@
     const pinSubmit = $("#pin-login-btn");
     const pinDigits = Array.from(document.querySelectorAll("#pin-digits input"));
 
-    function resolveRedirect(defaultPath) {
+    function resolveRedirect(defaultPath, role) {
+      const normalizedRole = String(role || "").toLowerCase();
+      if (normalizedRole === "admin") {
+        return "admin-dashboard.php";
+      }
       const next = String(window.GETWAY_NEXT || "").trim();
       if (next && /^[a-zA-Z0-9._/?=&-]+$/.test(next) && !next.startsWith("http")) {
-        return decodeURIComponent(next);
+        const decoded = decodeURIComponent(next);
+        if (!/admin-dashboard/i.test(decoded)) {
+          return decoded;
+        }
       }
       return defaultPath || "part-two.php";
     }
@@ -62,19 +69,45 @@
           b.classList.toggle("is-active", b === btn);
           b.setAttribute("aria-selected", b === btn ? "true" : "false");
         });
-        if (roleInput) roleInput.value = btn.getAttribute("data-login-mode") || "user";
-        if (btn.getAttribute("data-login-mode") === "admin" && $("#username")) {
-          $("#username").placeholder = "admin";
-          if (!$("#username").value) $("#username").value = "admin";
-          const pass = $("#password");
-          if (pass) pass.placeholder = "Password (admin: 0000)";
-        } else if ($("#username")) {
-          $("#username").placeholder = "Phone number or full name";
-          const pass = $("#password");
-          if (pass) pass.placeholder = "Your registered password";
+        const mode = btn.getAttribute("data-login-mode") || "user";
+        if (roleInput) roleInput.value = mode;
+        document.body.classList.toggle("is-admin-mode", mode === "admin");
+        const userInput = $("#username");
+        const pass = $("#password");
+        if (mode === "admin") {
+          if (userInput) {
+            userInput.placeholder = "admin";
+            userInput.setAttribute("data-i18n-placeholder", "username_ph_admin");
+            if (!userInput.value || userInput.dataset.autofilled === "1") {
+              userInput.value = "admin";
+              userInput.dataset.autofilled = "1";
+            }
+          }
+          if (pass) {
+            pass.placeholder = "Password (admin: 0000)";
+            pass.setAttribute("data-i18n-placeholder", "password_ph_admin");
+          }
+        } else {
+          if (userInput) {
+            userInput.placeholder = "Phone number or full name";
+            userInput.setAttribute("data-i18n-placeholder", "username_ph_user");
+            if (userInput.dataset.autofilled === "1") {
+              userInput.value = "";
+              delete userInput.dataset.autofilled;
+            }
+          }
+          if (pass) {
+            pass.placeholder = "Your registered password";
+            pass.setAttribute("data-i18n-placeholder", "password_ph_user");
+          }
         }
       });
     });
+    if (roleInput?.value === "admin") {
+      document.body.classList.add("is-admin-mode");
+      const userInput = $("#username");
+      if (userInput && userInput.value === "admin") userInput.dataset.autofilled = "1";
+    }
 
     function readPin() {
       return pinDigits.map((el) => String(el.value || "").replace(/\D/g, "")).join("");
@@ -121,7 +154,7 @@
           pin,
           role: roleInput?.value || "admin",
         });
-        window.location.href = resolveRedirect(out.redirect);
+        window.location.href = resolveRedirect(out.redirect, out.role);
       } catch (error) {
         setMessage(alert, error.message, false);
       }
@@ -132,19 +165,10 @@
       setMessage(alert, "", false);
       const username = String($("#username", form)?.value || "").trim();
       const password = String($("#password", form)?.value || "").trim();
-      let role = String(roleInput?.value || "user");
-      if (password === "0000") {
-        role = "admin";
-        if (roleInput) roleInput.value = "admin";
-        document.querySelectorAll("[data-login-mode]").forEach((btn) => {
-          const isAdmin = btn.getAttribute("data-login-mode") === "admin";
-          btn.classList.toggle("is-active", isAdmin);
-          btn.setAttribute("aria-selected", isAdmin ? "true" : "false");
-        });
-      }
+      const role = String(roleInput?.value || "user") === "admin" ? "admin" : "user";
       try {
         const out = await api("login", { username, password, role });
-        window.location.href = resolveRedirect(out.redirect);
+        window.location.href = resolveRedirect(out.redirect, out.role);
       } catch (error) {
         setMessage(alert, error.message, false);
       }
@@ -163,7 +187,7 @@
         const guessedName = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
         try {
           const out = await api("google-login", { email, fullName: guessedName || "Google User" });
-          window.location.href = resolveRedirect(out.redirect);
+          window.location.href = resolveRedirect(out.redirect, out.role);
         } catch (error) {
           setMessage(alert, error.message, false);
         }
@@ -187,7 +211,7 @@
       btn.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        const wrap = btn.closest(".auth-password-wrap") || btn.closest(".mb-field--pass");
+        const wrap = btn.closest(".auth-password-wrap") || btn.closest(".mb-field--pass") || btn.closest(".mb-input-box--pass");
         const input = wrap?.querySelector("input[type='password'], input[type='text']");
         if (!(input instanceof HTMLInputElement)) return;
         const show = input.type === "password";
