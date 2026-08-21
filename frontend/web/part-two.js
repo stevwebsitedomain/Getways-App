@@ -422,7 +422,16 @@ function renderRecentTransactions(merged) {
 }
 
 function setSummaryPlaceholders() {
-  if (successAmountEl) successAmountEl.textContent = "TZS 0";
+  if (successAmountEl) {
+    successAmountEl.setAttribute("data-amount-raw", "TZS 0");
+    if (successAmountEl.getAttribute("data-amount-visible") === "0") {
+      successAmountEl.textContent = "••••••";
+      successAmountEl.classList.add("is-amount-hidden");
+    } else {
+      successAmountEl.textContent = "TZS 0";
+      successAmountEl.classList.remove("is-amount-hidden");
+    }
+  }
   if (failedAmountEl) failedAmountEl.textContent = "TZS 0";
   if (pendingTransactionsEl) pendingTransactionsEl.textContent = "0";
   const mockStatusEl = document.getElementById("mock-status-sales");
