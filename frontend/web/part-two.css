@@ -3114,7 +3114,11 @@ body.tis-wallet-dash {
 }
 
 .w-home-sample .w-bottom-nav {
-  width: min(480px, 100vw);
+  width: min(420px, 100vw);
+}
+
+.w-home-sample.layout-desktop .w-bottom-nav {
+  width: min(1180px, calc(100vw - 32px));
 }
 
 /* Final layout fix: hero height + card gaps + no side overflow */
@@ -3234,9 +3238,13 @@ body.tis-wallet-dash {
 }
 
 .w-home-sample .w-bottom-nav {
-  width: min(480px, 100vw) !important;
+  width: min(420px, 100vw) !important;
   gap: 2px;
   padding-inline: 4px;
+}
+
+.w-home-sample.layout-desktop .w-bottom-nav {
+  width: min(1180px, calc(100vw - 32px)) !important;
 }
 
 .w-home-sample .w-nav-item {
