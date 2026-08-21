@@ -1592,6 +1592,9 @@
   let waSending = false;
   let waPhoneList = [];
   let waHiddenIds = new Set();
+  let waMessagesCache = [];
+  let waPage = 1;
+  const WA_PAGE_SIZE = 4;
   const WA_MODE_KEY = "gw_wa_send_mode";
   const WA_AUTO_BODY_KEY = "gw_wa_auto_body";
   const WA_HIDDEN_KEY = "gw_wa_hidden_ids";
@@ -1720,45 +1723,14 @@
     return String(when);
   }
 
-  function renderWaMessages(messages) {
-    const list = document.getElementById("ad-wa-list");
-    if (!list) return;
-    const visible = (messages || []).filter((m) => {
+  function getVisibleWaMessages(messages) {
+    return (messages || []).filter((m) => {
       const id = String(m.id || m.messageId || m.msgId || "");
       return !id || !waHiddenIds.has(id);
     });
-    if (!visible.length) {
-      list.innerHTML = '<li class="ad-wa-empty">No messages</li>';
-      return;
-    }
-    list.innerHTML = visible.map((m) => {
-      const rawTo = String(m.to || m.chatId || m.from || m.id || "—");
-      const phone = normalizeWaPhone(rawTo) || rawTo;
-      const body = m.body || m.message || m.text || m.caption || "";
-      const st = String(m.status || m.ack || m.state || waCurrentStatus || "all").toLowerCase();
-      const when = formatWaWhen(m.timestamp || m.time || m.created || m.date || m.sent_at || "");
-      const id = String(m.id || m.messageId || m.msgId || "");
-      const payload = encodeURIComponent(JSON.stringify({
-        id,
-        to: phone,
-        body,
-        status: st,
-        when,
-      }));
-      return `<li class="ad-wa-item">
-        <div class="ad-wa-item-top">
-          <span class="ad-wa-phone"><i class="fa-brands fa-whatsapp"></i>${esc(phone)}</span>
-          <span class="ad-wa-status is-${esc(st)}">${esc(st)}</span>
-        </div>
-        <p class="ad-wa-item-body">${esc(body)}</p>
-        <p class="ad-wa-item-meta">${id ? "ID: " + esc(id) : ""}${when ? (id ? " · " : "") + esc(when) : ""}</p>
-        <div class="ad-wa-item-actions">
-          <button type="button" class="ad-btn ad-btn--view" data-wa-view="${payload}"><i class="fa-solid fa-eye"></i><span>View</span></button>
-          <button type="button" class="ad-btn ad-btn--delete" data-wa-delete="${payload}"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
-        </div>
-      </li>`;
-    }).join("");
+  }
 
+  function bindWaMessageActions(list) {
     list.querySelectorAll("[data-wa-view]").forEach((btn) => {
       btn.addEventListener("click", () => {
         let row = null;
@@ -1817,20 +1789,99 @@
             /* local hide still applied */
           }
         }
-        btn.closest("li")?.remove();
         await waSwalSent("Sent", "Message removed from recent list.");
-        if (!document.querySelector("#ad-wa-list .ad-wa-item")) {
-          list.innerHTML = '<li class="ad-wa-empty">No messages</li>';
-        }
+        renderWaMessages(waMessagesCache, waPage);
       });
     });
+  }
+
+  function renderWaMessages(messages, page) {
+    const list = document.getElementById("ad-wa-list");
+    if (!list) return;
+    if (Array.isArray(messages)) {
+      waMessagesCache = messages;
+    }
+    const visible = getVisibleWaMessages(waMessagesCache);
+    const totalPages = Math.max(1, Math.ceil(visible.length / WA_PAGE_SIZE));
+    waPage = Math.min(Math.max(1, page || waPage || 1), totalPages);
+
+    if (!visible.length) {
+      list.innerHTML = '<li class="ad-wa-empty">No messages</li>';
+      const emptyPager = document.getElementById("ad-wa-pager");
+      if (emptyPager) {
+        emptyPager.hidden = true;
+        emptyPager.innerHTML = "";
+      }
+      return;
+    }
+
+    const slice = visible.slice((waPage - 1) * WA_PAGE_SIZE, waPage * WA_PAGE_SIZE);
+    list.innerHTML = slice.map((m) => {
+      const rawTo = String(m.to || m.chatId || m.from || m.id || "—");
+      const phone = normalizeWaPhone(rawTo) || rawTo;
+      const body = m.body || m.message || m.text || m.caption || "";
+      const st = String(m.status || m.ack || m.state || waCurrentStatus || "all").toLowerCase();
+      const when = formatWaWhen(m.timestamp || m.time || m.created || m.date || m.sent_at || "");
+      const id = String(m.id || m.messageId || m.msgId || "");
+      const payload = encodeURIComponent(JSON.stringify({
+        id,
+        to: phone,
+        body,
+        status: st,
+        when,
+      }));
+      return `<li class="ad-wa-item">
+        <div class="ad-wa-item-top">
+          <span class="ad-wa-phone"><i class="fa-brands fa-whatsapp"></i>${esc(phone)}</span>
+          <span class="ad-wa-status is-${esc(st)}">${esc(st)}</span>
+        </div>
+        <p class="ad-wa-item-body">${esc(body)}</p>
+        <p class="ad-wa-item-meta">${id ? "ID: " + esc(id) : ""}${when ? (id ? " · " : "") + esc(when) : ""}</p>
+        <div class="ad-wa-item-actions">
+          <button type="button" class="ad-btn ad-btn--view" data-wa-view="${payload}"><i class="fa-solid fa-eye"></i><span>View</span></button>
+          <button type="button" class="ad-btn ad-btn--delete" data-wa-delete="${payload}"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+        </div>
+      </li>`;
+    }).join("");
+
+    bindWaMessageActions(list);
+
+    const pager = document.getElementById("ad-wa-pager");
+    if (pager) {
+      if (visible.length <= WA_PAGE_SIZE) {
+        pager.hidden = true;
+        pager.innerHTML = "";
+      } else {
+        const total = Math.max(1, Math.ceil(visible.length / WA_PAGE_SIZE));
+        const current = Math.min(Math.max(1, waPage), total);
+        pager.hidden = false;
+        pager.innerHTML = `
+          <button type="button" class="ad-btn ad-btn--ghost ad-pager-btn" data-page="prev" ${current <= 1 ? "disabled" : ""}><i class="fa-solid fa-chevron-left"></i><span>Previous</span></button>
+          <span class="ad-pager-info">Page ${current} of ${total}</span>
+          <button type="button" class="ad-btn ad-btn--ghost ad-pager-btn" data-page="next" ${current >= total ? "disabled" : ""}><span>Next</span><i class="fa-solid fa-chevron-right"></i></button>`;
+        pager.querySelector('[data-page="prev"]')?.addEventListener("click", () => {
+          renderWaMessages(waMessagesCache, current - 1);
+          document.getElementById("ad-wa-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        pager.querySelector('[data-page="next"]')?.addEventListener("click", () => {
+          renderWaMessages(waMessagesCache, current + 1);
+          document.getElementById("ad-wa-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+    }
   }
 
   async function loadWhatsappMessages(status) {
     const list = document.getElementById("ad-wa-list");
     if (!list) return;
     waCurrentStatus = status || waCurrentStatus || "all";
+    waPage = 1;
     list.innerHTML = '<li class="ad-wa-empty">Loading…</li>';
+    const pager = document.getElementById("ad-wa-pager");
+    if (pager) {
+      pager.hidden = true;
+      pager.innerHTML = "";
+    }
     try {
       const res = await fetch(
         `whatsapp-api.php?action=messages&status=${encodeURIComponent(waCurrentStatus)}&limit=50&sort=desc`,
@@ -1843,7 +1894,7 @@
         list.innerHTML = `<li class="ad-wa-empty">${esc(detail)}${esc(http)}</li>`;
         return;
       }
-      renderWaMessages(data.messages || []);
+      renderWaMessages(data.messages || [], 1);
     } catch (error) {
       list.innerHTML = `<li class="ad-wa-empty">${esc(error.message || error)}</li>`;
     }
@@ -2069,8 +2120,6 @@
     });
     document.getElementById("ad-wa-auto-body")?.addEventListener("change", saveAutoMessageBody);
     document.getElementById("ad-wa-auto-body")?.addEventListener("blur", saveAutoMessageBody);
-
-    document.getElementById("ad-wa-excel-sample")?.addEventListener("click", downloadWaExcelSample);
 
     document.getElementById("ad-wa-excel")?.addEventListener("change", async (event) => {
       const file = event.target.files?.[0];

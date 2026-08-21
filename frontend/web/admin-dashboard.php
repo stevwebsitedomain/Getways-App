@@ -608,6 +608,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
           <ul class="ad-wa-list" id="ad-wa-list">
             <li class="ad-wa-empty">Loading…</li>
           </ul>
+          <nav class="ad-pager ad-wa-pager" id="ad-wa-pager" hidden aria-label="WhatsApp messages pages"></nav>
         </div>
       </div>
     </section>

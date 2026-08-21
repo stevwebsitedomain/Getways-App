@@ -2889,6 +2889,9 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   max-height: none;
   overflow: visible;
 }
+.ad-wa-pager {
+  margin-top: 12px;
+}
 .ad-wa-list > li {
   border: 1px solid #e8ecf2;
   border-radius: 14px;
