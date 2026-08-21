@@ -100,29 +100,29 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
             <a href="create-payment.php" class="ch-acct-name">Getway Wallet · Mobile</a>
             <div class="ch-acct-row">
               <div class="ch-acct-main">
-                <div class="ch-acct-balance-line">
-                  <p class="ch-acct-balance" id="success-amount" data-amount-visible="1">TZS 0</p>
-                  <button
-                    type="button"
-                    class="ch-amt-toggle"
-                    id="merchant-amount-toggle"
-                    aria-pressed="false"
-                    aria-controls="success-amount"
-                    aria-label="Hide amount"
-                    title="Hide amount"
-                  >
-                    <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
-                  </button>
-                </div>
+                <p class="ch-acct-balance" id="success-amount" data-amount-visible="1">TZS 0</p>
                 <p class="ch-acct-label">Daily Net Sales</p>
                 <p class="ch-acct-meta">
                   Gross <span id="failed-amount">TZS 0</span>
                   · Pending <span id="pending-transactions">0</span>
                 </p>
               </div>
-              <button type="button" class="ch-acct-more" aria-label="More options" data-top-action="history">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
-              </button>
+              <div class="ch-acct-side">
+                <button
+                  type="button"
+                  class="ch-amt-toggle"
+                  id="merchant-amount-toggle"
+                  aria-pressed="false"
+                  aria-controls="success-amount"
+                  aria-label="Hide amount"
+                  title="Hide amount"
+                >
+                  <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="ch-acct-more" aria-label="More options" data-top-action="history">
+                  <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+              </div>
             </div>
             <p class="ch-acct-deposit">Depositing to Business Wallet</p>
             <div class="ch-acct-actions">
