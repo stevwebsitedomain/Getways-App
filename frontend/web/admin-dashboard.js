@@ -1648,6 +1648,7 @@
 
   const PORTAL_SECTION_TITLES = {
     home: "Service catalogue",
+    "general-analysis": "General Analysis",
     analytics: "Payment analysis",
     "control-number": "Create control number",
     transactions: "Transactions",
@@ -1660,6 +1661,7 @@
 
   function scrollToPortalSection(key) {
     const idMap = {
+      "general-analysis": "ad-section-general-analysis",
       analytics: "ad-section-analytics",
       "control-number": "ad-section-control-number",
       transactions: "ad-section-transactions",
@@ -2626,10 +2628,9 @@
   }
 
   function bindGeneralAnalysis() {
-    const overlay = document.getElementById("ad-ga-overlay");
+    const panel = document.getElementById("ad-ga-overlay");
     const openBtn = document.getElementById("ad-ga-open");
-    const closeBtn = document.getElementById("ad-ga-close");
-    if (!overlay) return;
+    if (!panel) return;
 
     const sectionMap = {
       analytics: "ad-section-analytics",
@@ -2656,22 +2657,13 @@
       }
     }
 
-    function openOverlay() {
+    function openPanel() {
       updateHubSummary();
-      overlay.hidden = false;
-      overlay.setAttribute("aria-hidden", "false");
-      document.body.classList.add("ad-ga-active");
-    }
-
-    function closeOverlay() {
-      overlay.hidden = true;
-      overlay.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("ad-ga-active");
+      scrollToPortalSection("general-analysis");
     }
 
     function scrollToSection(key) {
       if (!sectionMap[key]) return;
-      closeOverlay();
       if (key === "autopay") {
         toggleAutoPayout();
         return;
@@ -2684,24 +2676,21 @@
           el.classList.add("ad-ga-highlight");
           window.setTimeout(() => el.classList.remove("ad-ga-highlight"), 1400);
         }
-      }, 120);
+      }, 40);
     }
 
-    openBtn?.addEventListener("click", openOverlay);
-    closeBtn?.addEventListener("click", closeOverlay);
+    openBtn?.addEventListener("click", openPanel);
     document.getElementById("ad-ga-hub")?.addEventListener("click", () => {
-      closeOverlay();
-      document.getElementById("ad-stats")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToPortalSection("payout-dest");
     });
 
-    overlay.querySelectorAll("[data-ga-target]").forEach((node) => {
+    panel.querySelectorAll("[data-ga-target]").forEach((node) => {
       node.addEventListener("click", (event) => {
         if (node.classList.contains("ad-ga-chip--link")) return;
         event.preventDefault();
         const target = node.getAttribute("data-ga-target") || "";
         const action = node.getAttribute("data-ga-action") || "scroll";
         if (action === "sync") {
-          closeOverlay();
           syncTransactions().catch(() => {});
           return;
         }
@@ -2709,9 +2698,13 @@
       });
     });
 
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !overlay.hidden) closeOverlay();
+    // Keep hub summary fresh whenever section opens.
+    const mo = new MutationObserver(() => {
+      if (document.body.getAttribute("data-ad-section") === "general-analysis") {
+        updateHubSummary();
+      }
     });
+    mo.observe(document.body, { attributes: true, attributeFilter: ["data-ad-section"] });
   }
 
   function exportPayoutCsv() {

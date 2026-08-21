@@ -891,18 +891,111 @@ body.ad-body {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.32), rgba(14, 165, 233, 0.2));
 }
 
-body.ad-ga-active {
+/* General Analysis inside dashboard (light) */
+.ad-portal .ad-ga-page {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06) !important;
+  padding: 12px 8px 20px !important;
+  min-height: calc(100svh - 110px);
   overflow: hidden;
 }
 
-.ad-ga {
-  position: fixed;
-  inset: 0;
-  z-index: 500;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  color: #f8fafc;
-  overflow: hidden;
+.ad-portal .ad-ga--portal,
+.ad-portal .ad-ga.ad-ga--portal {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  display: block;
+  min-height: calc(100svh - 140px);
+  color: #0f172a;
+  overflow: visible;
+  background: #fff;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-bg,
+.ad-portal .ad-ga--portal .ad-ga-top,
+.ad-portal .ad-ga--portal .ad-ga-glow {
+  display: none !important;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: calc(100svh - 160px);
+  padding: 12px 8px 20px;
+  background: #fff;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-orbit-line {
+  fill: none;
+  stroke: #cbd5e1;
+  stroke-width: 1.5;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-spoke {
+  stroke: #94a3b8;
+  stroke-width: 1.25;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-hub-core {
+  background: linear-gradient(160deg, #0b4f8a 0%, #002d58 100%);
+  border-color: #e2e8f0;
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(0, 45, 88, 0.28);
+}
+
+.ad-portal .ad-ga--portal .ad-ga-hub-core strong {
+  color: #fff;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-hub-core small {
+  color: #bfdbfe;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-hub-pill {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ad-portal .ad-ga--portal .ad-ga-hub-pill.is-on {
+  color: #bbf7d0;
+  border-color: rgba(74, 222, 128, 0.55);
+}
+
+.ad-portal .ad-ga--portal .ad-ga-hub-ring {
+  border-color: #cbd5e1;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-hub-glow {
+  background: radial-gradient(circle, rgba(0, 86, 145, 0.18), transparent 70%);
+}
+
+.ad-portal .ad-ga--portal .ad-ga-hint {
+  color: #64748b;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-chip {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-chip:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #005691;
+}
+
+.ad-portal .ad-ga--portal .ad-ga-sat-label {
+  font-weight: 700;
 }
 
 .ad-ga-bg {

@@ -70,7 +70,8 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="payouts"] #ad-section-payouts,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="users"] #ad-section-users,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="recent"] #ad-section-recent,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="whatsapp"] #ad-section-whatsapp{display:block!important}
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="whatsapp"] #ad-section-whatsapp,
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="general-analysis"] #ad-section-general-analysis{display:block!important}
     .ad-charts-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,1fr);gap:16px}
     .ad-form--narrow{max-width:480px}
     @media(max-width:900px){.ad-charts-row{grid-template-columns:1fr}}
@@ -121,6 +122,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       </button>
       <nav class="ad-sidebar-nav" aria-label="Admin modules">
         <p class="ad-sidebar-label">COLLECTIONS</p>
+        <button type="button" class="ad-sidebar-link" data-ad-target="general-analysis"><span class="ad-sidebar-link-text"><i class="fa-solid fa-circle-nodes ad-nav-ico"></i> <span class="ad-sidebar-text">General Analysis</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <button type="button" class="ad-sidebar-link" data-ad-target="analytics"><span class="ad-sidebar-link-text"><i class="fa-solid fa-chart-line ad-nav-ico ad-nav-ico--chart"></i> <span class="ad-sidebar-text">Payment analysis</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <button type="button" class="ad-sidebar-link" data-ad-target="control-number"><span class="ad-sidebar-link-text"><i class="fa-solid fa-file-invoice-dollar ad-nav-ico ad-nav-ico--invoice"></i> <span class="ad-sidebar-text">Control number</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <button type="button" class="ad-sidebar-link" data-ad-target="transactions"><span class="ad-sidebar-link-text"><i class="fa-solid fa-receipt ad-nav-ico ad-nav-ico--receipt"></i> <span class="ad-sidebar-text">Transactions</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
@@ -606,122 +608,111 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
         </div>
       </div>
     </section>
+
+    <section class="ad-page-section ad-ga-page" id="ad-section-general-analysis" data-ad-page="general-analysis">
+      <div class="ad-ga ad-ga--portal" id="ad-ga-overlay" aria-hidden="false">
+        <div class="ad-ga-stage">
+          <div class="ad-ga-orbit-system">
+            <svg class="ad-ga-spokes" viewBox="0 0 400 400" aria-hidden="true">
+              <circle cx="200" cy="200" r="148" class="ad-ga-orbit-line" />
+              <g class="ad-ga-spoke-group">
+                <line x1="200" y1="200" x2="200" y2="52" class="ad-ga-spoke" />
+                <line x1="200" y1="200" x2="328" y2="126" class="ad-ga-spoke" />
+                <line x1="200" y1="200" x2="328" y2="274" class="ad-ga-spoke" />
+                <line x1="200" y1="200" x2="200" y2="348" class="ad-ga-spoke" />
+                <line x1="200" y1="200" x2="72" y2="274" class="ad-ga-spoke" />
+                <line x1="200" y1="200" x2="72" y2="126" class="ad-ga-spoke" />
+              </g>
+            </svg>
+
+            <div class="ad-ga-orbit" id="ad-ga-orbit">
+              <button type="button" class="ad-ga-satellite ad-ga-satellite--money" data-ga-target="transactions" data-ga-action="scroll" style="--angle: 0deg" aria-label="Transactions">
+                <span class="ad-ga-satellite-inner">
+                  <span class="ad-ga-icon-ring">
+                    <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-dollar-sign"></i></span>
+                  </span>
+                  <span class="ad-ga-sat-label">Transactions</span>
+                </span>
+              </button>
+              <button type="button" class="ad-ga-satellite ad-ga-satellite--lock" data-ga-target="payout-dest" data-ga-action="scroll" style="--angle: 60deg" aria-label="Payout security">
+                <span class="ad-ga-satellite-inner">
+                  <span class="ad-ga-icon-ring">
+                    <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-lock"></i></span>
+                  </span>
+                  <span class="ad-ga-sat-label">Security</span>
+                </span>
+              </button>
+              <button type="button" class="ad-ga-satellite ad-ga-satellite--wifi" data-ga-target="sync" data-ga-action="sync" style="--angle: 120deg" aria-label="Sync ClickPesa">
+                <span class="ad-ga-satellite-inner">
+                  <span class="ad-ga-icon-ring">
+                    <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-wifi"></i></span>
+                  </span>
+                  <span class="ad-ga-sat-label">Sync</span>
+                </span>
+              </button>
+              <button type="button" class="ad-ga-satellite ad-ga-satellite--chart" data-ga-target="analytics" data-ga-action="scroll" style="--angle: 180deg" aria-label="Payment analysis">
+                <span class="ad-ga-satellite-inner">
+                  <span class="ad-ga-icon-ring">
+                    <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-chart-line"></i></span>
+                  </span>
+                  <span class="ad-ga-sat-label">Analysis</span>
+                </span>
+              </button>
+              <button type="button" class="ad-ga-satellite ad-ga-satellite--cloud" data-ga-target="autopay" data-ga-action="scroll" style="--angle: 240deg" aria-label="Autopay">
+                <span class="ad-ga-satellite-inner">
+                  <span class="ad-ga-icon-ring">
+                    <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-cloud"></i></span>
+                  </span>
+                  <span class="ad-ga-sat-label">Autopay</span>
+                </span>
+              </button>
+              <button type="button" class="ad-ga-satellite ad-ga-satellite--bank" data-ga-target="control-number" data-ga-action="scroll" style="--angle: 300deg" aria-label="Control number">
+                <span class="ad-ga-satellite-inner">
+                  <span class="ad-ga-icon-ring">
+                    <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-building-columns"></i></span>
+                  </span>
+                  <span class="ad-ga-sat-label">Control #</span>
+                </span>
+              </button>
+            </div>
+
+            <button type="button" class="ad-ga-hub" id="ad-ga-hub" aria-label="Admin hub overview">
+              <span class="ad-ga-hub-glow" aria-hidden="true"></span>
+              <span class="ad-ga-hub-ring ad-ga-hub-ring--outer" aria-hidden="true"></span>
+              <span class="ad-ga-hub-ring ad-ga-hub-ring--inner" aria-hidden="true"></span>
+              <span class="ad-ga-hub-core">
+                <span class="ad-ga-hub-brand" aria-hidden="true">
+                  <i class="fa-solid fa-building-columns"></i>
+                  <i class="fa-solid fa-dollar-sign ad-ga-hub-dollar"></i>
+                </span>
+                <strong>Getway Admin</strong>
+                <small id="ad-ga-hub-balance">Loading...</small>
+                <span class="ad-ga-hub-pill" id="ad-ga-hub-auto">Auto payout OFF</span>
+              </span>
+            </button>
+          </div>
+
+          <p class="ad-ga-hint">Bofya ikoni ili kufungua sehemu husika · Ikoni zinazunguka kiotomatiki</p>
+
+          <div class="ad-ga-extra">
+            <button type="button" class="ad-ga-chip" data-ga-target="payouts" data-ga-action="scroll">
+              <i class="fa-solid fa-money-bill-transfer"></i> Payouts
+            </button>
+            <button type="button" class="ad-ga-chip" data-ga-target="users" data-ga-action="scroll">
+              <i class="fa-solid fa-users"></i> Users
+            </button>
+            <button type="button" class="ad-ga-chip" data-ga-target="recent" data-ga-action="scroll">
+              <i class="fa-solid fa-receipt"></i> Collections
+            </button>
+            <a class="ad-ga-chip ad-ga-chip--link" href="autopay.php">
+              <i class="fa-solid fa-bolt"></i> Autopay page
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
         </div>
       </main>
-    </div>
-  </div>
-
-  <div id="ad-ga-overlay" class="ad-ga" hidden aria-hidden="true" style="--ad-ga-bg: url('<?php echo $gaBgUrl; ?>');">
-    <div class="ad-ga-bg" aria-hidden="true"></div>
-    <header class="ad-ga-top">
-      <button type="button" class="ad-ga-back" id="ad-ga-close" aria-label="Back to dashboard">
-        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-        Back
-      </button>
-      <h2>General Analysis</h2>
-      <span class="ad-ga-top-spacer" aria-hidden="true"></span>
-    </header>
-
-    <div class="ad-ga-stage">
-      <div class="ad-ga-glow ad-ga-glow--a" aria-hidden="true"></div>
-      <div class="ad-ga-glow ad-ga-glow--b" aria-hidden="true"></div>
-
-      <div class="ad-ga-orbit-system">
-        <svg class="ad-ga-spokes" viewBox="0 0 400 400" aria-hidden="true">
-          <circle cx="200" cy="200" r="148" class="ad-ga-orbit-line" />
-          <g class="ad-ga-spoke-group">
-            <line x1="200" y1="200" x2="200" y2="52" class="ad-ga-spoke" />
-            <line x1="200" y1="200" x2="328" y2="126" class="ad-ga-spoke" />
-            <line x1="200" y1="200" x2="328" y2="274" class="ad-ga-spoke" />
-            <line x1="200" y1="200" x2="200" y2="348" class="ad-ga-spoke" />
-            <line x1="200" y1="200" x2="72" y2="274" class="ad-ga-spoke" />
-            <line x1="200" y1="200" x2="72" y2="126" class="ad-ga-spoke" />
-          </g>
-        </svg>
-
-        <div class="ad-ga-orbit" id="ad-ga-orbit">
-          <button type="button" class="ad-ga-satellite ad-ga-satellite--money" data-ga-target="transactions" data-ga-action="scroll" style="--angle: 0deg" aria-label="Transactions">
-            <span class="ad-ga-satellite-inner">
-              <span class="ad-ga-icon-ring">
-                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-dollar-sign"></i></span>
-              </span>
-              <span class="ad-ga-sat-label">Transactions</span>
-            </span>
-          </button>
-          <button type="button" class="ad-ga-satellite ad-ga-satellite--lock" data-ga-target="payout-dest" data-ga-action="scroll" style="--angle: 60deg" aria-label="Payout security">
-            <span class="ad-ga-satellite-inner">
-              <span class="ad-ga-icon-ring">
-                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-lock"></i></span>
-              </span>
-              <span class="ad-ga-sat-label">Security</span>
-            </span>
-          </button>
-          <button type="button" class="ad-ga-satellite ad-ga-satellite--wifi" data-ga-target="sync" data-ga-action="sync" style="--angle: 120deg" aria-label="Sync ClickPesa">
-            <span class="ad-ga-satellite-inner">
-              <span class="ad-ga-icon-ring">
-                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-wifi"></i></span>
-              </span>
-              <span class="ad-ga-sat-label">Sync</span>
-            </span>
-          </button>
-          <button type="button" class="ad-ga-satellite ad-ga-satellite--chart" data-ga-target="analytics" data-ga-action="scroll" style="--angle: 180deg" aria-label="Payment analysis">
-            <span class="ad-ga-satellite-inner">
-              <span class="ad-ga-icon-ring">
-                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-chart-line"></i></span>
-              </span>
-              <span class="ad-ga-sat-label">Analysis</span>
-            </span>
-          </button>
-          <button type="button" class="ad-ga-satellite ad-ga-satellite--cloud" data-ga-target="autopay" data-ga-action="scroll" style="--angle: 240deg" aria-label="Autopay">
-            <span class="ad-ga-satellite-inner">
-              <span class="ad-ga-icon-ring">
-                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-cloud"></i></span>
-              </span>
-              <span class="ad-ga-sat-label">Autopay</span>
-            </span>
-          </button>
-          <button type="button" class="ad-ga-satellite ad-ga-satellite--bank" data-ga-target="control-number" data-ga-action="scroll" style="--angle: 300deg" aria-label="Control number">
-            <span class="ad-ga-satellite-inner">
-              <span class="ad-ga-icon-ring">
-                <span class="ad-ga-icon-ring-inner"><i class="fa-solid fa-building-columns"></i></span>
-              </span>
-              <span class="ad-ga-sat-label">Control #</span>
-            </span>
-          </button>
-        </div>
-
-        <button type="button" class="ad-ga-hub" id="ad-ga-hub" aria-label="Admin hub overview">
-          <span class="ad-ga-hub-glow" aria-hidden="true"></span>
-          <span class="ad-ga-hub-ring ad-ga-hub-ring--outer" aria-hidden="true"></span>
-          <span class="ad-ga-hub-ring ad-ga-hub-ring--inner" aria-hidden="true"></span>
-          <span class="ad-ga-hub-core">
-            <span class="ad-ga-hub-brand" aria-hidden="true">
-              <i class="fa-solid fa-building-columns"></i>
-              <i class="fa-solid fa-dollar-sign ad-ga-hub-dollar"></i>
-            </span>
-            <strong>Getway Admin</strong>
-            <small id="ad-ga-hub-balance">Loading...</small>
-            <span class="ad-ga-hub-pill" id="ad-ga-hub-auto">Auto payout OFF</span>
-          </span>
-        </button>
-      </div>
-
-      <p class="ad-ga-hint">Bofya ikoni ili kufungua sehemu husika · Ikoni zinazunguka kiotomatiki</p>
-
-      <div class="ad-ga-extra">
-        <button type="button" class="ad-ga-chip" data-ga-target="payouts" data-ga-action="scroll">
-          <i class="fa-solid fa-money-bill-transfer"></i> Payouts
-        </button>
-        <button type="button" class="ad-ga-chip" data-ga-target="users" data-ga-action="scroll">
-          <i class="fa-solid fa-users"></i> Users
-        </button>
-        <button type="button" class="ad-ga-chip" data-ga-target="recent" data-ga-action="scroll">
-          <i class="fa-solid fa-receipt"></i> Collections
-        </button>
-        <a class="ad-ga-chip ad-ga-chip--link" href="autopay.php">
-          <i class="fa-solid fa-bolt"></i> Autopay page
-        </a>
-      </div>
     </div>
   </div>
 
