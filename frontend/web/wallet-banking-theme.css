@@ -114,34 +114,31 @@
   max-width: 100% !important;
 }
 
-/* Desktop / wide screens: expand shell + nav to fill usable width */
+/* Desktop layout only: expand shell + nav (Phone setting keeps narrow column) */
 @media (min-width: 900px) {
-  .tis-wallet-dash.bk-theme.layout-phone .tis-wrap.w-shell,
   .tis-wallet-dash.bk-theme.layout-desktop .tis-wrap.w-shell,
-  .w-home-sample.bk-theme .tis-wrap.w-shell,
-  .bk-theme.chase-home .tis-wrap.w-shell {
+  .w-home-sample.bk-theme.layout-desktop .tis-wrap.w-shell,
+  .bk-theme.chase-home.layout-desktop .tis-wrap.w-shell {
     --w-phone-layout-col: min(1180px, calc(100vw - 32px));
     max-width: var(--w-phone-layout-col) !important;
     width: 100% !important;
   }
 
-  .bk-theme .w-bottom-nav,
-  .bk-theme .ch-bottom-nav,
-  .tis-wallet-dash.bk-theme.layout-phone .w-bottom-nav,
   .tis-wallet-dash.bk-theme.layout-desktop .w-bottom-nav,
-  .w-home-sample.bk-theme .w-bottom-nav {
+  .w-home-sample.bk-theme.layout-desktop .w-bottom-nav,
+  .bk-theme.layout-desktop .ch-bottom-nav {
     --w-nav-col: min(1180px, calc(100vw - 32px));
     width: var(--w-nav-col) !important;
     max-width: 100% !important;
   }
 
-  .bk-theme.chase-home .ch-hero {
+  .bk-theme.chase-home.layout-desktop .ch-hero {
     padding-left: 28px;
     padding-right: 28px;
     padding-bottom: 36px;
   }
 
-  .bk-theme.chase-home .ch-body {
+  .bk-theme.chase-home.layout-desktop .ch-body {
     padding-left: 24px;
     padding-right: 24px;
     gap: 18px;
@@ -149,44 +146,67 @@
     align-items: start;
   }
 
-  .bk-theme.chase-home .ch-body > .ch-open,
-  .bk-theme.chase-home .ch-body > .ch-panel,
-  .bk-theme.chase-home .ch-body > .w-trend,
-  .bk-theme.chase-home .ch-body > .w-pie-section,
-  .bk-theme.chase-home .ch-body > .w-recent,
-  .bk-theme.chase-home .ch-body > .w-api-line {
+  .bk-theme.chase-home.layout-desktop .ch-body > .ch-open,
+  .bk-theme.chase-home.layout-desktop .ch-body > .ch-panel,
+  .bk-theme.chase-home.layout-desktop .ch-body > .w-trend,
+  .bk-theme.chase-home.layout-desktop .ch-body > .w-pie-section,
+  .bk-theme.chase-home.layout-desktop .ch-body > .w-recent,
+  .bk-theme.chase-home.layout-desktop .ch-body > .w-api-line {
     grid-column: 1 / -1;
   }
 
-  .bk-theme.chase-home .ch-acct-card {
+  .bk-theme.chase-home.layout-desktop .ch-acct-card {
     min-height: 100%;
   }
 
-  .bk-theme.chase-home .w-recent-list {
+  .bk-theme.chase-home.layout-desktop .w-recent-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
 
-  .bk-theme.chase-home .w-recent-empty,
-  .bk-theme.chase-home .w-recent-more {
+  .bk-theme.chase-home.layout-desktop .w-recent-empty,
+  .bk-theme.chase-home.layout-desktop .w-recent-more {
     grid-column: 1 / -1;
+  }
+
+  /* Phone setting: force narrow phone column even on wide monitors */
+  .tis-wallet-dash.bk-theme.layout-phone .tis-wrap.w-shell,
+  .w-home-sample.bk-theme.layout-phone .tis-wrap.w-shell,
+  .bk-theme.chase-home.layout-phone .tis-wrap.w-shell {
+    --w-phone-layout-col: min(420px, calc(100vw - 24px)) !important;
+    max-width: var(--w-phone-layout-col) !important;
+  }
+
+  .tis-wallet-dash.bk-theme.layout-phone .w-bottom-nav,
+  .w-home-sample.bk-theme.layout-phone .w-bottom-nav {
+    --w-nav-col: min(420px, calc(100vw - 24px)) !important;
+    width: var(--w-nav-col) !important;
+    max-width: 100% !important;
+  }
+
+  .bk-theme.chase-home.layout-phone .ch-body {
+    grid-template-columns: 1fr !important;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .bk-theme.chase-home.layout-phone .w-recent-list {
+    display: flex !important;
+    flex-direction: column !important;
   }
 }
 
 @media (min-width: 1280px) {
-  .tis-wallet-dash.bk-theme.layout-phone .tis-wrap.w-shell,
   .tis-wallet-dash.bk-theme.layout-desktop .tis-wrap.w-shell,
-  .w-home-sample.bk-theme .tis-wrap.w-shell,
-  .bk-theme.chase-home .tis-wrap.w-shell {
+  .w-home-sample.bk-theme.layout-desktop .tis-wrap.w-shell,
+  .bk-theme.chase-home.layout-desktop .tis-wrap.w-shell {
     --w-phone-layout-col: min(1320px, calc(100vw - 48px));
   }
 
-  .bk-theme .w-bottom-nav,
-  .bk-theme .ch-bottom-nav,
-  .tis-wallet-dash.bk-theme.layout-phone .w-bottom-nav,
   .tis-wallet-dash.bk-theme.layout-desktop .w-bottom-nav,
-  .w-home-sample.bk-theme .w-bottom-nav {
+  .w-home-sample.bk-theme.layout-desktop .w-bottom-nav,
+  .bk-theme.layout-desktop .ch-bottom-nav {
     --w-nav-col: min(1320px, calc(100vw - 48px));
   }
 }

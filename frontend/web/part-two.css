@@ -3323,11 +3323,15 @@ body.tis-wallet-dash {
 }
 
 .w-home-sample .w-bottom-nav {
-  width: min(480px, 100vw) !important;
+  width: min(420px, 100vw) !important;
   max-width: 100% !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   border-radius: 0 !important;
+}
+
+.w-home-sample.layout-desktop .w-bottom-nav {
+  width: min(1180px, calc(100vw - 32px)) !important;
 }
 
 /* Phone layout on desktop: nav + content share the same centered column */
@@ -3347,18 +3351,31 @@ body.tis-wallet-dash {
 }
 
 @media (min-width: 900px) {
-  .tis-wallet-dash.layout-phone .tis-wrap.w-shell,
   .tis-wallet-dash.layout-desktop .tis-wrap.w-shell,
-  .w-home-sample.tis-wallet-dash .tis-wrap.w-shell {
+  .w-home-sample.tis-wallet-dash.layout-desktop .tis-wrap.w-shell {
     --w-phone-layout-col: min(1180px, calc(100vw - 32px)) !important;
     max-width: var(--w-phone-layout-col) !important;
   }
 
-  .tis-wallet-dash.layout-phone .w-bottom-nav,
   .tis-wallet-dash.layout-desktop .w-bottom-nav,
-  .w-home-sample .w-bottom-nav,
-  .w-home-sample.bk-theme .w-bottom-nav {
+  .w-home-sample.layout-desktop .w-bottom-nav,
+  .w-home-sample.bk-theme.layout-desktop .w-bottom-nav {
     width: min(1180px, calc(100vw - 32px)) !important;
+    max-width: 100% !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .tis-wallet-dash.layout-phone .tis-wrap.w-shell,
+  .w-home-sample.tis-wallet-dash.layout-phone .tis-wrap.w-shell {
+    --w-phone-layout-col: min(420px, calc(100vw - 24px)) !important;
+    max-width: var(--w-phone-layout-col) !important;
+  }
+
+  .tis-wallet-dash.layout-phone .w-bottom-nav,
+  .w-home-sample.layout-phone .w-bottom-nav,
+  .w-home-sample.bk-theme.layout-phone .w-bottom-nav {
+    width: min(420px, calc(100vw - 24px)) !important;
     max-width: 100% !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
@@ -3417,7 +3434,7 @@ body.tis-wallet-dash {
 
 @media (min-width: 900px) {
   .w-home-sample.tis-wallet-dash.layout-phone .tis-wrap.w-shell {
-    max-width: min(480px, calc(100vw - 24px)) !important;
+    max-width: min(420px, calc(100vw - 24px)) !important;
     margin-left: auto !important;
     margin-right: auto !important;
   }
@@ -3426,6 +3443,14 @@ body.tis-wallet-dash {
     max-width: 1180px !important;
     margin-left: auto !important;
     margin-right: auto !important;
+  }
+
+  .w-home-sample.layout-phone .w-bottom-nav {
+    width: min(420px, calc(100vw - 24px)) !important;
+  }
+
+  .w-home-sample.layout-desktop .w-bottom-nav {
+    width: min(1180px, calc(100vw - 32px)) !important;
   }
 }
 
