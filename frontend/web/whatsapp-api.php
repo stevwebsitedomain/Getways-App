@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 /**
- * Manual WhatsApp send via Ultramsg API.
- * POST JSON: { "to": "2557...", "body": "Hello" }
- * Optional GET action=status — instance status check.
+ * Ultramsg WhatsApp API proxy (admin).
+ *
+ * GET  ?action=status
+ * GET  ?action=messages&status=all|sent|queue|unsent|invalid|expired&page=1&limit=50
+ * GET  ?action=webhook-events
+ * POST ?action=send  JSON { to, body, priority? }
  */
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -50,7 +53,7 @@ function waReadJsonBody(): array
 }
 
 /**
- * @param array<string, string> $fields
+ * @param array<string, scalar|null> $fields
  * @return array{http:int,body:string,json:?array}
  */
 function waUltamsgPost(string $url, array $fields): array
@@ -98,7 +101,7 @@ function waUltamsgGet(string $url): array
 
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30,
+        CURLOPT_TIMEOUT => 45,
     ]);
 
     $body = curl_exec($ch);
@@ -119,6 +122,24 @@ function waUltamsgGet(string $url): array
     ];
 }
 
+function waNormalizeMessages(?array $json): array
+{
+    if ($json === null) {
+        return [];
+    }
+    if (isset($json['messages']) && is_array($json['messages'])) {
+        return array_values($json['messages']);
+    }
+    if (array_is_list($json)) {
+        return $json;
+    }
+    if (isset($json['data']) && is_array($json['data'])) {
+        return array_values($json['data']);
+    }
+
+    return [];
+}
+
 if ($action === 'status') {
     $url = $config['apiUrl'] . '/instance/status?token=' . rawurlencode($config['token']);
     $res = waUltamsgGet($url);
@@ -129,17 +150,83 @@ if ($action === 'status') {
         'http' => $res['http'],
         'instanceId' => $config['instanceId'],
         'apiUrl' => $config['apiUrl'],
+        'senderName' => $config['senderName'],
+        'webhookUrl' => $config['webhookUrl'],
         'data' => $res['json'] ?? $res['body'],
     ]);
 }
 
+if ($action === 'messages') {
+    $status = strtolower(trim((string) ($_GET['status'] ?? 'all')));
+    $allowed = ['all', 'sent', 'queue', 'unsent', 'invalid', 'expired'];
+    if (!in_array($status, $allowed, true)) {
+        $status = 'all';
+    }
+    $page = max(1, (int) ($_GET['page'] ?? 1));
+    $limit = min(100, max(1, (int) ($_GET['limit'] ?? 50)));
+    $sort = strtolower(trim((string) ($_GET['sort'] ?? 'desc'))) === 'asc' ? 'asc' : 'desc';
+
+    $query = http_build_query([
+        'token' => $config['token'],
+        'page' => $page,
+        'limit' => $limit,
+        'status' => $status,
+        'sort' => $sort,
+    ]);
+    $url = $config['apiUrl'] . '/messages?' . $query;
+    $res = waUltamsgGet($url);
+    $ok = $res['http'] >= 200 && $res['http'] < 300;
+    $messages = $ok ? waNormalizeMessages($res['json']) : [];
+
+    waJson($ok ? 200 : 502, [
+        'ok' => $ok,
+        'message' => $ok ? 'Messages loaded.' : 'Could not load messages from Ultramsg.',
+        'http' => $res['http'],
+        'status' => $status,
+        'page' => $page,
+        'limit' => $limit,
+        'count' => count($messages),
+        'messages' => $messages,
+        'raw' => $ok ? null : ($res['json'] ?? $res['body']),
+    ]);
+}
+
+if ($action === 'webhook-events') {
+    $path = gwWhatsappWebhookLogPath();
+    $events = [];
+    if (is_file($path) && is_readable($path)) {
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+        $lines = array_slice($lines, -80);
+        foreach (array_reverse($lines) as $line) {
+            $decoded = json_decode($line, true);
+            if (is_array($decoded)) {
+                $events[] = $decoded;
+            }
+        }
+    }
+    waJson(200, [
+        'ok' => true,
+        'message' => 'Webhook events loaded.',
+        'webhookUrl' => $config['webhookUrl'],
+        'count' => count($events),
+        'events' => $events,
+    ]);
+}
+
 if ($action !== 'send' || $method !== 'POST') {
-    waJson(400, ['ok' => false, 'message' => 'Use POST action=send with to + body, or GET action=status.']);
+    waJson(400, [
+        'ok' => false,
+        'message' => 'Use POST action=send, or GET action=status|messages|webhook-events.',
+    ]);
 }
 
 $input = waReadJsonBody();
 $to = preg_replace('/\D+/', '', (string) ($input['to'] ?? '')) ?? '';
 $body = trim((string) ($input['body'] ?? ''));
+$priority = trim((string) ($input['priority'] ?? '10'));
+if ($priority === '') {
+    $priority = '10';
+}
 
 if ($to === '' || strlen($to) < 9) {
     waJson(422, ['ok' => false, 'message' => 'Enter a valid phone number (international digits, e.g. 2557XXXXXXXX).']);
@@ -148,30 +235,29 @@ if ($body === '') {
     waJson(422, ['ok' => false, 'message' => 'Message body is required.']);
 }
 
+$sender = $config['senderName'];
+// Brand the outgoing text so recipients clearly see Digital Matrix Technology.
+if ($sender !== '' && !str_starts_with($body, '*' . $sender . '*') && !str_starts_with($body, $sender)) {
+    $body = '*' . $sender . "*\n\n" . $body;
+}
+
 $url = $config['apiUrl'] . '/messages/chat';
 $res = waUltamsgPost($url, [
     'token' => $config['token'],
     'to' => $to,
     'body' => $body,
-    'priority' => '10',
+    'priority' => $priority,
     'referenceId' => 'getway-manual',
 ]);
 
 $payload = $res['json'];
-$sent = $res['http'] >= 200 && $res['http'] < 300
-    && is_array($payload)
-    && (
-        (isset($payload['sent']) && (string) $payload['sent'] === 'true')
-        || isset($payload['id'])
-        || isset($payload['message'])
-    );
 
-// Ultramsg often returns { "sent": "true", "message": "ok", "id": 123 }
-if (!$sent && is_array($payload) && isset($payload['error'])) {
+if (is_array($payload) && isset($payload['error'])) {
     waJson(502, [
         'ok' => false,
         'message' => (string) $payload['error'],
         'http' => $res['http'],
+        'senderName' => $sender,
         'data' => $payload,
     ]);
 }
@@ -181,6 +267,8 @@ if ($res['http'] >= 200 && $res['http'] < 300) {
         'ok' => true,
         'message' => 'Message submitted to Ultramsg.',
         'to' => $to,
+        'senderName' => $sender,
+        'bodySent' => $body,
         'http' => $res['http'],
         'data' => $payload ?? $res['body'],
     ]);
@@ -190,5 +278,6 @@ waJson(502, [
     'ok' => false,
     'message' => 'Ultramsg request failed.',
     'http' => $res['http'],
+    'senderName' => $sender,
     'data' => $payload ?? $res['body'],
 ]);
