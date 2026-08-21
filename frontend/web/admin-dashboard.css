@@ -1977,14 +1977,14 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 }
 
 .ad-portal .ad-pie {
-  min-height: 240px;
+  min-height: 360px;
   height: auto;
   width: 100%;
   max-width: 100%;
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px 8px 8px;
   overflow: visible;
 }
 
@@ -2001,11 +2001,22 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   align-items: center;
 }
 
+.ad-pie-visual--labeled {
+  display: block;
+  width: 100%;
+}
+
 .ad-pie-svg {
   width: 100%;
   height: auto;
-  max-height: 240px;
+  max-height: 400px;
   display: block;
+  margin: 0 auto;
+}
+
+.ad-pie-visual--labeled .ad-pie-svg {
+  max-height: 440px;
+  max-width: 560px;
 }
 
 .ad-pie-legend {
@@ -2055,6 +2066,9 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   .ad-pie-legend {
     width: 100%;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+  .ad-pie-visual--labeled .ad-pie-svg {
+    max-height: 380px;
   }
 }
 
@@ -2160,7 +2174,7 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 
 .ad-charts-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr);
   gap: 12px;
   margin-top: 8px;
   align-items: stretch;
@@ -2172,7 +2186,7 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   border: none;
   border-radius: 0;
   padding: 0;
-  min-height: 300px;
+  min-height: 360px;
   box-shadow: none;
 }
 

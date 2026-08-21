@@ -378,6 +378,21 @@
     return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
   }
 
+  function waDonutSlicePath(cx, cy, outerR, innerR, startAngle, endAngle) {
+    const outerStart = waPolar(cx, cy, outerR, startAngle);
+    const outerEnd = waPolar(cx, cy, outerR, endAngle);
+    const innerEnd = waPolar(cx, cy, innerR, endAngle);
+    const innerStart = waPolar(cx, cy, innerR, startAngle);
+    const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
+    return [
+      `M ${outerStart.x} ${outerStart.y}`,
+      `A ${outerR} ${outerR} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}`,
+      `L ${innerEnd.x} ${innerEnd.y}`,
+      `A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}`,
+      "Z",
+    ].join(" ");
+  }
+
   function normalizePieCounts(pie) {
     let success = Number(pie.success || 0);
     let pending = Number(pie.pending || 0);
@@ -411,46 +426,76 @@
     }
 
     const slices = [
-      { label: "Success", count: success, color: "#0868AC" },
-      { label: "Pending", count: pending, color: "#F3B61F" },
-      { label: "Failed", count: failed, color: "#882828" },
+      { label: "Success", count: success, color: "#2D9CDB" },
+      { label: "Pending", count: pending, color: "#F2C94C" },
+      { label: "Failed", count: failed, color: "#EB5757" },
     ].filter((s) => s.count > 0);
 
-    const W = 420;
-    const H = 300;
-    const cx = 150;
-    const cy = 150;
-    const r = 118;
-    const inner = 58;
+    const W = 560;
+    const H = 420;
+    const cx = 280;
+    const cy = 210;
+    const outerR = 148;
+    const innerR = 78;
+    const labelR = 178;
+    const gapDeg = slices.length > 1 ? 2.2 : 0;
     let angle = 0;
-    const paths = [];
+    const parts = [];
+    const midLabelR = (outerR + innerR) / 2;
 
     slices.forEach((slice) => {
       const sweep = (slice.count / total) * 360;
-      const start = angle;
-      const end = angle + Math.min(sweep, 359.999);
+      const usable = Math.max(sweep - gapDeg, 0.01);
+      const start = angle + gapDeg / 2;
+      const end = start + Math.min(usable, 359.999);
+      const mid = (start + end) / 2;
+      const pct = Math.round((slice.count / total) * 100);
+
       if (slices.length === 1) {
-        paths.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${slice.color}" />`);
+        parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${slice.color}"/>`);
+        parts.push(`<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="#ffffff"/>`);
       } else {
-        paths.push(`<path d="${waArcPath(cx, cy, r, start, end)}" fill="${slice.color}" stroke="#fff" stroke-width="2"/>`);
+        parts.push(
+          `<path d="${waDonutSlicePath(cx, cy, outerR, innerR, start, end)}" fill="${slice.color}" stroke="#ffffff" stroke-width="3"/>`
+        );
       }
-      angle = end;
+
+      if (pct >= 6) {
+        const pctPt = waPolar(cx, cy, midLabelR, mid);
+        parts.push(
+          `<text class="ad-pie-pct" x="${pctPt.x}" y="${pctPt.y}" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="800" fill="#ffffff">${pct}%</text>`
+        );
+      }
+
+      const rim = waPolar(cx, cy, outerR + 2, mid);
+      const elbow = waPolar(cx, cy, labelR, mid);
+      const right = elbow.x >= cx;
+      const labelX = right ? elbow.x + 18 : elbow.x - 18;
+      const labelY = elbow.y;
+      parts.push(
+        `<polyline class="ad-pie-leader" points="${rim.x},${rim.y} ${elbow.x},${elbow.y} ${labelX},${labelY}" fill="none" stroke="${slice.color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+      );
+      parts.push(
+        `<circle cx="${rim.x}" cy="${rim.y}" r="2.4" fill="${slice.color}"/>`
+      );
+      parts.push(
+        `<text class="ad-pie-label" x="${labelX + (right ? 4 : -4)}" y="${labelY - 7}" text-anchor="${right ? "start" : "end"}" font-size="14" font-weight="700" fill="#0f172a">${esc(slice.label)}</text>`
+      );
+      parts.push(
+        `<text class="ad-pie-sub" x="${labelX + (right ? 4 : -4)}" y="${labelY + 12}" text-anchor="${right ? "start" : "end"}" font-size="12" font-weight="600" fill="#64748b">${slice.count} · ${pct}%</text>`
+      );
+
+      angle += sweep;
     });
 
-    const legend = slices.map((slice) => {
-      const pct = Math.round((slice.count / total) * 100);
-      return `<li><span class="ad-pie-dot" style="background:${slice.color}"></span><strong>${esc(slice.label)}</strong><em>${slice.count} · ${pct}%</em></li>`;
-    }).join("");
+    parts.push(`<text x="${cx}" y="${cy - 10}" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">TOTAL</text>`);
+    parts.push(`<text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="30" font-weight="800" fill="#002d58">${total}</text>`);
 
     el.innerHTML = `
-      <div class="ad-pie-visual">
+      <div class="ad-pie-visual ad-pie-visual--labeled">
         <svg class="ad-pie-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Payment status pie chart">
-          ${paths.join("")}
-          <circle cx="${cx}" cy="${cy}" r="${inner}" fill="#ffffff"/>
-          <text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="13" font-weight="700" fill="#64748b">TOTAL</text>
-          <text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="28" font-weight="800" fill="#002d58">${total}</text>
+          ${parts.join("")}
         </svg>
-        <ul class="ad-pie-legend">${legend}</ul>
       </div>`;
   }
 
