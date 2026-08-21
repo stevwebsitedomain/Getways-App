@@ -1612,24 +1612,32 @@ body.tis-wallet-dash {
 
 .w-recent-more {
   list-style: none;
+  margin-top: 2px;
 }
 
 .w-recent-more-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px dashed #cfd7e6;
-  background: #f8faff;
-  color: #5f56d7;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #dbe3f0;
+  background: #fff;
+  color: #1156cc;
   text-align: center;
   text-decoration: none;
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.88rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .w-recent-more-link:hover {
-  background: #f1f1ff;
+  background: #f0f6ff;
+  border-color: #b6c9e8;
+  transform: translateY(-1px);
 }
 
 .w-recent-list {

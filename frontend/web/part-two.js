@@ -17,6 +17,44 @@ function formatNumber(value) {
   }).format(Number(value || 0));
 }
 
+function prefersReducedMotion() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function animateCount(el, target, options = {}) {
+  if (!el) return;
+  const end = Number(target || 0);
+  const prefix = options.prefix || "";
+  const duration = options.duration || 900;
+  if (prefersReducedMotion() || !Number.isFinite(end)) {
+    el.textContent = `${prefix}${formatNumber(end)}`;
+    return;
+  }
+  const start = 0;
+  const t0 = performance.now();
+  function frame(now) {
+    const p = Math.min(1, (now - t0) / duration);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const current = Math.round(start + (end - start) * eased);
+    el.textContent = `${prefix}${formatNumber(current)}`;
+    if (p < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      el.textContent = `${prefix}${formatNumber(end)}`;
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function animateCountElements(root) {
+  const scope = root || document;
+  scope.querySelectorAll("[data-count-to]").forEach((el) => {
+    const target = Number(el.getAttribute("data-count-to") || 0);
+    const prefix = el.getAttribute("data-count-prefix") || "";
+    animateCount(el, target, { prefix, duration: 850 + Math.random() * 250 });
+  });
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -259,17 +297,17 @@ function renderRecentTransactions(merged) {
       let cls = "w-tx--pending";
       let icon = "fa-hourglass-half";
       let title = "Pending";
-      let amtHtml = `TZS ${formatNumber(amt)}`;
+      let prefix = "TZS ";
       if (isOk) {
         cls = "w-tx--in";
         icon = "fa-check";
         title = "Received";
-        amtHtml = `+TZS ${formatNumber(amt)}`;
+        prefix = "+TZS ";
       } else if (isFail) {
         cls = "w-tx--out";
         icon = "fa-xmark";
         title = "Failed";
-        amtHtml = `−TZS ${formatNumber(amt)}`;
+        prefix = "−TZS ";
       }
       const ref = String(p.orderReference || "").trim();
       const shortRef = ref.length > 22 ? `${ref.slice(0, 22)}…` : ref;
@@ -294,7 +332,7 @@ function renderRecentTransactions(merged) {
         <div class="w-tx-body">
           <div class="w-tx-top">
             <span class="w-tx-title">${title}</span>
-            <span class="w-tx-amt w-tx-amt--money">${amtHtml}</span>
+            <span class="w-tx-amt w-tx-amt--money" data-count-to="${amt}" data-count-prefix="${prefix}">${prefix}0</span>
           </div>
           <div class="w-tx-sub">${escapeHtml(time)}${phoneBit}</div>
           <div class="w-tx-note">"${escapeHtml(shortRef || "—")}"</div>
@@ -306,10 +344,14 @@ function renderRecentTransactions(merged) {
   if (list.length > 5) {
     html += `
       <li class="w-recent-more">
-        <a href="payment-details.php?type=success" class="w-recent-more-link">View more</a>
+        <a href="payment-details.php?type=success" class="w-recent-more-link">
+          <span>View more</span>
+          <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+        </a>
       </li>`;
   }
   ul.innerHTML = html;
+  animateCountElements(ul);
 }
 
 function setSummaryPlaceholders() {
@@ -397,17 +439,17 @@ async function loadPayments(retryCount = 0) {
     const pendingTransactions = Number(data.pendingTransactions || 0);
 
     if (successAmountEl) {
-      successAmountEl.textContent = `TZS ${formatNumber(successAmount)}`;
+      animateCount(successAmountEl, successAmount, { prefix: "TZS ", duration: 1100 });
     }
     if (failedAmountEl) {
-      failedAmountEl.textContent = `TZS ${formatNumber(failedAmount)}`;
+      animateCount(failedAmountEl, failedAmount, { prefix: "TZS ", duration: 900 });
     }
     if (pendingTransactionsEl) {
-      pendingTransactionsEl.textContent = formatNumber(pendingTransactions);
+      animateCount(pendingTransactionsEl, pendingTransactions, { prefix: "", duration: 800 });
     }
     const mockStatusEl = document.getElementById("mock-status-sales");
     if (mockStatusEl) {
-      mockStatusEl.textContent = `TZS ${formatNumber(successAmount)}`;
+      animateCount(mockStatusEl, successAmount, { prefix: "TZS ", duration: 1100 });
     }
 
     const merged = mergeRecentFeed(data.payments || [], pendingRows);
