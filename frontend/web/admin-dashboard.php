@@ -55,7 +55,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <!-- Portal layout v2 — inline so production cannot show stale dark dashboard -->
   <style id="ad-portal-critical">
-    body.ad-body.ad-portal{background:#f0f4f8!important;color:#1a1a2e!important;background-image:none!important;overflow-x:hidden!important}
+    body.ad-body.ad-portal{background:#f0f4f8!important;color:#1a1a2e!important;background-image:none!important;overflow:hidden!important}
     body.ad-body.ad-portal .ad-top{display:none!important}
     body.ad-body.ad-portal .ad-stats:not(.ad-stats--hidden){display:none!important}
     body.ad-body.ad-portal .ad-detail-sections.is-collapsed{display:none!important}
@@ -73,13 +73,13 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     .ad-charts-row{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,.75fr);gap:16px}
     .ad-form--narrow{max-width:480px}
     @media(max-width:900px){.ad-charts-row{grid-template-columns:1fr}}
-    .ad-shell{display:flex;min-height:100svh}
+    .ad-shell{display:flex;min-height:100svh;height:100svh;overflow:hidden}
     .ad-sidebar{width:var(--ad-sidebar-w,210px);flex-shrink:0;background:#002d58;color:#fff;display:flex;flex-direction:column;padding:16px 0 12px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;transition:width .2s ease}
     .ad-sidebar::-webkit-scrollbar{display:none;width:0;height:0}
-    .ad-main-wrap{flex:1;margin-left:var(--ad-sidebar-w,210px);min-width:0;display:flex;flex-direction:column;transition:margin-left .2s ease}
     body.ad-sidebar-collapsed{--ad-sidebar-w:72px}
-    .ad-portal-top{position:sticky;top:0;z-index:200;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
-    .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#f0f4f8}
+    .ad-main-wrap{flex:1;margin-left:var(--ad-sidebar-w,210px);min-width:0;min-height:0;height:100svh;display:flex;flex-direction:column;overflow:hidden;transition:margin-left .2s ease}
+    .ad-portal-top{position:sticky;top:0;z-index:200;flex-shrink:0;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
+    .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#f0f4f8;flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
     .ad-portal-home{display:grid!important;gap:28px}
     .ad-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .ad-service-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:72px}
