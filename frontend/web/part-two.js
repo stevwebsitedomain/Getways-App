@@ -63,7 +63,6 @@ function initMerchantAmountToggle() {
   if (!amountEl || !toggleBtn) return;
 
   const storageKey = "gw_merchant_amount_visible";
-  const labelEl = toggleBtn.querySelector("span");
   const iconEl = toggleBtn.querySelector("i");
 
   const setVisible = (visible) => {
@@ -77,15 +76,15 @@ function initMerchantAmountToggle() {
       amountEl.textContent = amountEl.getAttribute("data-amount-raw") || raw;
       amountEl.classList.remove("is-amount-hidden");
       toggleBtn.setAttribute("aria-pressed", "false");
+      toggleBtn.setAttribute("aria-label", "Hide amount");
       toggleBtn.setAttribute("title", "Hide amount");
-      if (labelEl) labelEl.textContent = "Hide amount";
       if (iconEl) iconEl.className = "fa-solid fa-eye-slash";
     } else {
       amountEl.textContent = "••••••";
       amountEl.classList.add("is-amount-hidden");
       toggleBtn.setAttribute("aria-pressed", "true");
+      toggleBtn.setAttribute("aria-label", "View amount");
       toggleBtn.setAttribute("title", "View amount");
-      if (labelEl) labelEl.textContent = "View amount";
       if (iconEl) iconEl.className = "fa-solid fa-eye";
     }
     try {
