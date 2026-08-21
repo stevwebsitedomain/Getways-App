@@ -540,32 +540,33 @@ body.ad-body {
 }
 
 .ad-btn--download {
-  color: #f87171;
-  background: transparent;
-  border: 0;
+  color: #dc2626;
+  background: #fff;
+  border: 1px solid #dc2626;
   box-shadow: none;
 }
 
 .ad-btn--download:hover {
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(220, 38, 38, 0.08);
 }
 
 .ad-btn--download i {
-  color: #f87171;
+  color: #dc2626;
 }
 
 .ad-btn--download span {
-  color: #f87171;
+  color: #dc2626;
   font-weight: 700;
 }
 
 .ad-btn--withdraw {
-  color: #fbbf24;
+  color: #d97706;
+  border-color: #d97706;
 }
 
 .ad-btn--withdraw i,
 .ad-btn--withdraw span {
-  color: #fbbf24;
+  color: #d97706;
 }
 
 .ad-btn--withdraw:hover {
