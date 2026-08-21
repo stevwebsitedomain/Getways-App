@@ -1588,6 +1588,7 @@
   let waCurrentStatus = "all";
   let waMode = "manual";
   let waAutoTimer = null;
+  let waScheduleTimer = null;
   let waLastAutoSentTo = "";
   let waSending = false;
   let waPhoneList = [];
@@ -1600,6 +1601,7 @@
   const WA_BODY_KEY = "gw_wa_manual_body";
   const WA_PHONE_KEY = "gw_wa_phone";
   const WA_PHONE_LIST_KEY = "gw_wa_phone_list";
+  const WA_PRIORITY_KEY = "gw_wa_priority";
   const WA_HIDDEN_KEY = "gw_wa_hidden_ids";
   const WA_SCHEDULE_KEY = "gw_wa_schedule";
   const WA_DELAY_VALUE_KEY = "gw_wa_delay_value";
@@ -1693,6 +1695,37 @@
       }
     } catch (_) {
       /* keep HTML defaults */
+    }
+  }
+
+  function saveWaPriority() {
+    const el = document.getElementById("ad-wa-priority");
+    if (!el) return;
+    try {
+      localStorage.setItem(WA_PRIORITY_KEY, el.value || "10");
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function loadWaPriority() {
+    const el = document.getElementById("ad-wa-priority");
+    if (!el) return;
+    try {
+      const saved = localStorage.getItem(WA_PRIORITY_KEY);
+      if (saved !== null && ["0", "5", "10"].includes(saved)) {
+        el.value = saved;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function formatWaScheduleTime(at) {
+    try {
+      return new Date(at).toLocaleString();
+    } catch (_) {
+      return String(at);
     }
   }
 
@@ -2035,10 +2068,29 @@
     }
   }
 
+  function armWaScheduleTimer() {
+    window.clearTimeout(waScheduleTimer);
+    const items = readWaSchedule().filter((item) => item && Number(item.at) > 0);
+    if (!items.length) return;
+    const nextAt = Math.min(...items.map((item) => Number(item.at)));
+    const wait = Math.max(0, nextAt - Date.now());
+    // Fire on time; re-check at least every 15s for long waits / throttled tabs.
+    waScheduleTimer = window.setTimeout(() => {
+      processWaSchedule().finally(armWaScheduleTimer);
+    }, Math.min(wait, 15000));
+  }
+
   function queueWaSchedule(entry) {
-    const items = readWaSchedule();
-    items.push(entry);
+    const phone = normalizeWaPhone(entry.to);
+    const items = readWaSchedule().filter((item) => normalizeWaPhone(item.to) !== phone);
+    items.push({
+      ...entry,
+      to: phone || entry.to,
+      at: Number(entry.at),
+      priority: String(entry.priority ?? "10"),
+    });
     writeWaSchedule(items);
+    armWaScheduleTimer();
   }
 
   async function processWaSchedule() {
@@ -2047,7 +2099,7 @@
     if (!items.length) return;
     const keep = [];
     for (const item of items) {
-      if (!item || !item.at || item.at > now) {
+      if (!item || !item.at || Number(item.at) > now + 250) {
         keep.push(item);
         continue;
       }
@@ -2059,7 +2111,7 @@
         });
         await waSwalSent("Sent", `Scheduled message sent to ${item.to}`);
       } catch (_) {
-        keep.push({ ...item, at: now + 60000 });
+        keep.push({ ...item, at: now + 15000 });
       }
     }
     writeWaSchedule(keep);
@@ -2082,8 +2134,9 @@
   function scheduleAutoSend() {
     if (waMode !== "auto") return;
     window.clearTimeout(waAutoTimer);
-    const delay = delayMsFromUi();
+    // Short debounce while typing the phone — the real send delay starts AFTER this.
     waAutoTimer = window.setTimeout(async () => {
+      const delay = delayMsFromUi();
       const targets = collectWaTargets();
       const body = getAutoMessageBody();
       const priority = document.getElementById("ad-wa-priority")?.value || "10";
@@ -2092,27 +2145,30 @@
         setWaMsg("Andika ujumbe wa automatic kwanza (unaweza kuandika ujumbe wowote).", true);
         return;
       }
-      const key = targets.join(",");
+      const key = `${targets.join(",")}|${delay}|${priority}|${body}`;
       if (key === waLastAutoSentTo) return;
       try {
         saveAutoMessageBody();
+        saveWaDelaySettings();
+        saveWaPriority();
+        saveWaPhoneSettings();
         if (delay > 0) {
           const at = Date.now() + delay;
           targets.forEach((to) => queueWaSchedule({ to, body, priority, at }));
           waLastAutoSentTo = key;
-          setWaMsg(`Scheduled ${targets.length} message(s).`);
-          await waSwalSent("Sent", "Messages scheduled for later.");
+          setWaMsg(`Scheduled ${targets.length} · sends at ${formatWaScheduleTime(at)}`);
           return;
         }
         for (const to of targets) {
           await sendWhatsappMessage({ to, body, priority });
         }
         waLastAutoSentTo = key;
+        setWaMsg(`Sent to ${targets.length} number(s).`);
         await waSwalSent("Sent", `Sent to ${targets.length} number(s).`);
       } catch (_) {
         /* message already shown */
       }
-    }, delay > 0 ? 400 : 900);
+    }, 800);
   }
 
   function parsePhonesFromSheet(workbook) {
@@ -2157,6 +2213,7 @@
     if (!document.getElementById("ad-section-whatsapp")) return;
     loadWaHidden();
     loadWaDelaySettings();
+    loadWaPriority();
     loadWaPhoneSettings();
     loadWaManualBody();
 
@@ -2219,6 +2276,11 @@
       }
     });
 
+    document.getElementById("ad-wa-priority")?.addEventListener("change", () => {
+      saveWaPriority();
+      if (waMode === "auto") waLastAutoSentTo = "";
+    });
+
     document.getElementById("ad-wa-auto-body")?.addEventListener("input", () => {
       saveAutoMessageBody();
       waLastAutoSentTo = "";
@@ -2278,20 +2340,25 @@
       }
       try {
         if (waMode === "auto") saveAutoMessageBody();
+        saveWaPhoneSettings();
+        saveWaPriority();
+        saveWaDelaySettings();
         if (waMode === "auto") {
           const delay = delayMsFromUi();
           if (delay > 0) {
             const at = Date.now() + delay;
             targets.forEach((to) => queueWaSchedule({ to, body, priority, at }));
-            setWaMsg(`Scheduled ${targets.length} message(s).`);
-            await waSwalSent("Sent", "Messages scheduled.");
+            waLastAutoSentTo = `${targets.join(",")}|${delay}|${priority}|${body}`;
+            setWaMsg(`Scheduled ${targets.length} · sends at ${formatWaScheduleTime(at)}`);
             return;
           }
         }
         for (const to of targets) {
           await sendWhatsappMessage({ to, body, priority });
         }
-        if (waMode === "auto") waLastAutoSentTo = targets.join(",");
+        if (waMode === "auto") {
+          waLastAutoSentTo = `${targets.join(",")}|0|${priority}|${body}`;
+        }
         await waSwalSent("Sent", `Sent to ${targets.length} number(s).`);
       } catch (_) {
         /* shown */
@@ -2319,8 +2386,10 @@
       }
     });
 
-    processWaSchedule();
-    window.setInterval(processWaSchedule, 30000);
+    processWaSchedule().finally(armWaScheduleTimer);
+    window.setInterval(() => {
+      processWaSchedule().finally(armWaScheduleTimer);
+    }, 5000);
   }
 
   function bindGeneralAnalysis() {
