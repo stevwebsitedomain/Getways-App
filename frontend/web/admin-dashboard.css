@@ -2206,18 +2206,25 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 }
 
 /* Control number sharp card */
+.ad-portal .ad-detail-sections .ad-cn-page.ad-card,
 .ad-cn-page {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 12px 0 24px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06) !important;
+  border-radius: 12px !important;
+  padding: 20px 22px 28px !important;
+  min-height: calc(100svh - 132px);
+  display: flex;
+  flex-direction: column;
 }
 
 .ad-cn-stage {
+  flex: 1 1 auto;
   display: grid;
   place-items: center;
-  min-height: 62vh;
-  padding: 12px;
+  min-height: 0;
+  width: 100%;
+  padding: 24px 12px 32px;
 }
 
 .ad-cn-card {

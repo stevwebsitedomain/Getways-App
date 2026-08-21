@@ -83,6 +83,8 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#f0f4f8;flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
     .ad-portal .ad-table-wrap,.ad-portal .ad-recent{max-height:min(65vh,560px);overflow:auto;-webkit-overflow-scrolling:touch}
     .ad-portal .ad-wa-list{max-height:none;overflow:visible}
+    .ad-portal .ad-detail-sections .ad-cn-page.ad-card{min-height:calc(100svh - 132px);display:flex;flex-direction:column;background:#fff!important}
+    .ad-cn-stage{flex:1 1 auto;display:grid;place-items:center;min-height:0;width:100%}
     .ad-portal-home{display:grid!important;gap:28px}
     .ad-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .ad-service-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:72px}
