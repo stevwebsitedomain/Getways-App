@@ -1896,6 +1896,32 @@
     return value * 60 * 1000;
   }
 
+  function formatWaIntervalLabel(ms) {
+    const n = Number(ms) || 0;
+    if (n <= 0) return "";
+    const minute = 60 * 1000;
+    const day = 24 * 60 * minute;
+    const month = 30 * day;
+    if (n % month === 0) {
+      const v = n / month;
+      return `every ${v} month${v === 1 ? "" : "s"}`;
+    }
+    if (n % day === 0) {
+      const v = n / day;
+      return `every ${v} day${v === 1 ? "" : "s"}`;
+    }
+    const v = Math.max(1, Math.round(n / minute));
+    return `every ${v} minute${v === 1 ? "" : "s"}`;
+  }
+
+  function formatWaScheduleTime(at) {
+    try {
+      return new Date(at).toLocaleString();
+    } catch (_) {
+      return String(at);
+    }
+  }
+
   function saveWaDelaySettings() {
     const valueEl = document.getElementById("ad-wa-delay-value");
     const unitEl = document.getElementById("ad-wa-delay-unit");
@@ -1956,14 +1982,6 @@
     }
   }
 
-  function formatWaScheduleTime(at) {
-    try {
-      return new Date(at).toLocaleString();
-    } catch (_) {
-      return String(at);
-    }
-  }
-
   function applyWaMode(mode) {
     waMode = mode === "auto" ? "auto" : "manual";
     document.querySelectorAll(".ad-wa-mode-btn").forEach((btn) => {
@@ -1973,14 +1991,16 @@
     const autoWrap = document.getElementById("ad-wa-auto-wrap");
     const schedule = document.getElementById("ad-wa-schedule");
     const sendBtn = document.getElementById("ad-wa-send");
+    const stopBtn = document.getElementById("ad-wa-stop-auto");
     const bodyInput = document.getElementById("ad-wa-body");
     if (bodyWrap) bodyWrap.hidden = waMode === "auto";
     if (autoWrap) autoWrap.hidden = waMode !== "auto";
     if (schedule) schedule.hidden = waMode !== "auto";
+    if (stopBtn) stopBtn.hidden = waMode !== "auto";
     if (bodyInput) bodyInput.required = waMode !== "auto";
     if (sendBtn) {
       sendBtn.innerHTML = waMode === "auto"
-        ? '<i class="fa-brands fa-whatsapp"></i> Schedule / Send'
+        ? '<i class="fa-brands fa-whatsapp"></i> Start automatic'
         : '<i class="fa-brands fa-whatsapp"></i> Send';
     }
     try {
@@ -2317,12 +2337,14 @@
 
   async function queueWaSchedule(entry) {
     const phone = normalizeWaPhone(entry.to);
+    const everyMs = Math.max(0, Number(entry.everyMs) || 0);
     const payload = {
       items: [{
         to: phone || entry.to,
         body: String(entry.body || ""),
         priority: String(entry.priority ?? "10"),
         at: Number(entry.at),
+        everyMs,
       }],
     };
     const res = await fetch("whatsapp-api.php?action=schedule", {
@@ -2357,7 +2379,13 @@
           ? data.results.find((r) => r && r.ok)
           : null;
         if (first) {
-          await waSwalSent("Sent", `Scheduled message sent to ${first.to}`);
+          const next = first.nextAt
+            ? ` · next ${formatWaScheduleTime(first.nextAt)}`
+            : "";
+          await waSwalSent("Sent", `Automatic message sent to ${first.to}${next}`);
+          if (first.nextAt) {
+            setWaMsg(`Sent to ${first.to}${next}`);
+          }
         }
       }
       return data;
@@ -2380,6 +2408,7 @@
             body: String(item.body || ""),
             priority: String(item.priority ?? "10"),
             at: Number(item.at),
+            everyMs: Math.max(0, Number(item.everyMs) || 0),
           })),
         }),
       });
@@ -2430,10 +2459,10 @@
         if (delay > 0) {
           const at = Date.now() + delay;
           for (const to of targets) {
-            await queueWaSchedule({ to, body, priority, at });
+            await queueWaSchedule({ to, body, priority, at, everyMs: delay });
           }
           waLastAutoSentTo = key;
-          setWaMsg(`Scheduled ${targets.length} on server · sends at ${formatWaScheduleTime(at)} (works offline)`);
+          setWaMsg(`Automatic ON · ${formatWaIntervalLabel(delay)} · next ${formatWaScheduleTime(at)}`);
           return;
         }
         for (const to of targets) {
@@ -2625,10 +2654,10 @@
           if (delay > 0) {
             const at = Date.now() + delay;
             for (const to of targets) {
-              await queueWaSchedule({ to, body, priority, at });
+              await queueWaSchedule({ to, body, priority, at, everyMs: delay });
             }
             waLastAutoSentTo = `${targets.join(",")}|${delay}|${priority}|${body}`;
-            setWaMsg(`Scheduled ${targets.length} on server · sends at ${formatWaScheduleTime(at)} (works offline)`);
+            setWaMsg(`Automatic ON · ${formatWaIntervalLabel(delay)} · next ${formatWaScheduleTime(at)}`);
             return;
           }
         }
@@ -2650,6 +2679,28 @@
         const res = await fetch("whatsapp-api.php?action=status", { credentials: "same-origin" });
         const data = await res.json().catch(() => ({}));
         setWaMsg(data.ok ? "Instance online." : (data.message || "Status failed"), !data.ok);
+      } catch (error) {
+        setWaMsg(error.message || String(error), true);
+      }
+    });
+
+    document.getElementById("ad-wa-stop-auto")?.addEventListener("click", async () => {
+      const targets = collectWaTargets();
+      setWaMsg("Stopping automatic…");
+      try {
+        const payload = targets.length
+          ? { phones: targets }
+          : { all: true };
+        const res = await fetch("whatsapp-api.php?action=schedule-cancel", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        waLastAutoSentTo = "";
+        clearWaLocalSchedule();
+        setWaMsg(data.ok ? (data.message || "Automatic stopped.") : (data.message || "Stop failed"), !data.ok);
       } catch (error) {
         setWaMsg(error.message || String(error), true);
       }

@@ -33,7 +33,7 @@ function gwWhatsappCronSecret(): string
 }
 
 /**
- * @return list<array{id:string,to:string,body:string,priority:string,at:int,createdAt:int}>
+ * @return list<array{id:string,to:string,body:string,priority:string,at:int,everyMs:int,createdAt:int}>
  */
 function gwWhatsappReadSchedule(): array
 {
@@ -61,12 +61,17 @@ function gwWhatsappReadSchedule(): array
         if ($to === '' || strlen($to) < 9 || $body === '' || $at <= 0) {
             continue;
         }
+        $everyMs = (int) ($row['everyMs'] ?? $row['intervalMs'] ?? 0);
+        if ($everyMs < 0) {
+            $everyMs = 0;
+        }
         $out[] = [
             'id' => (string) ($row['id'] ?? ('wa_' . $to . '_' . $at)),
             'to' => $to,
             'body' => $body,
             'priority' => (string) ($row['priority'] ?? '10'),
             'at' => $at,
+            'everyMs' => $everyMs,
             'createdAt' => (int) ($row['createdAt'] ?? $at),
         ];
     }
@@ -111,8 +116,8 @@ function gwWhatsappWriteSchedule(array $items): bool
 /**
  * Upsert by phone: one pending message per destination.
  *
- * @param list<array{to:string,body:string,priority?:string,at:int}> $incoming
- * @return list<array{id:string,to:string,body:string,priority:string,at:int,createdAt:int}>
+ * @param list<array{to:string,body:string,priority?:string,at:int,everyMs?:int}> $incoming
+ * @return list<array{id:string,to:string,body:string,priority:string,at:int,everyMs:int,createdAt:int}>
  */
 function gwWhatsappUpsertSchedule(array $incoming): array
 {
@@ -137,12 +142,21 @@ function gwWhatsappUpsertSchedule(array $incoming): array
         if ($priority === '') {
             $priority = '10';
         }
+        $everyMs = (int) ($row['everyMs'] ?? $row['intervalMs'] ?? 0);
+        if ($everyMs < 0) {
+            $everyMs = 0;
+        }
+        // Recurring auto: keep at least 1 minute between repeats.
+        if ($everyMs > 0 && $everyMs < 60000) {
+            $everyMs = 60000;
+        }
         $byPhone[$to] = [
-            'id' => 'wa_' . $to . '_' . $at . '_' . substr(md5($body), 0, 6),
+            'id' => 'wa_' . $to . '_' . $at . '_' . substr(md5($body . '|' . $everyMs), 0, 6),
             'to' => $to,
             'body' => $body,
             'priority' => $priority,
             'at' => $at,
+            'everyMs' => $everyMs,
             'createdAt' => $now,
         ];
     }
@@ -152,6 +166,45 @@ function gwWhatsappUpsertSchedule(array $incoming): array
     gwWhatsappWriteSchedule($merged);
 
     return $merged;
+}
+
+/**
+ * Remove pending schedules. Empty $phones removes all.
+ *
+ * @param list<string> $phones
+ * @return int removed count
+ */
+function gwWhatsappCancelSchedule(array $phones = []): int
+{
+    $items = gwWhatsappReadSchedule();
+    if (!$items) {
+        return 0;
+    }
+    if (!$phones) {
+        $removed = count($items);
+        gwWhatsappWriteSchedule([]);
+
+        return $removed;
+    }
+    $want = [];
+    foreach ($phones as $p) {
+        $n = preg_replace('/\D+/', '', (string) $p) ?? '';
+        if ($n !== '') {
+            $want[$n] = true;
+        }
+    }
+    $keep = [];
+    $removed = 0;
+    foreach ($items as $row) {
+        if (isset($want[$row['to']])) {
+            $removed++;
+            continue;
+        }
+        $keep[] = $row;
+    }
+    gwWhatsappWriteSchedule($keep);
+
+    return $removed;
 }
 
 /**
@@ -265,9 +318,11 @@ function gwWhatsappSendChat(string $to, string $body, string $priority = '10'): 
 }
 
 /**
- * Send all due scheduled messages. Retries failed items after 60s.
+ * Send all due scheduled messages.
+ * Recurring items (everyMs > 0) are re-queued for the next interval after a successful send.
+ * Failed items retry after 60s.
  *
- * @return array{sent:int,failed:int,pending:int,results:list<array{to:string,ok:bool,message:string}>}
+ * @return array{sent:int,failed:int,pending:int,results:list<array{to:string,ok:bool,message:string,nextAt?:int}>}
  */
 function gwWhatsappProcessDueSchedules(int $limit = 25): array
 {
@@ -291,17 +346,28 @@ function gwWhatsappProcessDueSchedules(int $limit = 25): array
 
         $processed++;
         $res = gwWhatsappSendChat($item['to'], $item['body'], $item['priority'] ?? '10');
-        $results[] = [
+        $everyMs = (int) ($item['everyMs'] ?? 0);
+        $rowResult = [
             'to' => $item['to'],
             'ok' => $res['ok'],
             'message' => $res['message'],
         ];
         if ($res['ok']) {
             $sent++;
+            if ($everyMs > 0) {
+                $nextAt = $now + $everyMs;
+                $keep[] = array_merge($item, [
+                    'at' => $nextAt,
+                    'id' => 'wa_' . $item['to'] . '_' . $nextAt . '_' . substr(md5((string) $item['body']), 0, 6),
+                ]);
+                $rowResult['nextAt'] = $nextAt;
+                $rowResult['message'] = 'Sent; next at ' . date('c', (int) floor($nextAt / 1000));
+            }
         } else {
             $failed++;
             $keep[] = array_merge($item, ['at' => $now + 60000]);
         }
+        $results[] = $rowResult;
     }
 
     gwWhatsappWriteSchedule($keep);

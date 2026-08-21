@@ -560,11 +560,11 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
 
             <div class="ad-wa-schedule" id="ad-wa-schedule" hidden>
               <p class="ad-wa-schedule-hint" style="margin:0 0 8px;font-size:0.78rem;color:#475569;line-height:1.35">
-                Timed messages are saved on the <strong>server</strong> — they still send if you leave this page, log out, or go offline (server cron / webhook tick).
+                Automatic: baada ya kutuma, system <strong>inahesabu tena</strong> muda uleule (mf. kila dakika 5) na inaendelea — hata ukilogout (server cron).
               </p>
-              <label class="ad-wa-label">Send after
+              <label class="ad-wa-label">Repeat every
                 <div class="ad-wa-schedule-row">
-                  <input id="ad-wa-delay-value" type="number" min="0" value="5" />
+                  <input id="ad-wa-delay-value" type="number" min="1" value="5" />
                   <select id="ad-wa-delay-unit">
                     <option value="minutes">Minutes</option>
                     <option value="days">Days</option>
@@ -585,6 +585,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
             <div class="ad-wa-actions">
               <button type="submit" class="ad-wa-send-btn" id="ad-wa-send"><i class="fa-brands fa-whatsapp"></i> Send</button>
               <button type="button" class="ad-btn ad-btn--ghost" id="ad-wa-status">Status</button>
+              <button type="button" class="ad-btn ad-btn--ghost" id="ad-wa-stop-auto" hidden>Stop automatic</button>
             </div>
           </form>
           <p id="ad-wa-msg" class="ad-msg"></p>

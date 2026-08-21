@@ -289,17 +289,38 @@ if ($action === 'schedule' && $method === 'POST') {
         $rows = [$input];
     }
     if (!$rows) {
-        waJson(422, ['ok' => false, 'message' => 'Provide items[{to,body,at}] or a single {to,body,at}.']);
+        waJson(422, ['ok' => false, 'message' => 'Provide items[{to,body,at,everyMs?}] or a single {to,body,at,everyMs?}.']);
     }
     $merged = gwWhatsappUpsertSchedule($rows);
     // Also send anything already past due (e.g. clock skew / immediate).
     $tick = gwWhatsappProcessDueSchedules(10);
     waJson(200, [
         'ok' => true,
-        'message' => 'Scheduled on server. Will send even if you close the browser.',
+        'message' => 'Scheduled on server (repeats automatically when everyMs is set).',
         'items' => gwWhatsappReadSchedule(),
         'count' => count($merged),
         'processed' => $tick,
+    ]);
+}
+
+if ($action === 'schedule-cancel' && $method === 'POST') {
+    $input = waReadJsonBody();
+    $phones = [];
+    if (!empty($input['all'])) {
+        $phones = [];
+    } elseif (isset($input['to'])) {
+        $phones = [(string) $input['to']];
+    } elseif (isset($input['phones']) && is_array($input['phones'])) {
+        $phones = $input['phones'];
+    } else {
+        waJson(422, ['ok' => false, 'message' => 'Provide {to}, {phones:[]}, or {all:true}.']);
+    }
+    $removed = gwWhatsappCancelSchedule(!empty($input['all']) ? [] : $phones);
+    waJson(200, [
+        'ok' => true,
+        'message' => $removed ? "Stopped {$removed} automatic schedule(s)." : 'No matching schedule.',
+        'removed' => $removed,
+        'items' => gwWhatsappReadSchedule(),
     ]);
 }
 
@@ -353,7 +374,7 @@ if ($action === 'delete' && $method === 'POST') {
 if ($action !== 'send' || $method !== 'POST') {
     waJson(400, [
         'ok' => false,
-        'message' => 'Use POST action=send|delete|schedule|process-schedule, or GET action=status|messages|webhook-events|schedule.',
+        'message' => 'Use POST action=send|delete|schedule|schedule-cancel|process-schedule, or GET action=status|messages|webhook-events|schedule.',
     ]);
 }
 
