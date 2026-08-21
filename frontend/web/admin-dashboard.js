@@ -600,18 +600,61 @@
     }
   }
 
+  function normalizeDestinationPhone(raw) {
+    const digits = String(raw || "").replace(/[^\d+]/g, "").trim();
+    if (!digits) return "";
+    if (digits.startsWith("+")) return digits;
+    if (digits.startsWith("255")) return `+${digits}`;
+    if (digits.startsWith("0") && digits.length >= 10) return `+255${digits.slice(1)}`;
+    return digits.startsWith("+") ? digits : `+${digits}`;
+  }
+
+  function maskDestinationPhone(raw) {
+    const phone = normalizeDestinationPhone(raw).replace(/^\+/, "");
+    if (!phone) return "—";
+    if (phone.length <= 6) return phone;
+    return `${phone.slice(0, 4)}${"*".repeat(Math.max(4, phone.length - 6))}${phone.slice(-2)}`;
+  }
+
+  function syncDestinationDisplays(phone, options = {}) {
+    const display = normalizeDestinationPhone(phone) || "—";
+    const masked = options.masked || maskDestinationPhone(display);
+    const phoneInput = document.querySelector('#ad-payout-form input[name="mobileMoneyNumber"]');
+    if (phoneInput && display !== "—") {
+      phoneInput.value = display;
+      phoneInput.classList.add("is-saved-ok");
+    }
+    const destEls = [
+      document.getElementById("stat-dest"),
+      document.getElementById("ad-portal-dest"),
+      ...document.querySelectorAll("[data-dest-phone]"),
+    ];
+    destEls.forEach((el) => {
+      if (!el) return;
+      el.textContent = options.showFull ? display : masked;
+      el.classList.add("is-dest-updated");
+    });
+    const hubAuto = document.getElementById("ad-ga-hub-auto");
+    if (hubAuto) {
+      const autoOn = document.getElementById("stat-auto")?.textContent === "ON";
+      hubAuto.textContent = autoOn ? `Auto → ${masked}` : `Set → ${masked}`;
+    }
+    if (latestSettings) {
+      latestSettings.displayDestination = display;
+      latestSettings.maskedDestination = masked;
+    }
+  }
+
   async function loadSettings() {
     try {
       const result = await requestJson("payout-settings");
       latestSettings = result;
-      const phoneInput = document.querySelector('#ad-payout-form input[name="mobileMoneyNumber"]');
-      if (phoneInput && (result.displayDestination || result.maskedDestination)) {
-        // Prefer full display number when API returns it; otherwise keep existing input.
-        if (result.displayDestination) {
-          phoneInput.value = result.displayDestination;
-        }
+      if (result.displayDestination || result.maskedDestination) {
+        syncDestinationDisplays(result.displayDestination || "", {
+          masked: result.maskedDestination,
+          showFull: true,
+        });
       }
-      document.getElementById("stat-dest").textContent = result.maskedDestination || "—";
       setAutoPayoutUi(!!result.enabled, result.mode || "TEST");
       if (result.warning) {
         setBanner("ad-payouts-error", result.warning, "warning", { toast: true });
@@ -621,6 +664,12 @@
         testBadge.hidden = !result.testMode;
       }
       syncPortalCards();
+      if (result.displayDestination || result.maskedDestination) {
+        syncDestinationDisplays(result.displayDestination || "", {
+          masked: result.maskedDestination,
+          showFull: true,
+        });
+      }
     } catch (error) {
       setAutoPayoutUi(false, "ERROR");
       setBanner("ad-payouts-error", error.message, "error", { toast: true });
@@ -701,11 +750,27 @@
   }
 
   function buildTrendFromPayments(payments, days = 14) {
-    const map = {};
+    const list = Array.isArray(payments) ? payments : [];
     const today = new Date();
-    for (let i = days - 1; i >= 0; i -= 1) {
+    today.setHours(12, 0, 0, 0);
+
+    let span = Math.max(1, Number(days) || 14);
+    const times = list
+      .map((p) => {
+        const dt = new Date(p.createdAt || p.updatedAt || 0);
+        return Number.isNaN(dt.getTime()) ? null : dt.getTime();
+      })
+      .filter((t) => t != null);
+
+    if (times.length) {
+      const oldest = Math.min(...times);
+      const daySpan = Math.ceil((today.getTime() - oldest) / 86400000) + 1;
+      if (daySpan > span) span = Math.min(90, Math.max(span, daySpan));
+    }
+
+    const map = {};
+    for (let i = span - 1; i >= 0; i -= 1) {
       const d = new Date(today);
-      d.setHours(12, 0, 0, 0);
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
       map[key] = {
@@ -714,7 +779,7 @@
         count: 0,
       };
     }
-    (payments || []).forEach((p) => {
+    list.forEach((p) => {
       const raw = p.createdAt || p.updatedAt;
       if (!raw) return;
       const dt = new Date(raw);
@@ -734,10 +799,10 @@
     payments.forEach((p) => {
       const status = String(p.status || "").toUpperCase();
       const amount = Number(p.amount || 0);
-      if (status === "SUCCESS") {
+      if (status === "SUCCESS" || status === "SUCCESSFUL" || status === "COMPLETED" || status === "PAID" || status === "SETTLED") {
         success += 1;
         moneyIn += amount;
-      } else if (status === "FAILED") {
+      } else if (status === "FAILED" || status === "FAILURE" || status === "DECLINED" || status === "CANCELLED" || status === "EXPIRED") {
         failed += 1;
       } else {
         pending += 1;
@@ -751,13 +816,15 @@
       recordCount: payments.length,
       periodLabel: "Live payments (same source as user dashboard)",
       trendDays: buildTrendFromPayments(payments, 14),
-      recentCollections: payments.slice(0, 15).map((p) => ({
+      recentCollections: payments.slice(0, 40).map((p) => ({
+        id: p.id,
         orderReference: p.orderReference,
         controlNumber: "",
         amount: p.amount,
         status: p.status,
         createdAt: p.createdAt,
       })),
+      payments,
       source: "payments-merge",
     };
   }
@@ -772,10 +839,33 @@
     return analyticsFromMergedPayments(summary);
   }
 
+  function analyticsChartTotals(analytics) {
+    const data = analytics || {};
+    const counts = normalizePieCounts(data);
+    const pieTotal = counts.success + counts.pending + counts.failed;
+    const trendHits = (Array.isArray(data.trendDays) ? data.trendDays : []).reduce(
+      (sum, d) => sum + Number(d.count || 0),
+      0
+    );
+    return { pieTotal, trendHits };
+  }
+
   function applyAnalyticsToCharts(analytics) {
     const data = analytics || {};
-    drawTrend(document.getElementById("ad-trend"), data.trendDays || []);
-    drawPie(document.getElementById("ad-pie"), data);
+    try {
+      drawTrend(document.getElementById("ad-trend"), data.trendDays || []);
+    } catch (error) {
+      console.error("Trend chart failed", error);
+      const el = document.getElementById("ad-trend");
+      if (el) el.innerHTML = '<p class="ad-trend-empty">Trend chart failed to render.</p>';
+    }
+    try {
+      drawPie(document.getElementById("ad-pie"), data);
+    } catch (error) {
+      console.error("Pie chart failed", error);
+      const el = document.getElementById("ad-pie");
+      if (el) el.innerHTML = '<p class="ad-trend-empty">Pie chart failed to render.</p>';
+    }
   }
 
   function redrawChartsIfVisible() {
@@ -797,7 +887,10 @@
     });
   }
 
+  let statementLoadSeq = 0;
+
   async function loadStatement() {
+    const loadId = ++statementLoadSeq;
     try {
       let analytics = {};
       let warning = "";
@@ -805,21 +898,20 @@
         const result = await requestJson("analytics", {
           query: { period: analyticsPeriod },
         });
+        if (loadId !== statementLoadSeq) return;
         analytics = result.analytics || {};
         warning = result.warning || "";
       } catch (dbError) {
         warning = dbError.message || String(dbError);
       }
 
-      const emptyDb =
-        !Number(analytics.recordCount || 0) &&
-        !Number(analytics.success || 0) &&
-        !Number(analytics.pending || 0) &&
-        !Number(analytics.failed || 0);
+      const totals = analyticsChartTotals(analytics);
+      const emptyCharts = totals.pieTotal <= 0;
 
-      if (emptyDb) {
+      if (emptyCharts) {
         try {
           const merged = await loadMergedAnalyticsFallback();
+          if (loadId !== statementLoadSeq) return;
           if (merged && Number(merged.recordCount || 0) > 0) {
             analytics = merged;
             warning = "";
@@ -827,20 +919,39 @@
         } catch (mergeError) {
           if (!warning) warning = mergeError.message || String(mergeError);
         }
+      } else if (!(analytics.trendDays || []).some((d) => Number(d.count || 0) > 0) && Array.isArray(analytics.payments)) {
+        analytics = {
+          ...analytics,
+          trendDays: buildTrendFromPayments(analytics.payments, 14),
+        };
       }
 
+      if (loadId !== statementLoadSeq) return;
+
       latestAnalytics = analytics;
-      document.getElementById("stat-incoming").textContent = money(analytics.moneyIn || 0);
-      document.getElementById("stat-success").textContent = String(analytics.success || 0);
-      document.getElementById("stat-pending").textContent = String(analytics.pending || 0);
-      document.getElementById("stat-failed").textContent = String(analytics.failed || 0);
+      const incomingEl = document.getElementById("stat-incoming");
+      const successEl = document.getElementById("stat-success");
+      const pendingEl = document.getElementById("stat-pending");
+      const failedEl = document.getElementById("stat-failed");
+      if (incomingEl) incomingEl.textContent = money(analytics.moneyIn || 0);
+      if (successEl) successEl.textContent = String(analytics.success || 0);
+      if (pendingEl) pendingEl.textContent = String(analytics.pending || 0);
+      if (failedEl) failedEl.textContent = String(analytics.failed || 0);
       updatePeriodLabels(analytics);
+
+      // Always paint charts (SVG works hidden; ApexCharts resizes when section opens).
+      applyAnalyticsToCharts(analytics);
+      chartsNeedRedraw = !chartsContainerVisible();
       if (chartsContainerVisible()) {
-        applyAnalyticsToCharts(analytics);
-        chartsNeedRedraw = false;
-      } else {
-        chartsNeedRedraw = true;
+        window.setTimeout(() => {
+          try {
+            chartStore.trend?.resize?.();
+          } catch (_) {
+            /* ignore */
+          }
+        }, 150);
       }
+
       latestRecentRows = analytics.recentCollections || [];
       recentPage = 1;
       renderRecentCollections();
@@ -852,12 +963,15 @@
       setBanner("ad-recent-error", "");
       syncPortalCards();
     } catch (error) {
-      latestAnalytics = { success: 0, pending: 0, failed: 0, trendDays: [], recentCollections: [] };
-      drawTrend(document.getElementById("ad-trend"), []);
-      drawPie(document.getElementById("ad-pie"), {});
-      latestRecentRows = [];
-      recentPage = 1;
-      renderRecentCollections();
+      if (loadId !== statementLoadSeq) return;
+      console.error("loadStatement failed", error);
+      if (!latestAnalytics || analyticsChartTotals(latestAnalytics).pieTotal <= 0) {
+        latestAnalytics = { success: 0, pending: 0, failed: 0, trendDays: [], recentCollections: [] };
+        applyAnalyticsToCharts(latestAnalytics);
+        latestRecentRows = [];
+        recentPage = 1;
+        renderRecentCollections();
+      }
       setBanner("ad-statement-error", error.message, "error", { toast: true });
       clearBanner("ad-recent-error");
     }
@@ -1329,37 +1443,71 @@
   async function savePayoutDestination(event) {
     event.preventDefault();
     const msg = document.getElementById("ad-payout-msg");
+    const submitBtn = event.target.querySelector('button[type="submit"]');
     const adminPassword = await promptAdminPassword();
     if (!adminPassword) return;
     try {
       if (msg) {
         msg.className = "ad-msg";
-        msg.textContent = "Saving...";
+        msg.innerHTML = "Saving...";
       }
+      if (submitBtn) submitBtn.disabled = true;
       const payload = Object.fromEntries(new FormData(event.target).entries());
+      const savedPhone = normalizeDestinationPhone(payload.mobileMoneyNumber);
       // Saving a destination always enables LIVE automatic payout to that number.
-      await requestJson("payout-settings", {
+      const result = await requestJson("payout-settings", {
         method: "POST",
         body: {
-          mobileMoneyNumber: payload.mobileMoneyNumber,
+          mobileMoneyNumber: savedPhone || payload.mobileMoneyNumber,
           enabled: true,
           mode: "LIVE_AUTO",
           manualApprovalRequired: false,
           currentAdminPassword: adminPassword,
         },
       });
-      await loadSettings();
+
+      const display =
+        result.displayDestination ||
+        savedPhone ||
+        normalizeDestinationPhone(payload.mobileMoneyNumber);
+      const masked = result.maskedDestination || maskDestinationPhone(display);
+
+      // Update every destination display immediately from the number just saved.
+      syncDestinationDisplays(display, { masked, showFull: true });
+      latestSettings = { ...(latestSettings || {}), ...result, enabled: true, mode: "LIVE_AUTO" };
+      setAutoPayoutUi(true, "LIVE_AUTO");
+      syncPortalCards();
+      syncDestinationDisplays(display, { masked, showFull: true });
+
       if (msg) {
-        msg.className = "ad-msg is-ok";
-        msg.textContent = "Payout number saved. Payments will go here automatically.";
+        msg.className = "ad-msg is-ok ad-msg--saved";
+        msg.innerHTML = `<i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Saved — payouts go to <strong>${esc(display)}</strong></span>`;
+      }
+      event.target.classList.add("is-just-saved");
+      if (submitBtn) {
+        submitBtn.classList.add("is-saved-ok");
+        submitBtn.innerHTML = `<i class="fa-solid fa-check" aria-hidden="true"></i><span>Saved</span>`;
+        window.setTimeout(() => {
+          submitBtn.classList.remove("is-saved-ok");
+          submitBtn.innerHTML = "Save destination";
+          event.target.classList.remove("is-just-saved");
+        }, 2500);
       }
       notify("Payout number saved — automatic payout is ON.", "success");
+      // Refresh from server so masked/display stay authoritative.
+      await loadSettings();
+      syncDestinationDisplays(
+        latestSettings?.displayDestination || display,
+        { masked: latestSettings?.maskedDestination || masked, showFull: true }
+      );
     } catch (error) {
       if (msg) {
-        msg.className = "ad-msg";
-        msg.textContent = "";
+        msg.className = "ad-msg is-err";
+        msg.innerHTML = `<i class="fa-solid fa-circle-xmark" aria-hidden="true"></i><span>${esc(error.message)}</span>`;
       }
       notify(error.message, "error");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
 
@@ -1418,6 +1566,18 @@
         to.textContent = from.textContent || "";
       }
     });
+    // Prefer live settings destination when available.
+    const destDisplay =
+      latestSettings?.displayDestination ||
+      latestSettings?.maskedDestination ||
+      document.getElementById("stat-dest")?.textContent ||
+      "";
+    if (destDisplay) {
+      const statDest = document.getElementById("stat-dest");
+      const portalDest = document.getElementById("ad-portal-dest");
+      if (statDest) statDest.textContent = destDisplay;
+      if (portalDest) portalDest.textContent = destDisplay;
+    }
     // Keep hidden auto stats in sync for GA hub / legacy helpers.
     setAutoPayoutUi(
       Boolean(latestSettings?.enabled) && String(latestSettings?.mode || "").toUpperCase() === "LIVE_AUTO",

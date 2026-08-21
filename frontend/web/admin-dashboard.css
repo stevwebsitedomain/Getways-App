@@ -2516,6 +2516,60 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   color: #b91c1c !important;
 }
 
+.ad-msg--saved,
+.ad-portal .ad-msg.ad-msg--saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #15803d !important;
+}
+
+.ad-msg--saved .fa-circle-check {
+  color: #16a34a;
+  font-size: 1.15rem;
+}
+
+.ad-dest-input-wrap {
+  position: relative;
+  display: block;
+}
+
+.ad-dest-input-wrap input {
+  width: 100%;
+  padding-right: 2.4rem;
+}
+
+.ad-dest-tick {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.6);
+  color: #16a34a;
+  font-size: 1.15rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.ad-dest-input-wrap input.is-saved-ok + .ad-dest-tick,
+.ad-form--dest.is-just-saved .ad-dest-tick {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.ad-portal .ad-form button.is-saved-ok,
+.ad-form button.is-saved-ok {
+  background: #16a34a !important;
+  color: #fff !important;
+}
+
+.ad-service-value.is-dest-updated,
+#ad-portal-dest.is-dest-updated,
+#stat-dest.is-dest-updated {
+  color: #15803d !important;
+}
+
 .ad-portal .ad-note {
   color: #64748b !important;
 }

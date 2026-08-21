@@ -423,13 +423,16 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
         <h2>Payout destination</h2>
       </div>
       <p class="ad-note">Weka namba ya kupokea. Mtu akilipa (SUCCESS), pesa inatumwa automatic kwenda namba hii.</p>
-      <form id="ad-payout-form" class="ad-form">
+      <form id="ad-payout-form" class="ad-form ad-form--dest">
         <label>Payout phone number
-          <input name="mobileMoneyNumber" type="tel" value="+255715296092" required placeholder="+255715296092" />
+          <span class="ad-dest-input-wrap">
+            <input name="mobileMoneyNumber" type="tel" value="+255715296092" required placeholder="+255715296092" autocomplete="tel" />
+            <i class="fa-solid fa-circle-check ad-dest-tick" aria-hidden="true"></i>
+          </span>
         </label>
         <button type="submit">Save destination</button>
       </form>
-      <p id="ad-payout-msg" class="ad-msg"></p>
+      <p id="ad-payout-msg" class="ad-msg" role="status" aria-live="polite"></p>
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-payouts" data-ad-page="payouts">
