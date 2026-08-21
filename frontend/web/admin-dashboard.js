@@ -2010,23 +2010,6 @@
     return [...new Set(phones)];
   }
 
-  function downloadWaExcelSample() {
-    if (typeof window.XLSX === "undefined") {
-      setWaMsg("Excel library failed to load.", true);
-      return;
-    }
-    const rows = [
-      { phone: "255715296092" },
-      { phone: "255716260292" },
-      { phone: "2557XXXXXXXX" },
-    ];
-    const sheet = window.XLSX.utils.json_to_sheet(rows);
-    const book = window.XLSX.utils.book_new();
-    window.XLSX.utils.book_append_sheet(book, sheet, "phones");
-    window.XLSX.writeFile(book, "getway-whatsapp-phones-sample.xlsx");
-    setWaMsg("Sample Excel downloaded. Fill column phone then upload.");
-  }
-
   function bindWhatsappSection() {
     if (!document.getElementById("ad-section-whatsapp")) return;
     loadWaHidden();

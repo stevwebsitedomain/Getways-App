@@ -2128,13 +2128,11 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 }
 
 .ad-portal .ad-wa-list {
-  flex: 1 1 auto;
-  max-height: min(68vh, 640px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  padding-right: 4px;
-  overscroll-behavior: contain;
+  flex: none;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+  overscroll-behavior: auto;
 }
 
 .ad-portal .ad-users-list,
@@ -2872,11 +2870,8 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   padding: 0;
   display: grid;
   gap: 10px;
-  max-height: min(68vh, 640px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  max-height: none;
+  overflow: visible;
 }
 .ad-wa-list > li {
   border: 1px solid #e8ecf2;
@@ -2971,25 +2966,4 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   font-weight: 600;
   line-height: 1.35;
 }
-
-.ad-wa-excel-hint {
-  margin: 10px 0 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  font-size: 0.76rem;
-  color: #334155;
-  font-weight: 600;
-  display: grid;
-  gap: 8px;
-}
-
-.ad-wa-excel-hint code {
-  font-size: 0.72rem;
-  background: #eef2ff;
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-
 

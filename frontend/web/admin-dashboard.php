@@ -81,8 +81,8 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     .ad-main-wrap{flex:1;margin-left:var(--ad-sidebar-w,210px);min-width:0;min-height:0;height:100svh;display:flex;flex-direction:column;overflow:hidden;transition:margin-left .2s ease}
     .ad-portal-top{position:relative;top:0;z-index:200;flex-shrink:0;display:flex;align-items:center;gap:14px;padding:16px 24px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
     .ad-portal .ad-main{max-width:none;margin:0;padding:20px 24px 48px;background:#f0f4f8;flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
-    .ad-portal .ad-table-wrap,.ad-portal .ad-recent,.ad-portal .ad-wa-list{max-height:min(65vh,560px);overflow:auto;-webkit-overflow-scrolling:touch}
-    .ad-portal .ad-wa-list{max-height:min(68vh,640px)}
+    .ad-portal .ad-table-wrap,.ad-portal .ad-recent{max-height:min(65vh,560px);overflow:auto;-webkit-overflow-scrolling:touch}
+    .ad-portal .ad-wa-list{max-height:none;overflow:visible}
     .ad-portal-home{display:grid!important;gap:28px}
     .ad-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .ad-service-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:72px}
@@ -557,12 +557,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
               <textarea id="ad-wa-auto-body" rows="5" placeholder="Andika ujumbe wowote unaotaka utumwe automatic…"></textarea>
               <small class="ad-wa-hint">Unaweza kubadilisha ujumbe wakati wowote — si lazima ule wa mfano. Hubaki kuhifadhiwa.</small>
             </label>
-
-            <div class="ad-wa-excel-hint" id="ad-wa-excel-hint">
-              <strong>Excel format:</strong> column <code>phone</code> (au namba moja kwa safu).
-              Mfano: <code>2557XXXXXXXX</code>
-              <button type="button" class="ad-btn ad-btn--ghost" id="ad-wa-excel-sample">Download sample Excel</button>
-            </div>
 
             <div class="ad-wa-schedule" id="ad-wa-schedule" hidden>
               <label class="ad-wa-label">Send after
