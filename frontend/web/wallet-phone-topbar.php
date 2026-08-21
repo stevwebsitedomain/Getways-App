@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Shared in-app phone top bar — banking style (back, title, menu).
+ * Shared in-app phone top bar — Chase-style blue header.
  * Optional: $phoneTopbarTitle — page heading text
  * Optional: $phoneTopbarBack — back link URL (default: part-two.php)
  */
@@ -25,7 +25,7 @@ if ($authInitial === '') {
     $authInitial = 'U';
 }
 ?>
-      <section class="w-phone-topbar w-searchable" aria-label="Page header">
+      <section class="w-phone-topbar ch-phone-topbar w-searchable" aria-label="Page header">
         <a href="<?= htmlspecialchars($phoneTopbarBack, ENT_QUOTES) ?>" class="w-phone-icon-btn w-phone-icon-link" aria-label="Go back">
           <i class="fa-solid fa-arrow-left"></i>
         </a>
@@ -43,11 +43,11 @@ if ($authInitial === '') {
       </section>
 
       <section class="w-phone-menu w-searchable" data-phone-menu>
-        <a href="part-two.php"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
-        <a href="create-payment.php"><i class="fa-solid fa-dollar-sign"></i> Pay</a>
-        <a href="control-number.php"><i class="fa-solid fa-map-location-dot"></i> Services</a>
+        <a href="part-two.php"><i class="fa-solid fa-house"></i> Accounts</a>
+        <a href="create-payment.php"><i class="fa-solid fa-money-bill-transfer"></i> Pay &amp; Transfer</a>
+        <a href="control-number.php"><i class="fa-solid fa-store"></i> Deposit</a>
         <a href="payment-details.php?type=success"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
-        <a href="autopay.php"><i class="fa-solid fa-bolt"></i> AutoPay</a>
+        <a href="autopay.php"><i class="fa-solid fa-award"></i> Rewards</a>
         <a href="settings.php"><i class="fa-solid fa-user"></i> Profile</a>
         <a href="logout.php" class="w-phone-menu-logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
       </section>

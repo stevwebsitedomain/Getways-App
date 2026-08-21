@@ -49,11 +49,11 @@ $isActive = static function (string $key) use ($activeTopNav): string {
       <button type="button" class="nav-menu-toggle" aria-label="Open navigation menu" aria-expanded="false" data-nav-toggle>☰</button>
       <div class="nav-title">Getway | System</div>
       <div class="nav-links">
-        <a class="<?= trim($isActive('home')) ?>" href="part-two.php">Dashboard</a>
-        <a class="<?= trim($isActive('pay')) ?>" href="create-payment.php">Pay</a>
-        <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">AutoPay</a>
+        <a class="<?= trim($isActive('home')) ?>" href="part-two.php">Accounts</a>
+        <a class="<?= trim($isActive('pay')) ?>" href="create-payment.php">Pay &amp; Transfer</a>
+        <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">Rewards</a>
         <a class="<?= trim($isActive('history')) ?>" href="payment-details.php?type=success">History</a>
-        <a class="<?= trim($isActive('settings')) ?>" href="settings.php">Settings</a>
+        <a class="<?= trim($isActive('settings')) ?>" href="settings.php">More</a>
         <a href="logout.php">Logout</a>
       </div>
       <a class="nav-account" href="settings.php" title="<?= htmlspecialchars($authEmail !== '' ? $authEmail : $authName, ENT_QUOTES) ?>">
@@ -69,11 +69,11 @@ $isActive = static function (string $key) use ($activeTopNav): string {
       </a>
     </div>
     <div class="nav-mobile-menu" data-nav-mobile-menu>
-      <a class="<?= trim($isActive('home')) ?>" href="part-two.php">Dashboard</a>
-      <a class="<?= trim($isActive('pay')) ?>" href="create-payment.php">Pay</a>
-      <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">AutoPay</a>
+      <a class="<?= trim($isActive('home')) ?>" href="part-two.php">Accounts</a>
+      <a class="<?= trim($isActive('pay')) ?>" href="create-payment.php">Pay &amp; Transfer</a>
+      <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">Rewards</a>
       <a class="<?= trim($isActive('history')) ?>" href="payment-details.php?type=success">History</a>
-      <a class="<?= trim($isActive('settings')) ?>" href="settings.php">Settings</a>
+      <a class="<?= trim($isActive('settings')) ?>" href="settings.php">More</a>
       <a href="logout.php">Logout</a>
     </div>
   </div>

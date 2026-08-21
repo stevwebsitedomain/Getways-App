@@ -93,7 +93,7 @@ $phoneTopbarTitle = 'Control Number';
       </div>
     </div>
 
-<?php $activeNav = ''; require __DIR__ . '/wallet-bottom-nav.php'; ?>
+<?php $activeNav = 'services'; require __DIR__ . '/wallet-bottom-nav.php'; ?>
   </main>
 
   <script src="tis-api-base.js"></script>
