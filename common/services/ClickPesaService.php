@@ -534,10 +534,14 @@ class ClickPesaService extends Component
             throw new ServerErrorHttpException('Failed to save payout settings.');
         }
 
-        ClickPesaSettingAudit::log('settings_updated', [
-            'before' => $before,
-            'after' => $this->getAutoPayoutSettings(),
-        ], $actorId, $actorIp);
+        try {
+            ClickPesaSettingAudit::log('settings_updated', [
+                'before' => $before,
+                'after' => $this->getAutoPayoutSettings(),
+            ], $actorId, $actorIp);
+        } catch (\Throwable $auditError) {
+            Yii::warning('Payout settings saved but audit log failed: ' . $auditError->getMessage(), __METHOD__);
+        }
 
         return $this->getAutoPayoutSettings();
     }

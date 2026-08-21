@@ -335,6 +335,12 @@
       }
       return result;
     } catch (error) {
+      const raw = String(error?.message || error || "");
+      if (/Failed to fetch|NetworkError|Connection lost|Load failed|aborted|network/i.test(raw)) {
+        throw new Error(
+          "Muunganisho umekatika wakati wa ku-save (database/internet). Jaribu tena baada ya sekunde chache."
+        );
+      }
       throw error;
     } finally {
       if (onLoading) onLoading(false);

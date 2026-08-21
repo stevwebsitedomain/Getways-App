@@ -30,13 +30,46 @@ $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
 function readJsonBody(): array
 {
+    // php://input can only be read once — cache for retries / remote proxy fallback.
+    static $cached = null;
+    static $done = false;
+    if ($done) {
+        return is_array($cached) ? $cached : [];
+    }
+    $done = true;
+
     $raw = file_get_contents('php://input');
     if (!is_string($raw) || $raw === '') {
-        return $_POST;
+        $cached = $_POST;
+
+        return is_array($cached) ? $cached : [];
     }
     $decoded = json_decode($raw, true);
+    $cached = is_array($decoded) ? $decoded : $_POST;
 
-    return is_array($decoded) ? $decoded : $_POST;
+    return is_array($cached) ? $cached : [];
+}
+
+function adminIsDbGoneAway(Throwable $e): bool
+{
+    $msg = $e->getMessage();
+
+    return stripos($msg, 'gone away') !== false
+        || stripos($msg, 'Lost connection') !== false
+        || stripos($msg, '2006') !== false
+        || stripos($msg, '2013') !== false
+        || stripos($msg, 'server has gone') !== false;
+}
+
+function adminDbReconnect(): void
+{
+    try {
+        Yii::$app->db->close();
+    } catch (Throwable) {
+        // ignore
+    }
+    Yii::$app->db->open();
+    Yii::$app->db->createCommand('SELECT 1')->queryScalar();
 }
 
 /**
@@ -174,11 +207,12 @@ function adminFetchRemote(string $remoteAction, string $method = 'GET', array $q
         return null;
     }
 
+    // Keep short: a long hang makes Apache/browser drop the client with "Connection lost".
     curl_setopt_array($ch, [
         CURLOPT_CUSTOMREQUEST => strtoupper($method),
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 15,
-        CURLOPT_TIMEOUT => 120,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT => 25,
         CURLOPT_HTTPHEADER => $headers,
     ]);
 
@@ -250,7 +284,16 @@ function adminHandle(callable $callback, string $apiRoute, ?string $remoteAction
             adminJson(503, $dbError + ['apiRoute' => $apiRoute]);
         }
 
-        $result = $callback();
+        try {
+            $result = $callback();
+        } catch (yii\db\Exception $firstDb) {
+            if (!adminIsDbGoneAway($firstDb)) {
+                throw $firstDb;
+            }
+            // Stale Railway/proxy connection — reconnect once and retry.
+            adminDbReconnect();
+            $result = $callback();
+        }
         if (!is_array($result)) {
             $result = ['success' => true, 'data' => $result];
         }
@@ -278,6 +321,21 @@ function adminHandle(callable $callback, string $apiRoute, ?string $remoteAction
             'causeFile' => 'common/config/params-local.php',
         ]);
     } catch (yii\db\Exception $e) {
+        if (adminIsDbGoneAway($e)) {
+            try {
+                adminDbReconnect();
+                $retry = $callback();
+                if (!is_array($retry)) {
+                    $retry = ['success' => true, 'data' => $retry];
+                }
+                if (!array_key_exists('success', $retry)) {
+                    $retry['success'] = true;
+                }
+                adminJson(200, ['ok' => true, 'apiRoute' => $apiRoute, 'source' => 'db-reconnect'] + $retry);
+            } catch (Throwable) {
+                // fall through to remote / 503
+            }
+        }
         if ($remoteAction !== null) {
             $remote = adminTryRemoteProxy($apiRoute, $remoteAction);
             if ($remote !== null) {
@@ -290,7 +348,7 @@ function adminHandle(callable $callback, string $apiRoute, ?string $remoteAction
         adminJson(503, [
             'ok' => false,
             'success' => false,
-            'message' => 'Database error: ' . $e->getMessage(),
+            'message' => 'Database connection lost while saving. Check Railway MySQL / internet and try again. (' . $e->getMessage() . ')',
             'apiRoute' => $apiRoute,
             'causeFile' => 'common/config/main-local.php',
             'causeLine' => 42,
