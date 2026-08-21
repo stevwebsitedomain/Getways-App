@@ -1597,6 +1597,9 @@
   const WA_PAGE_SIZE = 4;
   const WA_MODE_KEY = "gw_wa_send_mode";
   const WA_AUTO_BODY_KEY = "gw_wa_auto_body";
+  const WA_BODY_KEY = "gw_wa_manual_body";
+  const WA_PHONE_KEY = "gw_wa_phone";
+  const WA_PHONE_LIST_KEY = "gw_wa_phone_list";
   const WA_HIDDEN_KEY = "gw_wa_hidden_ids";
   const WA_SCHEDULE_KEY = "gw_wa_schedule";
   const WA_DELAY_VALUE_KEY = "gw_wa_delay_value";
@@ -1723,12 +1726,61 @@
     return String(value || "").replace(/\D+/g, "");
   }
 
+  function saveWaPhoneSettings() {
+    try {
+      const phone = String(document.getElementById("ad-wa-to")?.value || "").trim();
+      localStorage.setItem(WA_PHONE_KEY, phone);
+      localStorage.setItem(WA_PHONE_LIST_KEY, JSON.stringify(waPhoneList));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function loadWaPhoneSettings() {
+    const input = document.getElementById("ad-wa-to");
+    try {
+      const savedPhone = localStorage.getItem(WA_PHONE_KEY);
+      if (input && savedPhone !== null) {
+        input.value = savedPhone;
+      }
+      const rawList = JSON.parse(localStorage.getItem(WA_PHONE_LIST_KEY) || "[]");
+      waPhoneList = Array.isArray(rawList)
+        ? [...new Set(rawList.map((p) => normalizeWaPhone(p)).filter((p) => p.length >= 9))]
+        : [];
+      renderWaPhoneChips();
+    } catch (_) {
+      waPhoneList = [];
+    }
+  }
+
+  function saveWaManualBody() {
+    const el = document.getElementById("ad-wa-body");
+    if (!el) return;
+    try {
+      localStorage.setItem(WA_BODY_KEY, el.value || "");
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function loadWaManualBody() {
+    const el = document.getElementById("ad-wa-body");
+    if (!el) return;
+    try {
+      const saved = localStorage.getItem(WA_BODY_KEY);
+      if (saved !== null) el.value = saved;
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
   function renderWaPhoneChips() {
     const wrap = document.getElementById("ad-wa-phone-chips");
     if (!wrap) return;
     if (!waPhoneList.length) {
       wrap.hidden = true;
       wrap.innerHTML = "";
+      saveWaPhoneSettings();
       return;
     }
     wrap.hidden = false;
@@ -1745,6 +1797,7 @@
         renderWaPhoneChips();
       });
     });
+    saveWaPhoneSettings();
   }
 
   function collectWaTargets() {
@@ -2104,6 +2157,8 @@
     if (!document.getElementById("ad-section-whatsapp")) return;
     loadWaHidden();
     loadWaDelaySettings();
+    loadWaPhoneSettings();
+    loadWaManualBody();
 
     try {
       const savedMode = localStorage.getItem(WA_MODE_KEY);
@@ -2136,10 +2191,17 @@
     });
 
     document.getElementById("ad-wa-to")?.addEventListener("input", () => {
+      saveWaPhoneSettings();
       const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
       if (to !== waLastAutoSentTo) waLastAutoSentTo = "";
       if (waMode === "auto") scheduleAutoSend();
     });
+    document.getElementById("ad-wa-to")?.addEventListener("change", saveWaPhoneSettings);
+    document.getElementById("ad-wa-to")?.addEventListener("blur", saveWaPhoneSettings);
+
+    document.getElementById("ad-wa-body")?.addEventListener("input", saveWaManualBody);
+    document.getElementById("ad-wa-body")?.addEventListener("change", saveWaManualBody);
+    document.getElementById("ad-wa-body")?.addEventListener("blur", saveWaManualBody);
 
     document.getElementById("ad-wa-delay-value")?.addEventListener("input", saveWaDelaySettings);
     document.getElementById("ad-wa-delay-value")?.addEventListener("change", () => {
@@ -2184,6 +2246,7 @@
         const first = phones[0];
         const input = document.getElementById("ad-wa-to");
         if (input && first) input.value = first;
+        saveWaPhoneSettings();
         setWaMsg(`Loaded ${phones.length} number(s) from Excel.`);
         if (waMode === "auto") {
           waLastAutoSentTo = "";
