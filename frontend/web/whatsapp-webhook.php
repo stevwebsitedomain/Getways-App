@@ -52,5 +52,18 @@ $event = [
 $path = gwWhatsappWebhookLogPath();
 @file_put_contents($path, json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
 
+// Opportunistic tick: send any due scheduled WhatsApp while Ultramsg is talking to us.
+$scheduleTick = null;
+try {
+    require_once __DIR__ . '/whatsapp-schedule-lib.php';
+    $scheduleTick = gwWhatsappProcessDueSchedules(10);
+} catch (Throwable $e) {
+    $scheduleTick = ['error' => $e->getMessage()];
+}
+
 http_response_code(200);
-echo json_encode(['ok' => true, 'received' => true], JSON_UNESCAPED_SLASHES);
+echo json_encode([
+    'ok' => true,
+    'received' => true,
+    'schedule' => $scheduleTick,
+], JSON_UNESCAPED_SLASHES);

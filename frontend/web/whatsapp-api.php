@@ -8,6 +8,9 @@ declare(strict_types=1);
  * GET  ?action=status
  * GET  ?action=messages&status=all|sent|queue|unsent|invalid|expired&page=1&limit=50
  * GET  ?action=webhook-events
+ * GET  ?action=schedule
+ * POST ?action=schedule JSON { items:[{to,body,priority?,at}] }  (at = unix ms)
+ * POST ?action=process-schedule
  * POST ?action=send  JSON { to, body, priority? }
  * POST ?action=delete JSON { id }
  */
@@ -17,6 +20,7 @@ header('Cache-Control: no-store');
 
 require_once __DIR__ . '/auth-init.php';
 require_once __DIR__ . '/env-load.php';
+require_once __DIR__ . '/whatsapp-schedule-lib.php';
 gwAuthStartSession();
 
 function waJson(int $code, array $payload): never
@@ -190,6 +194,12 @@ if ($action === 'status') {
 }
 
 if ($action === 'messages') {
+    // Background tick while admin views message history.
+    try {
+        gwWhatsappProcessDueSchedules(5);
+    } catch (Throwable $e) {
+        // ignore — listing messages must still work
+    }
     $status = strtolower(trim((string) ($_GET['status'] ?? 'all')));
     $allowed = ['all', 'sent', 'queue', 'unsent', 'invalid', 'expired'];
     if (!in_array($status, $allowed, true)) {
@@ -257,6 +267,63 @@ if ($action === 'webhook-events') {
     ]);
 }
 
+if ($action === 'schedule' && $method === 'GET') {
+    // Flush anything already due whenever the admin opens/lists the queue.
+    $tick = gwWhatsappProcessDueSchedules(10);
+    $items = gwWhatsappReadSchedule();
+    waJson(200, [
+        'ok' => true,
+        'message' => 'Pending schedule loaded.',
+        'items' => $items,
+        'count' => count($items),
+        'processed' => $tick,
+    ]);
+}
+
+if ($action === 'schedule' && $method === 'POST') {
+    $input = waReadJsonBody();
+    $rows = [];
+    if (isset($input['items']) && is_array($input['items'])) {
+        $rows = $input['items'];
+    } elseif (isset($input['to'])) {
+        $rows = [$input];
+    }
+    if (!$rows) {
+        waJson(422, ['ok' => false, 'message' => 'Provide items[{to,body,at}] or a single {to,body,at}.']);
+    }
+    $merged = gwWhatsappUpsertSchedule($rows);
+    // Also send anything already past due (e.g. clock skew / immediate).
+    $tick = gwWhatsappProcessDueSchedules(10);
+    waJson(200, [
+        'ok' => true,
+        'message' => 'Scheduled on server. Will send even if you close the browser.',
+        'items' => gwWhatsappReadSchedule(),
+        'count' => count($merged),
+        'processed' => $tick,
+    ]);
+}
+
+if ($action === 'process-schedule' && ($method === 'POST' || $method === 'GET')) {
+    $limit = 25;
+    if (isset($_GET['limit'])) {
+        $limit = (int) $_GET['limit'];
+    } elseif ($method === 'POST') {
+        $bodyIn = waReadJsonBody();
+        $limit = (int) ($bodyIn['limit'] ?? 25);
+    }
+    $limit = min(50, max(1, $limit));
+    $tick = gwWhatsappProcessDueSchedules($limit);
+    waJson(200, [
+        'ok' => true,
+        'message' => 'Due schedules processed.',
+        'sent' => $tick['sent'],
+        'failed' => $tick['failed'],
+        'pending' => $tick['pending'],
+        'results' => $tick['results'],
+        'items' => gwWhatsappReadSchedule(),
+    ]);
+}
+
 if ($action === 'delete' && $method === 'POST') {
     $input = waReadJsonBody();
     $id = trim((string) ($input['id'] ?? $input['msgId'] ?? ''));
@@ -286,7 +353,7 @@ if ($action === 'delete' && $method === 'POST') {
 if ($action !== 'send' || $method !== 'POST') {
     waJson(400, [
         'ok' => false,
-        'message' => 'Use POST action=send|delete, or GET action=status|messages|webhook-events.',
+        'message' => 'Use POST action=send|delete|schedule|process-schedule, or GET action=status|messages|webhook-events|schedule.',
     ]);
 }
 

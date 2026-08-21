@@ -559,6 +559,9 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
             </label>
 
             <div class="ad-wa-schedule" id="ad-wa-schedule" hidden>
+              <p class="ad-wa-schedule-hint" style="margin:0 0 8px;font-size:0.78rem;color:#475569;line-height:1.35">
+                Timed messages are saved on the <strong>server</strong> — they still send if you leave this page, log out, or go offline (server cron / webhook tick).
+              </p>
               <label class="ad-wa-label">Send after
                 <div class="ad-wa-schedule-row">
                   <input id="ad-wa-delay-value" type="number" min="0" value="5" />

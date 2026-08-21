@@ -2303,53 +2303,93 @@
     }
   }
 
-  function armWaScheduleTimer() {
-    window.clearTimeout(waScheduleTimer);
-    const items = readWaSchedule().filter((item) => item && Number(item.at) > 0);
-    if (!items.length) return;
-    const nextAt = Math.min(...items.map((item) => Number(item.at)));
-    const wait = Math.max(0, nextAt - Date.now());
-    // Fire on time; re-check at least every 15s for long waits / throttled tabs.
-    waScheduleTimer = window.setTimeout(() => {
-      processWaSchedule().finally(armWaScheduleTimer);
-    }, Math.min(wait, 15000));
+  function clearWaLocalSchedule() {
+    writeWaSchedule([]);
   }
 
-  function queueWaSchedule(entry) {
+  function armWaScheduleTimer() {
+    window.clearTimeout(waScheduleTimer);
+    // Keep a gentle server tick while the dashboard tab is open (cron covers offline).
+    waScheduleTimer = window.setTimeout(() => {
+      processWaSchedule().finally(armWaScheduleTimer);
+    }, 20000);
+  }
+
+  async function queueWaSchedule(entry) {
     const phone = normalizeWaPhone(entry.to);
-    const items = readWaSchedule().filter((item) => normalizeWaPhone(item.to) !== phone);
-    items.push({
-      ...entry,
-      to: phone || entry.to,
-      at: Number(entry.at),
-      priority: String(entry.priority ?? "10"),
+    const payload = {
+      items: [{
+        to: phone || entry.to,
+        body: String(entry.body || ""),
+        priority: String(entry.priority ?? "10"),
+        at: Number(entry.at),
+      }],
+    };
+    const res = await fetch("whatsapp-api.php?action=schedule", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
-    writeWaSchedule(items);
-    armWaScheduleTimer();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Could not save schedule on server.");
+    }
+    // Prefer server queue; drop browser-only leftovers for this phone.
+    const local = readWaSchedule().filter((item) => normalizeWaPhone(item.to) !== phone);
+    writeWaSchedule(local);
+    return data;
   }
 
   async function processWaSchedule() {
-    const now = Date.now();
-    const items = readWaSchedule();
-    if (!items.length) return;
-    const keep = [];
-    for (const item of items) {
-      if (!item || !item.at || Number(item.at) > now + 250) {
-        keep.push(item);
-        continue;
+    try {
+      const res = await fetch("whatsapp-api.php?action=process-schedule&limit=25", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return data;
+      if (Number(data.sent) > 0) {
+        loadWhatsappMessages(waCurrentStatus);
+        const first = Array.isArray(data.results)
+          ? data.results.find((r) => r && r.ok)
+          : null;
+        if (first) {
+          await waSwalSent("Sent", `Scheduled message sent to ${first.to}`);
+        }
       }
-      try {
-        await sendWhatsappMessage({
-          to: item.to,
-          body: item.body,
-          priority: item.priority || "10",
-        });
-        await waSwalSent("Sent", `Scheduled message sent to ${item.to}`);
-      } catch (_) {
-        keep.push({ ...item, at: now + 15000 });
-      }
+      return data;
+    } catch (_) {
+      return null;
     }
-    writeWaSchedule(keep);
+  }
+
+  async function migrateLocalWaScheduleToServer() {
+    const local = readWaSchedule().filter((item) => item && Number(item.at) > 0 && item.to && item.body);
+    if (!local.length) return;
+    try {
+      const res = await fetch("whatsapp-api.php?action=schedule", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: local.map((item) => ({
+            to: normalizeWaPhone(item.to) || item.to,
+            body: String(item.body || ""),
+            priority: String(item.priority ?? "10"),
+            at: Number(item.at),
+          })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        clearWaLocalSchedule();
+      }
+    } catch (_) {
+      /* keep local until next visit */
+    }
   }
 
   function getAutoMessageBody() {
@@ -2389,9 +2429,11 @@
         saveWaPhoneSettings();
         if (delay > 0) {
           const at = Date.now() + delay;
-          targets.forEach((to) => queueWaSchedule({ to, body, priority, at }));
+          for (const to of targets) {
+            await queueWaSchedule({ to, body, priority, at });
+          }
           waLastAutoSentTo = key;
-          setWaMsg(`Scheduled ${targets.length} · sends at ${formatWaScheduleTime(at)}`);
+          setWaMsg(`Scheduled ${targets.length} on server · sends at ${formatWaScheduleTime(at)} (works offline)`);
           return;
         }
         for (const to of targets) {
@@ -2400,8 +2442,8 @@
         waLastAutoSentTo = key;
         setWaMsg(`Sent to ${targets.length} number(s).`);
         await waSwalSent("Sent", `Sent to ${targets.length} number(s).`);
-      } catch (_) {
-        /* message already shown */
+      } catch (error) {
+        setWaMsg(error.message || String(error), true);
       }
     }, 800);
   }
@@ -2582,9 +2624,11 @@
           const delay = delayMsFromUi();
           if (delay > 0) {
             const at = Date.now() + delay;
-            targets.forEach((to) => queueWaSchedule({ to, body, priority, at }));
+            for (const to of targets) {
+              await queueWaSchedule({ to, body, priority, at });
+            }
             waLastAutoSentTo = `${targets.join(",")}|${delay}|${priority}|${body}`;
-            setWaMsg(`Scheduled ${targets.length} · sends at ${formatWaScheduleTime(at)}`);
+            setWaMsg(`Scheduled ${targets.length} on server · sends at ${formatWaScheduleTime(at)} (works offline)`);
             return;
           }
         }
@@ -2621,10 +2665,12 @@
       }
     });
 
-    processWaSchedule().finally(armWaScheduleTimer);
+    migrateLocalWaScheduleToServer()
+      .finally(() => processWaSchedule())
+      .finally(armWaScheduleTimer);
     window.setInterval(() => {
       processWaSchedule().finally(armWaScheduleTimer);
-    }, 5000);
+    }, 30000);
   }
 
   function bindGeneralAnalysis() {
