@@ -281,7 +281,8 @@ function renderRecentTransactions(merged) {
             month: "short",
             hour: "2-digit",
             minute: "2-digit",
-          })
+            hour12: false,
+          }).replace(",", ",")
         : "—";
       const actions =
         window.GetwayReceiptActions && typeof window.GetwayReceiptActions.actionButtonsHtml === "function"
@@ -293,7 +294,7 @@ function renderRecentTransactions(merged) {
         <div class="w-tx-body">
           <div class="w-tx-top">
             <span class="w-tx-title">${title}</span>
-            <span class="w-tx-amt">${amtHtml}</span>
+            <span class="w-tx-amt w-tx-amt--money">${amtHtml}</span>
           </div>
           <div class="w-tx-sub">${escapeHtml(time)}${phoneBit}</div>
           <div class="w-tx-note">"${escapeHtml(shortRef || "—")}"</div>

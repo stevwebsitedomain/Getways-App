@@ -77,25 +77,41 @@
   background: #eff6ff;
 }
 
-/* ---- Bottom navigation — flat Chase navy bar ---- */
+/* ---- Bottom navigation — navy bar aligned to phone column ---- */
 .bk-theme .w-bottom-nav,
 .bk-theme .ch-bottom-nav,
 .tis-wallet-dash.bk-theme.layout-phone .w-bottom-nav,
 .tis-wallet-dash.bk-theme.layout-desktop .w-bottom-nav,
 .w-home-sample.bk-theme .w-bottom-nav {
+  --w-nav-col: min(480px, 100vw);
   background: var(--bk-blue) !important;
   border: none !important;
   border-radius: 0 !important;
   box-shadow: 0 -4px 20px rgba(12, 45, 107, 0.25) !important;
-  padding: 10px 6px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
-  left: 0 !important;
-  right: 0 !important;
+  padding: 10px 8px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  left: 50% !important;
+  right: auto !important;
   bottom: 0 !important;
-  transform: none !important;
-  width: 100% !important;
-  max-width: none !important;
+  transform: translateX(-50%) !important;
+  width: var(--w-nav-col) !important;
+  max-width: 100% !important;
   margin: 0 !important;
   backdrop-filter: none !important;
+  box-sizing: border-box !important;
+}
+
+.tis-wallet-dash.bk-theme.layout-phone .tis-wrap.w-shell {
+  --w-phone-layout-col: min(480px, 100vw);
+  max-width: var(--w-phone-layout-col) !important;
+  width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.tis-wallet-dash.bk-theme.layout-phone .w-bottom-nav,
+.w-home-sample.bk-theme .w-bottom-nav {
+  width: var(--w-phone-layout-col, min(480px, 100vw)) !important;
+  max-width: 100% !important;
 }
 
 .bk-theme .w-nav-item {
@@ -1340,7 +1356,7 @@
 .ch-body {
   position: relative;
   z-index: 2;
-  padding: 0 14px 24px;
+  padding: 0 14px calc(88px + env(safe-area-inset-bottom, 0px));
   display: grid;
   gap: 14px;
 }
@@ -1412,7 +1428,7 @@
   margin: 0;
   font-size: clamp(1.55rem, 4.5vw + 0.5rem, 2rem);
   font-weight: 800;
-  color: #111;
+  color: #15803d;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -1582,6 +1598,132 @@
 
 .bk-theme .w-recent-link {
   color: var(--bk-blue-mid) !important;
+}
+
+/* Recent transactions — card list like banking receipt rows */
+.bk-theme .w-recent.ch-panel {
+  padding: 16px 14px 14px;
+  background: #fff;
+}
+
+.bk-theme .w-recent-head {
+  margin-bottom: 14px;
+}
+
+.bk-theme .w-recent-head h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #111 !important;
+}
+
+.bk-theme .w-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bk-theme .w-tx {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  background: #f7f8fa;
+  border: 1px solid #e8ebf0;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.bk-theme .w-tx-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 0.9rem;
+}
+
+.bk-theme .w-tx--in .w-tx-icon {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.bk-theme .w-tx--out .w-tx-icon {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.bk-theme .w-tx--pending .w-tx-icon {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.bk-theme .w-tx-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #111;
+}
+
+.bk-theme .w-tx-amt {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.bk-theme .w-tx--in .w-tx-amt,
+.bk-theme .w-tx-amt--money {
+  color: #16a34a !important;
+}
+
+.bk-theme .w-tx--out .w-tx-amt {
+  color: #dc2626 !important;
+}
+
+.bk-theme .w-tx--pending .w-tx-amt {
+  color: #16a34a !important;
+}
+
+.bk-theme .w-tx-sub,
+.bk-theme .w-tx-note {
+  color: #8b93a7;
+  font-weight: 500;
+}
+
+.bk-theme .w-tx-note {
+  margin-top: 4px;
+  font-size: 0.78rem;
+}
+
+.bk-theme .w-tx .rx-actions {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e6e9ef;
+  gap: 14px;
+}
+
+.bk-theme .w-tx .rx-link {
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bk-theme .w-tx .rx-link--view {
+  color: #6357f1 !important;
+}
+
+.bk-theme .w-tx .rx-link--dl {
+  color: #0f766e !important;
+}
+
+.bk-theme .w-tx .rx-link--del {
+  color: #dc2626 !important;
+}
+
+.bk-theme .w-recent-empty {
+  background: #f7f8fa;
+  border-color: #e8ebf0;
 }
 
 .bk-theme .bk-btn-primary,
