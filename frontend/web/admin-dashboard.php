@@ -726,7 +726,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="tis-api-base.js"></script>
-  <script src="payments-merge.js?v=2"></script>
+  <script src="payments-merge.js?v=3"></script>
   <script src="admin-dashboard.js?v=<?php echo $jsV; ?>"></script>
 </body>
 </html>

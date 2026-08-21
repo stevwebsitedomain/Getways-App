@@ -393,18 +393,41 @@
     ].join(" ");
   }
 
+  function localDateKey(value) {
+    const dt = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(dt.getTime())) return "";
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, "0");
+    const d = String(dt.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
   function normalizePieCounts(pie) {
-    let success = Number(pie.success || 0);
-    let pending = Number(pie.pending || 0);
-    let failed = Number(pie.failed || pie.failedSales || 0);
+    const data = pie || {};
+    let success = Number(data.success || 0);
+    let pending = Number(data.pending || 0);
+    // Count only — never treat monetary failedSales as a slice.
+    let failed = Number(data.failed || 0);
     if (success + pending + failed > 0) {
       return { success, pending, failed };
     }
-    const rows = Array.isArray(pie.recentCollections) ? pie.recentCollections : [];
+
+    const rows = [
+      ...(Array.isArray(data.payments) ? data.payments : []),
+      ...(Array.isArray(data.recentCollections) ? data.recentCollections : []),
+    ];
+    success = 0;
+    pending = 0;
+    failed = 0;
+    const seen = new Set();
     rows.forEach((row) => {
+      if (!row || typeof row !== "object") return;
+      const key = String(row.orderReference || row.id || `${row.status}-${row.createdAt}-${row.amount}`);
+      if (seen.has(key)) return;
+      seen.add(key);
       const st = String(row.status || "").toUpperCase();
-      if (st === "SUCCESS" || st === "COMPLETED" || st === "PAID") success += 1;
-      else if (st === "FAILED" || st === "CANCELLED" || st === "EXPIRED") failed += 1;
+      if (["SUCCESS", "SUCCESSFUL", "COMPLETED", "PAID", "SETTLED"].includes(st)) success += 1;
+      else if (["FAILED", "FAILURE", "DECLINED", "CANCELLED", "EXPIRED"].includes(st)) failed += 1;
       else pending += 1;
     });
     return { success, pending, failed };
@@ -505,7 +528,7 @@
     const totalHits = list.reduce((sum, d) => sum + Number(d.count || 0), 0);
     destroyChart("trend");
     if (!totalHits) {
-      el.innerHTML = '<p class="ad-trend-empty">No activity in the last 14 days yet.</p>';
+      el.innerHTML = '<p class="ad-trend-empty">No payment activity in this date range yet.</p>';
       return;
     }
     if (typeof ApexCharts === "undefined") {
@@ -772,7 +795,7 @@
     for (let i = span - 1; i >= 0; i -= 1) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = localDateKey(d);
       map[key] = {
         date: key,
         label: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
@@ -782,10 +805,8 @@
     list.forEach((p) => {
       const raw = p.createdAt || p.updatedAt;
       if (!raw) return;
-      const dt = new Date(raw);
-      if (Number.isNaN(dt.getTime())) return;
-      const key = dt.toISOString().slice(0, 10);
-      if (map[key]) map[key].count += 1;
+      const key = localDateKey(raw);
+      if (key && map[key]) map[key].count += 1;
     });
     return Object.values(map);
   }
@@ -830,6 +851,16 @@
   }
 
   async function loadMergedAnalyticsFallback() {
+    // Prefer same-origin admin proxy (avoids browser CORS / user-login issues).
+    try {
+      const proxied = await requestJson("live-payments");
+      if (proxied && Array.isArray(proxied.payments) && proxied.payments.length) {
+        return analyticsFromMergedPayments(proxied);
+      }
+    } catch (_) {
+      /* fall through to client merge */
+    }
+
     if (!window.GetwayPaymentsMerge?.loadMergedPayments) return null;
     const apiBase = window.TIS_API_BASE || window.BASE_API_URL || "https://getways-app.onrender.com";
     const clickpesaBase = window.CLICKPESA_API_BASE || `${window.location.origin}/api/clickpesa`;
@@ -839,10 +870,32 @@
     return analyticsFromMergedPayments(summary);
   }
 
-  function analyticsChartTotals(analytics) {
-    const data = analytics || {};
+  function enrichAnalyticsForCharts(analytics) {
+    const data = { ...(analytics || {}) };
     const counts = normalizePieCounts(data);
-    const pieTotal = counts.success + counts.pending + counts.failed;
+    data.success = counts.success;
+    data.pending = counts.pending;
+    data.failed = counts.failed;
+    data.recordCount = Number(data.recordCount || 0) || counts.success + counts.pending + counts.failed;
+
+    const paymentRows = Array.isArray(data.payments) && data.payments.length
+      ? data.payments
+      : Array.isArray(data.recentCollections)
+        ? data.recentCollections
+        : [];
+    const trendHits = (Array.isArray(data.trendDays) ? data.trendDays : []).reduce(
+      (sum, d) => sum + Number(d.count || 0),
+      0
+    );
+    if (trendHits <= 0 && paymentRows.length) {
+      data.trendDays = buildTrendFromPayments(paymentRows, 14);
+    }
+    return data;
+  }
+
+  function analyticsChartTotals(analytics) {
+    const data = enrichAnalyticsForCharts(analytics || {});
+    const pieTotal = Number(data.success || 0) + Number(data.pending || 0) + Number(data.failed || 0);
     const trendHits = (Array.isArray(data.trendDays) ? data.trendDays : []).reduce(
       (sum, d) => sum + Number(d.count || 0),
       0
@@ -851,7 +904,7 @@
   }
 
   function applyAnalyticsToCharts(analytics) {
-    const data = analytics || {};
+    const data = enrichAnalyticsForCharts(analytics || {});
     try {
       drawTrend(document.getElementById("ad-trend"), data.trendDays || []);
     } catch (error) {
@@ -894,40 +947,35 @@
     try {
       let analytics = {};
       let warning = "";
+
+      // Live merge is the source of truth for admin charts (same as user dashboard).
       try {
-        const result = await requestJson("analytics", {
-          query: { period: analyticsPeriod },
-        });
+        const merged = await loadMergedAnalyticsFallback();
         if (loadId !== statementLoadSeq) return;
-        analytics = result.analytics || {};
-        warning = result.warning || "";
-      } catch (dbError) {
-        warning = dbError.message || String(dbError);
+        if (merged && Number(merged.recordCount || 0) > 0) {
+          analytics = merged;
+        }
+      } catch (mergeError) {
+        warning = mergeError.message || String(mergeError);
       }
 
-      const totals = analyticsChartTotals(analytics);
-      const emptyCharts = totals.pieTotal <= 0;
-
-      if (emptyCharts) {
+      // Fall back to DB analytics only when merge is empty.
+      if (analyticsChartTotals(analytics).pieTotal <= 0) {
         try {
-          const merged = await loadMergedAnalyticsFallback();
+          const result = await requestJson("analytics", {
+            query: { period: analyticsPeriod },
+          });
           if (loadId !== statementLoadSeq) return;
-          if (merged && Number(merged.recordCount || 0) > 0) {
-            analytics = merged;
-            warning = "";
-          }
-        } catch (mergeError) {
-          if (!warning) warning = mergeError.message || String(mergeError);
+          analytics = enrichAnalyticsForCharts(result.analytics || {});
+          if (result.warning) warning = result.warning;
+        } catch (dbError) {
+          if (!warning) warning = dbError.message || String(dbError);
         }
-      } else if (!(analytics.trendDays || []).some((d) => Number(d.count || 0) > 0) && Array.isArray(analytics.payments)) {
-        analytics = {
-          ...analytics,
-          trendDays: buildTrendFromPayments(analytics.payments, 14),
-        };
       }
 
       if (loadId !== statementLoadSeq) return;
 
+      analytics = enrichAnalyticsForCharts(analytics);
       latestAnalytics = analytics;
       const incomingEl = document.getElementById("stat-incoming");
       const successEl = document.getElementById("stat-success");
@@ -939,7 +987,6 @@
       if (failedEl) failedEl.textContent = String(analytics.failed || 0);
       updatePeriodLabels(analytics);
 
-      // Always paint charts (SVG works hidden; ApexCharts resizes when section opens).
       applyAnalyticsToCharts(analytics);
       chartsNeedRedraw = !chartsContainerVisible();
       if (chartsContainerVisible()) {
@@ -955,7 +1002,7 @@
       latestRecentRows = analytics.recentCollections || [];
       recentPage = 1;
       renderRecentCollections();
-      if (warning) {
+      if (warning && analyticsChartTotals(analytics).pieTotal <= 0) {
         setBanner("ad-statement-error", warning, "error");
       } else {
         setBanner("ad-statement-error", "");
@@ -1642,6 +1689,7 @@
         window.scrollTo({ top: 0, behavior: "smooth" });
         if (key === "analytics") {
           redrawChartsIfVisible();
+          loadStatement().catch(() => {});
         }
         if (key === "whatsapp") {
           loadWhatsappMessages(waCurrentStatus);

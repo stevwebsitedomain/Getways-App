@@ -367,6 +367,63 @@ if ($action === 'analytics' && $method === 'GET') {
     }, '/admin-api.php?action=analytics', 'analytics');
 }
 
+if ($action === 'live-payments' && $method === 'GET') {
+    adminHandle(static function () {
+        $urls = [
+            'https://getways-app.onrender.com/payments',
+            rtrim((string) (getenv('TIS_API_BASE') ?: getenv('BASE_API_URL') ?: 'https://getways-app.onrender.com'), '/') . '/payments',
+        ];
+        $urls = array_values(array_unique($urls));
+        $lastError = 'Unable to load live payments.';
+        foreach ($urls as $url) {
+            try {
+                $raw = null;
+                if (function_exists('curl_init')) {
+                    $ch = curl_init($url);
+                    curl_setopt_array($ch, [
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_TIMEOUT => 20,
+                        CURLOPT_FOLLOWLOCATION => true,
+                        CURLOPT_HTTPHEADER => ['Accept: application/json'],
+                    ]);
+                    $raw = curl_exec($ch);
+                    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $cerr = curl_error($ch);
+                    curl_close($ch);
+                    if ($raw === false || $status >= 400) {
+                        $lastError = $cerr !== '' ? $cerr : ("HTTP " . $status);
+                        continue;
+                    }
+                } else {
+                    $raw = @file_get_contents($url);
+                    if ($raw === false) {
+                        $lastError = 'file_get_contents failed';
+                        continue;
+                    }
+                }
+                $decoded = json_decode((string) $raw, true);
+                if (!is_array($decoded) || !isset($decoded['payments']) || !is_array($decoded['payments'])) {
+                    $lastError = 'Invalid payments payload.';
+                    continue;
+                }
+                return [
+                    'success' => true,
+                    'ok' => true,
+                    'source' => 'live-payments-proxy',
+                    'totalSales' => $decoded['totalSales'] ?? 0,
+                    'failedSales' => $decoded['failedSales'] ?? 0,
+                    'pendingTransactions' => $decoded['pendingTransactions'] ?? 0,
+                    'count' => $decoded['count'] ?? count($decoded['payments']),
+                    'payments' => $decoded['payments'],
+                ];
+            } catch (Throwable $e) {
+                $lastError = $e->getMessage();
+            }
+        }
+        throw new RuntimeException($lastError);
+    }, '/payments', 'live-payments');
+}
+
 if ($action === 'statement' && $method === 'GET') {
     adminHandle(static function () {
         $period = strtolower(trim((string) ($_GET['period'] ?? 'all')));
