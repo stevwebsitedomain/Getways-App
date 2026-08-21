@@ -1740,6 +1740,7 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   flex-direction: column;
   overflow: hidden;
   transition: margin-left 0.2s ease;
+  background: #f0f4f8;
 }
 
 .ad-portal-top {
@@ -2205,26 +2206,31 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   }
 }
 
-/* Control number sharp card */
+/* Control number — full-height stage, only the form card is white */
 .ad-portal .ad-detail-sections .ad-cn-page.ad-card,
 .ad-cn-page {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06) !important;
-  border-radius: 12px !important;
-  padding: 20px 22px 28px !important;
-  min-height: calc(100svh - 132px);
+  background: #f0f4f8 !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 8px 0 32px !important;
+  min-height: calc(100svh - 120px);
+  height: auto;
   display: flex;
   flex-direction: column;
+  overflow: visible;
 }
 
 .ad-cn-stage {
   flex: 1 1 auto;
   display: grid;
   place-items: center;
-  min-height: 0;
+  align-content: center;
+  min-height: calc(100svh - 140px);
   width: 100%;
-  padding: 24px 12px 32px;
+  padding: 36px 12px 48px;
+  background: #f0f4f8;
+  box-sizing: border-box;
 }
 
 .ad-cn-card {
@@ -2236,6 +2242,7 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
   padding: 42px 28px 28px;
   text-align: center;
+  z-index: 1;
 }
 
 .ad-cn-badge {
