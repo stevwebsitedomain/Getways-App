@@ -1769,7 +1769,9 @@
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        list.innerHTML = `<li class="ad-wa-empty">${esc(data.message || "Failed to load messages")}</li>`;
+        const detail = data.message || "Failed to load messages";
+        const http = data.http ? ` (HTTP ${data.http})` : "";
+        list.innerHTML = `<li class="ad-wa-empty">${esc(detail)}${esc(http)}</li>`;
         return;
       }
       renderWaMessages(data.messages || []);

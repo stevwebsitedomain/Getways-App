@@ -55,21 +55,24 @@ function waReadJsonBody(): array
 
 /**
  * @param array<string, scalar|null> $fields
- * @return array{http:int,body:string,json:?array}
+ * @return array{http:int,body:string,json:?array,error:string}
  */
 function waUltamsgPost(string $url, array $fields): array
 {
     $ch = curl_init($url);
     if ($ch === false) {
-        return ['http' => 0, 'body' => 'curl_init failed', 'json' => null];
+        return ['http' => 0, 'body' => 'curl_init failed', 'json' => null, 'error' => 'curl_init failed'];
     }
 
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 15,
         CURLOPT_TIMEOUT => 45,
+        CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
         CURLOPT_POSTFIELDS => http_build_query($fields),
+        CURLOPT_USERAGENT => 'Getways-App-WhatsApp/1.0',
     ]);
 
     $body = curl_exec($ch);
@@ -78,7 +81,7 @@ function waUltamsgPost(string $url, array $fields): array
     curl_close($ch);
 
     if ($body === false) {
-        return ['http' => $http, 'body' => $err !== '' ? $err : 'request failed', 'json' => null];
+        return ['http' => $http, 'body' => $err !== '' ? $err : 'request failed', 'json' => null, 'error' => $err];
     }
 
     $json = json_decode((string) $body, true);
@@ -87,22 +90,26 @@ function waUltamsgPost(string $url, array $fields): array
         'http' => $http,
         'body' => (string) $body,
         'json' => is_array($json) ? $json : null,
+        'error' => $err,
     ];
 }
 
 /**
- * @return array{http:int,body:string,json:?array}
+ * @return array{http:int,body:string,json:?array,error:string}
  */
 function waUltamsgGet(string $url): array
 {
     $ch = curl_init($url);
     if ($ch === false) {
-        return ['http' => 0, 'body' => 'curl_init failed', 'json' => null];
+        return ['http' => 0, 'body' => 'curl_init failed', 'json' => null, 'error' => 'curl_init failed'];
     }
 
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 15,
         CURLOPT_TIMEOUT => 45,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT => 'Getways-App-WhatsApp/1.0',
     ]);
 
     $body = curl_exec($ch);
@@ -111,7 +118,7 @@ function waUltamsgGet(string $url): array
     curl_close($ch);
 
     if ($body === false) {
-        return ['http' => $http, 'body' => $err !== '' ? $err : 'request failed', 'json' => null];
+        return ['http' => $http, 'body' => $err !== '' ? $err : 'request failed', 'json' => null, 'error' => $err];
     }
 
     $json = json_decode((string) $body, true);
@@ -120,6 +127,7 @@ function waUltamsgGet(string $url): array
         'http' => $http,
         'body' => (string) $body,
         'json' => is_array($json) ? $json : null,
+        'error' => $err,
     ];
 }
 
@@ -139,6 +147,30 @@ function waNormalizeMessages(?array $json): array
     }
 
     return [];
+}
+
+function waProviderErrorMessage(array $res): string
+{
+    $json = $res['json'] ?? null;
+    if (is_array($json)) {
+        foreach (['error', 'message', 'msg'] as $key) {
+            if (!empty($json[$key]) && is_scalar($json[$key])) {
+                return trim((string) $json[$key]);
+            }
+        }
+    }
+    if (!empty($res['error'])) {
+        return (string) $res['error'];
+    }
+    $body = trim((string) ($res['body'] ?? ''));
+    if ($body !== '' && strlen($body) < 240) {
+        return $body;
+    }
+    if ((int) ($res['http'] ?? 0) === 0) {
+        return 'Server could not reach Ultramsg (network/SSL).';
+    }
+
+    return 'Could not load messages from Ultramsg.';
 }
 
 if ($action === 'status') {
@@ -167,27 +199,38 @@ if ($action === 'messages') {
     $limit = min(100, max(1, (int) ($_GET['limit'] ?? 50)));
     $sort = strtolower(trim((string) ($_GET['sort'] ?? 'desc'))) === 'asc' ? 'asc' : 'desc';
 
-    $query = http_build_query([
+    $query = [
         'token' => $config['token'],
         'page' => $page,
         'limit' => $limit,
         'status' => $status,
         'sort' => $sort,
-    ]);
-    $url = $config['apiUrl'] . '/messages?' . $query;
+    ];
+    $url = $config['apiUrl'] . '/messages?' . http_build_query($query);
     $res = waUltamsgGet($url);
-    $ok = $res['http'] >= 200 && $res['http'] < 300;
-    $messages = $ok ? waNormalizeMessages($res['json']) : [];
+
+    // Retry without sort if first call fails (some Ultramsg responses are picky).
+    if (!(($res['http'] >= 200 && $res['http'] < 300) || isset($res['json']['messages']))) {
+        unset($query['sort']);
+        $url = $config['apiUrl'] . '/messages?' . http_build_query($query);
+        $res = waUltamsgGet($url);
+    }
+
+    $messages = waNormalizeMessages($res['json']);
+    $hasMessagesKey = is_array($res['json']) && array_key_exists('messages', $res['json']);
+    $ok = ($res['http'] >= 200 && $res['http'] < 300 && !isset($res['json']['error'])) || ($hasMessagesKey && !isset($res['json']['error']));
+    $detail = $ok ? null : waProviderErrorMessage($res);
 
     waJson($ok ? 200 : 502, [
         'ok' => $ok,
-        'message' => $ok ? 'Messages loaded.' : 'Could not load messages from Ultramsg.',
+        'message' => $ok ? 'Messages loaded.' : ($detail ?: 'Could not load messages from Ultramsg.'),
         'http' => $res['http'],
         'status' => $status,
         'page' => $page,
         'limit' => $limit,
         'count' => count($messages),
-        'messages' => $messages,
+        'messages' => $ok ? $messages : [],
+        'instanceId' => $config['instanceId'],
         'raw' => $ok ? null : ($res['json'] ?? $res['body']),
     ]);
 }
@@ -306,4 +349,5 @@ waJson(502, [
     'message' => 'Ultramsg request failed.',
     'http' => $res['http'],
     'senderName' => $sender,
-    'data
+    'data' => $payload ?? $res['body'],
+]);

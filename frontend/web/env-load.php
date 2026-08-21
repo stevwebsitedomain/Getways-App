@@ -12,8 +12,20 @@ function gwLoadEnv(bool $forceUltamsg = false): void
         return;
     }
 
-    $envFile = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
-    if (!is_file($envFile) || !is_readable($envFile)) {
+    $candidates = [
+        dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env', // Getways-App/.env
+        dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env',    // frontend/.env
+        __DIR__ . DIRECTORY_SEPARATOR . '.env',             // frontend/web/.env
+    ];
+
+    $envFile = null;
+    foreach ($candidates as $path) {
+        if (is_file($path) && is_readable($path)) {
+            $envFile = $path;
+            break;
+        }
+    }
+    if ($envFile === null) {
         return;
     }
 
