@@ -646,7 +646,80 @@
     if (!detail || !analytics) return false;
     if (detail.hidden || detail.classList.contains("is-collapsed")) return false;
     if (!document.body.classList.contains("ad-view-detail")) return false;
-    return analytics.getClientRects().length > 0;
+    if (document.body.getAttribute("data-ad-section") !== "analytics") return false;
+    return analytics.getClientRects().length > 0 || getComputedStyle(analytics).display !== "none";
+  }
+
+  function buildTrendFromPayments(payments, days = 14) {
+    const map = {};
+    const today = new Date();
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const d = new Date(today);
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      map[key] = {
+        date: key,
+        label: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+        count: 0,
+      };
+    }
+    (payments || []).forEach((p) => {
+      const raw = p.createdAt || p.updatedAt;
+      if (!raw) return;
+      const dt = new Date(raw);
+      if (Number.isNaN(dt.getTime())) return;
+      const key = dt.toISOString().slice(0, 10);
+      if (map[key]) map[key].count += 1;
+    });
+    return Object.values(map);
+  }
+
+  function analyticsFromMergedPayments(summary) {
+    const payments = summary?.payments || [];
+    let success = 0;
+    let pending = 0;
+    let failed = 0;
+    let moneyIn = 0;
+    payments.forEach((p) => {
+      const status = String(p.status || "").toUpperCase();
+      const amount = Number(p.amount || 0);
+      if (status === "SUCCESS") {
+        success += 1;
+        moneyIn += amount;
+      } else if (status === "FAILED") {
+        failed += 1;
+      } else {
+        pending += 1;
+      }
+    });
+    return {
+      moneyIn: Math.round(moneyIn * 100) / 100,
+      success,
+      pending,
+      failed,
+      recordCount: payments.length,
+      periodLabel: "Live payments (same source as user dashboard)",
+      trendDays: buildTrendFromPayments(payments, 14),
+      recentCollections: payments.slice(0, 15).map((p) => ({
+        orderReference: p.orderReference,
+        controlNumber: "",
+        amount: p.amount,
+        status: p.status,
+        createdAt: p.createdAt,
+      })),
+      source: "payments-merge",
+    };
+  }
+
+  async function loadMergedAnalyticsFallback() {
+    if (!window.GetwayPaymentsMerge?.loadMergedPayments) return null;
+    const apiBase = window.TIS_API_BASE || window.BASE_API_URL || "https://getways-app.onrender.com";
+    const clickpesaBase = window.CLICKPESA_API_BASE || `${window.location.origin}/api/clickpesa`;
+    const summary = await window.GetwayPaymentsMerge.loadMergedPayments(apiBase, clickpesaBase, {
+      "Content-Type": "application/json",
+    });
+    return analyticsFromMergedPayments(summary);
   }
 
   function applyAnalyticsToCharts(analytics) {
@@ -671,16 +744,42 @@
         } catch (_) {
           /* ignore */
         }
-      }, 60);
+      }, 120);
     });
   }
 
   async function loadStatement() {
     try {
-      const result = await requestJson("analytics", {
-        query: { period: analyticsPeriod },
-      });
-      const analytics = result.analytics || {};
+      let analytics = {};
+      let warning = "";
+      try {
+        const result = await requestJson("analytics", {
+          query: { period: analyticsPeriod },
+        });
+        analytics = result.analytics || {};
+        warning = result.warning || "";
+      } catch (dbError) {
+        warning = dbError.message || String(dbError);
+      }
+
+      const emptyDb =
+        !Number(analytics.recordCount || 0) &&
+        !Number(analytics.success || 0) &&
+        !Number(analytics.pending || 0) &&
+        !Number(analytics.failed || 0);
+
+      if (emptyDb) {
+        try {
+          const merged = await loadMergedAnalyticsFallback();
+          if (merged && Number(merged.recordCount || 0) > 0) {
+            analytics = merged;
+            warning = "";
+          }
+        } catch (mergeError) {
+          if (!warning) warning = mergeError.message || String(mergeError);
+        }
+      }
+
       latestAnalytics = analytics;
       document.getElementById("stat-incoming").textContent = money(analytics.moneyIn || 0);
       document.getElementById("stat-success").textContent = String(analytics.success || 0);
@@ -692,20 +791,12 @@
         chartsNeedRedraw = false;
       } else {
         chartsNeedRedraw = true;
-        const trend = document.getElementById("ad-trend");
-        const pie = document.getElementById("ad-pie");
-        if (trend) trend.innerHTML = '<p class="ad-trend-empty">Open Payment analysis to render charts.</p>';
-        if (pie) {
-          pie.classList.add("is-empty");
-          pie.innerHTML = '<p class="ad-trend-empty">Open Payment analysis to render charts.</p>';
-        }
       }
-      const recent = document.getElementById("ad-recent");
       latestRecentRows = analytics.recentCollections || [];
       recentPage = 1;
       renderRecentCollections();
-      if (result.warning) {
-        setBanner("ad-statement-error", result.warning, "error");
+      if (warning) {
+        setBanner("ad-statement-error", warning, "error");
       } else {
         setBanner("ad-statement-error", "");
       }
@@ -1286,18 +1377,31 @@
       recent: "ad-section-recent",
       whatsapp: "ad-section-whatsapp",
     };
+    if (!idMap[key]) return;
+
     document.body.classList.add("ad-view-detail");
     document.body.classList.remove("ad-view-home");
+    document.body.setAttribute("data-ad-section", key);
+
     const detailWrap = document.getElementById("ad-detail-sections");
     if (detailWrap) {
       detailWrap.classList.remove("is-collapsed");
       detailWrap.hidden = false;
     }
-    const el = document.getElementById(idMap[key] || "");
+
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("section", key);
+      window.history.replaceState({}, "", url.toString());
+    } catch (_) {
+      /* ignore */
+    }
+
+    const el = document.getElementById(idMap[key]);
     if (el) {
       window.setTimeout(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        if (key === "analytics" || chartsNeedRedraw) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (key === "analytics") {
           redrawChartsIfVisible();
         }
         if (key === "whatsapp") {
@@ -1305,6 +1409,7 @@
         }
       }, 80);
     }
+
     const titleEl = document.getElementById("ad-portal-title");
     if (titleEl && PORTAL_SECTION_TITLES[key]) {
       titleEl.textContent = PORTAL_SECTION_TITLES[key];
@@ -1319,10 +1424,18 @@
   function showPortalHome() {
     document.body.classList.remove("ad-view-detail");
     document.body.classList.add("ad-view-home");
+    document.body.removeAttribute("data-ad-section");
     const detailWrap = document.getElementById("ad-detail-sections");
     if (detailWrap) {
       detailWrap.classList.add("is-collapsed");
       detailWrap.hidden = true;
+    }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("section");
+      window.history.replaceState({}, "", url.toString());
+    } catch (_) {
+      /* ignore */
     }
     const home = document.getElementById("ad-view-home");
     if (home) home.scrollIntoView({ behavior: "smooth", block: "start" });

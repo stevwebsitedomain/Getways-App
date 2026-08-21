@@ -61,6 +61,18 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     body.ad-body.ad-portal .ad-detail-sections.is-collapsed{display:none!important}
     body.ad-body.ad-portal.ad-view-detail .ad-portal-home{display:none!important}
     body.ad-body.ad-portal.ad-view-detail .ad-detail-sections{display:grid!important}
+    body.ad-body.ad-portal.ad-view-detail .ad-page-section{display:none!important}
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="analytics"] #ad-section-analytics,
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="control-number"] #ad-section-control-number,
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="transactions"] #ad-section-transactions,
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="payout-dest"] #ad-section-payout-dest,
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="payouts"] #ad-section-payouts,
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="users"] #ad-section-users,
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="recent"] #ad-section-recent,
+    body.ad-body.ad-portal.ad-view-detail[data-ad-section="whatsapp"] #ad-section-whatsapp{display:block!important}
+    .ad-charts-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:16px}
+    .ad-form--narrow{max-width:480px}
+    @media(max-width:900px){.ad-charts-row{grid-template-columns:1fr}}
     .ad-shell{display:flex;min-height:100svh}
     .ad-sidebar{width:var(--ad-sidebar-w,210px);flex-shrink:0;background:#002d58;color:#fff;display:flex;flex-direction:column;padding:16px 0 12px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;transition:width .2s ease}
     .ad-sidebar::-webkit-scrollbar{display:none;width:0;height:0}
@@ -312,8 +324,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
         </section>
 
         <div class="ad-detail-sections is-collapsed" id="ad-detail-sections" hidden>
-    <section class="ad-grid">
-      <div class="ad-card" id="ad-section-analytics">
+    <section class="ad-card ad-page-section" id="ad-section-analytics" data-ad-page="analytics">
         <div class="ad-card-head ad-card-head--stack">
           <div>
             <h2>Payment analysis</h2>
@@ -330,17 +341,22 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
           </div>
         </div>
         <p id="ad-statement-error" class="ad-db-banner" hidden></p>
-        <div class="ad-trend-wrap">
-          <p class="ad-trend-title">Transaction trend</p>
-          <div id="ad-trend" class="ad-trend" role="img" aria-label="Daily transaction trend"></div>
+        <div class="ad-charts-row">
+          <div class="ad-trend-wrap">
+            <p class="ad-trend-title">Transaction trend</p>
+            <div id="ad-trend" class="ad-trend" role="img" aria-label="Daily transaction trend"></div>
+          </div>
+          <div class="ad-pie-wrap">
+            <p class="ad-trend-title">Payment status</p>
+            <div id="ad-pie" class="ad-pie" role="img" aria-label="Payment pie chart"></div>
+          </div>
         </div>
-        <div id="ad-pie" class="ad-pie" role="img" aria-label="Payment pie chart"></div>
-      </div>
+    </section>
 
-      <div class="ad-card" id="ad-section-control-number">
+    <section class="ad-card ad-page-section" id="ad-section-control-number" data-ad-page="control-number">
         <h2>Create control number</h2>
         <p class="ad-note">Weka kiasi na maelezo tu. <strong>Control number</strong> itatengenezwa na ClickPesa BillPay — hauandiki mwenyewe.</p>
-        <form id="ad-cn-form" class="ad-form">
+        <form id="ad-cn-form" class="ad-form ad-form--narrow">
           <label>Order label <small>(si control number — hiari)</small>
             <input name="order_id" placeholder="Acha tupu au weka TIS01" maxlength="20" pattern="[A-Za-z0-9]*" title="Herufi na namba tu (hiari)" />
           </label>
@@ -355,10 +371,9 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
           <button type="submit">Generate Control Number</button>
         </form>
         <p id="ad-cn-msg" class="ad-msg"></p>
-      </div>
     </section>
 
-    <section class="ad-card" id="ad-section-transactions">
+    <section class="ad-card ad-page-section" id="ad-section-transactions" data-ad-page="transactions">
       <div class="ad-card-head">
         <h2>Transactions</h2>
         <div class="ad-top-actions">
@@ -401,7 +416,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       <nav class="ad-pager" id="ad-controls-pager" hidden aria-label="Transactions pages"></nav>
     </section>
 
-    <section class="ad-card" id="ad-section-payout-dest">
+    <section class="ad-card ad-page-section" id="ad-section-payout-dest" data-ad-page="payout-dest">
       <div class="ad-card-head">
         <h2>Payout destination</h2>
       </div>
@@ -420,7 +435,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       <p id="ad-payout-msg" class="ad-msg"></p>
     </section>
 
-    <section class="ad-card" id="ad-section-payouts">
+    <section class="ad-card ad-page-section" id="ad-section-payouts" data-ad-page="payouts">
       <div class="ad-card-head">
         <h2>Payout dashboard</h2>
         <div class="ad-card-actions">
@@ -462,7 +477,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       <nav class="ad-pager" id="ad-payouts-pager" hidden aria-label="Payout pages"></nav>
     </section>
 
-    <section class="ad-card" id="ad-section-users">
+    <section class="ad-card ad-page-section" id="ad-section-users" data-ad-page="users">
       <div class="ad-card-head">
         <h2>Registered users</h2>
         <button type="button" class="ad-refresh" id="ad-users-refresh">Refresh</button>
@@ -487,7 +502,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       <nav class="ad-pager" id="ad-users-pager" hidden aria-label="Users pages"></nav>
     </section>
 
-    <section class="ad-card" id="ad-section-recent">
+    <section class="ad-card ad-page-section" id="ad-section-recent" data-ad-page="recent">
       <div class="ad-card-head">
         <h2>Recent collections</h2>
         <small id="ad-recent-period" class="ad-period-sub">All time</small>
@@ -497,7 +512,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       <nav class="ad-pager" id="ad-recent-pager" hidden aria-label="Recent collections pages"></nav>
     </section>
 
-    <section class="ad-card" id="ad-section-whatsapp">
+    <section class="ad-card ad-page-section" id="ad-section-whatsapp" data-ad-page="whatsapp">
       <div class="ad-card-head ad-card-head--stack">
         <div>
           <h2><i class="fa-brands fa-whatsapp" style="color:#25d366"></i> WhatsApp messages</h2>
@@ -681,6 +696,8 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+  <script src="tis-api-base.js"></script>
+  <script src="payments-merge.js?v=2"></script>
   <script src="admin-dashboard.js?v=<?php echo $jsV; ?>"></script>
 </body>
 </html>

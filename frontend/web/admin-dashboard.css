@@ -1973,12 +1973,43 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 .ad-portal .ad-detail-sections .ad-card {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
   color: #1a1a2e !important;
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
+  padding: 20px 22px;
+}
+
+.ad-portal .ad-page-section {
+  min-height: 60vh;
+}
+
+.ad-charts-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.ad-pie-wrap,
+.ad-trend-wrap {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  min-height: 280px;
+}
+
+.ad-form--narrow {
+  max-width: 480px;
+}
+
+@media (max-width: 900px) {
+  .ad-charts-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ad-portal .ad-detail-sections .ad-card h2 {
