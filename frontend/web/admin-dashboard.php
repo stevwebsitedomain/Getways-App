@@ -331,7 +331,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
         <div class="ad-card-head ad-card-head--stack">
           <div>
             <h2>Payment analysis</h2>
-            <p class="ad-period-sub" id="ad-period-label">All time · historical records</p>
+            <p class="ad-period-sub" id="ad-period-label">All time</p>
           </div>
           <div class="ad-card-actions">
             <select id="ad-period-select" class="ad-period-select" aria-label="Analysis period">
@@ -340,48 +340,51 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
               <option value="30d">Last 30 days</option>
               <option value="month">This month</option>
             </select>
-            <button type="button" class="ad-refresh" id="ad-sync-transactions">Sync ClickPesa Transactions</button>
+            <button type="button" class="ad-btn ad-btn--ghost" id="ad-sync-transactions"><i class="fa-solid fa-rotate"></i><span>Sync ClickPesa</span></button>
           </div>
         </div>
         <p id="ad-statement-error" class="ad-db-banner" hidden></p>
-        <div class="ad-charts-row">
-          <div class="ad-trend-wrap">
-            <p class="ad-trend-title">Transaction trend</p>
-            <div id="ad-trend" class="ad-trend" role="img" aria-label="Daily transaction trend"></div>
-          </div>
-          <div class="ad-pie-wrap">
-            <p class="ad-trend-title">Payment status</p>
-            <div id="ad-pie" class="ad-pie" role="img" aria-label="Payment pie chart"></div>
-          </div>
+        <div class="ad-charts-row ad-charts-row--flat">
+          <div id="ad-trend" class="ad-trend" role="img" aria-label="Daily transaction trend"></div>
+          <div id="ad-pie" class="ad-pie" role="img" aria-label="Payment pie chart"></div>
         </div>
     </section>
 
-    <section class="ad-card ad-page-section" id="ad-section-control-number" data-ad-page="control-number">
-        <h2>Create control number</h2>
-        <p class="ad-note">Weka kiasi na maelezo tu. <strong>Control number</strong> itatengenezwa na ClickPesa BillPay — hauandiki mwenyewe.</p>
-        <form id="ad-cn-form" class="ad-form ad-form--narrow">
-          <label>Order label <small>(si control number — hiari)</small>
-            <input name="order_id" placeholder="Acha tupu au weka TIS01" maxlength="20" pattern="[A-Za-z0-9]*" title="Herufi na namba tu (hiari)" />
-          </label>
-          <label>Amount (TZS)<input name="amount" type="number" min="1" step="0.01" required placeholder="1000" /></label>
-          <label>Description<input name="description" required placeholder="Malipo ya bidhaa / huduma" /></label>
-          <label>Mode
-            <select name="payment_mode">
-              <option value="EXACT">EXACT</option>
-              <option value="ALLOW_PARTIAL_AND_OVER_PAYMENT">ALLOW_PARTIAL_AND_OVER_PAYMENT</option>
-            </select>
-          </label>
-          <button type="submit">Generate Control Number</button>
-        </form>
-        <p id="ad-cn-msg" class="ad-msg"></p>
+    <section class="ad-card ad-page-section ad-cn-page" id="ad-section-control-number" data-ad-page="control-number">
+      <div class="ad-cn-stage">
+        <div class="ad-cn-card">
+          <div class="ad-cn-badge" aria-hidden="true"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+          <h2>CREATE CONTROL NUMBER</h2>
+          <p class="ad-note">Weka kiasi na maelezo. Control number itatengenezwa na ClickPesa BillPay.</p>
+          <form id="ad-cn-form" class="ad-form ad-cn-form" autocomplete="off">
+            <label>Order label <small>(hiari)</small>
+              <input name="order_id" placeholder="Acha tupu au weka TIS01" maxlength="20" pattern="[A-Za-z0-9]*" title="Herufi na namba tu (hiari)" />
+            </label>
+            <label>Amount (TZS)
+              <input name="amount" type="number" min="1" step="0.01" required placeholder="1000" />
+            </label>
+            <label>Description
+              <input name="description" required placeholder="Malipo ya bidhaa / huduma" />
+            </label>
+            <label>Mode
+              <select name="payment_mode">
+                <option value="EXACT">EXACT</option>
+                <option value="ALLOW_PARTIAL_AND_OVER_PAYMENT">ALLOW_PARTIAL_AND_OVER_PAYMENT</option>
+              </select>
+            </label>
+            <button type="submit" class="ad-cn-submit"><i class="fa-solid fa-circle-check"></i> GENERATE</button>
+          </form>
+          <p id="ad-cn-msg" class="ad-msg"></p>
+        </div>
+      </div>
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-transactions" data-ad-page="transactions">
       <div class="ad-card-head">
         <h2>Transactions</h2>
         <div class="ad-top-actions">
-          <button type="button" class="ad-refresh" id="ad-balance-refresh">Refresh Balance</button>
-          <button type="button" class="ad-refresh" id="ad-refresh">Refresh</button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-balance-refresh"><i class="fa-solid fa-wallet"></i><span>Refresh Balance</span></button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-refresh"><i class="fa-solid fa-rotate"></i><span>Refresh</span></button>
         </div>
       </div>
       <p id="ad-controls-error" class="ad-db-banner" hidden></p>
@@ -416,7 +419,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
           </tbody>
         </table>
       </div>
-      <nav class="ad-pager" id="ad-controls-pager" hidden aria-label="Transactions pages"></nav>
+      <nav class="ad-pager ad-pager--bar" id="ad-controls-pager" hidden aria-label="Transactions pages"></nav>
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-payout-dest" data-ad-page="payout-dest">
@@ -483,7 +486,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     <section class="ad-card ad-page-section" id="ad-section-users" data-ad-page="users">
       <div class="ad-card-head">
         <h2>Registered users</h2>
-        <button type="button" class="ad-refresh" id="ad-users-refresh">Refresh</button>
+        <button type="button" class="ad-btn ad-btn--ghost" id="ad-users-refresh"><i class="fa-solid fa-rotate"></i><span>Refresh</span></button>
       </div>
       <p id="ad-users-error" class="ad-db-banner" hidden></p>
       <div class="ad-table-wrap">
@@ -495,14 +498,15 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
               <th>Username</th>
               <th>Role</th>
               <th>Joined</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="ad-users-body">
-            <tr><td colspan="5">Loading…</td></tr>
+            <tr><td colspan="6">Loading…</td></tr>
           </tbody>
         </table>
       </div>
-      <nav class="ad-pager" id="ad-users-pager" hidden aria-label="Users pages"></nav>
+      <nav class="ad-pager ad-pager--bar" id="ad-users-pager" hidden aria-label="Users pages"></nav>
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-recent" data-ad-page="recent">
@@ -512,7 +516,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       </div>
       <p id="ad-recent-error" class="ad-db-banner" hidden></p>
       <ul class="ad-recent" id="ad-recent"></ul>
-      <nav class="ad-pager" id="ad-recent-pager" hidden aria-label="Recent collections pages"></nav>
+      <nav class="ad-pager ad-pager--bar" id="ad-recent-pager" hidden aria-label="Recent collections pages"></nav>
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-whatsapp" data-ad-page="whatsapp">

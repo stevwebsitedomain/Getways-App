@@ -493,16 +493,15 @@ body.ad-body {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border: 0;
-  border-radius: 6px;
-  padding: 5px 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.74rem;
+  font-weight: 700;
   line-height: 1.1;
   cursor: pointer;
   white-space: nowrap;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #fff;
+  border: 1px solid currentColor;
   box-shadow: none;
   transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   min-width: 0;
@@ -663,6 +662,7 @@ body.ad-body {
 
 .ad-btn--delete {
   color: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .ad-btn--delete i,
@@ -671,7 +671,28 @@ body.ad-body {
 }
 
 .ad-btn--delete:hover {
-  background: rgba(185, 28, 28, 0.1);
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.ad-btn--view {
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+.ad-btn--view i,
+.ad-btn--view span {
+  color: #2563eb;
+}
+
+.ad-btn--ghost {
+  background: #fff;
+  border: 1px solid #005691;
+  color: #005691;
+}
+
+.ad-btn--ghost i,
+.ad-btn--ghost span {
+  color: #005691;
 }
 
 .ad-actions--payout {
@@ -2124,26 +2145,25 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 
 .ad-charts-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(260px, 0.7fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+  gap: 12px;
   margin-top: 8px;
+  align-items: stretch;
+}
+
+.ad-charts-row--flat .ad-trend,
+.ad-charts-row--flat .ad-pie {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  min-height: 300px;
+  box-shadow: none;
 }
 
 .ad-pie-wrap,
 .ad-trend-wrap {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px;
-  min-height: 300px;
-}
-
-.ad-trend-wrap {
-  min-width: 0;
-}
-
-.ad-pie-wrap {
-  min-width: 0;
+  display: none;
 }
 
 .ad-form--narrow {
@@ -2154,6 +2174,179 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   .ad-charts-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* Control number sharp card */
+.ad-cn-page {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 12px 0 24px !important;
+}
+
+.ad-cn-stage {
+  display: grid;
+  place-items: center;
+  min-height: 62vh;
+  padding: 12px;
+}
+
+.ad-cn-card {
+  position: relative;
+  width: min(100%, 460px);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+  padding: 42px 28px 28px;
+  text-align: center;
+}
+
+.ad-cn-badge {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #005691;
+  border: 4px solid #fff;
+  color: #fbbf24;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  box-shadow: 0 8px 20px rgba(0, 86, 145, 0.35);
+}
+
+.ad-cn-card h2 {
+  margin: 8px 0 8px;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  color: #002d58 !important;
+}
+
+.ad-cn-card .ad-note {
+  margin: 0 0 18px;
+  font-size: 0.84rem;
+}
+
+.ad-cn-form {
+  text-align: left;
+  max-width: none;
+}
+
+.ad-cn-submit {
+  width: 100%;
+  margin-top: 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 18px;
+  background: #002d58;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 10px 24px rgba(0, 45, 88, 0.28);
+}
+
+.ad-cn-submit:hover {
+  filter: brightness(1.06);
+}
+
+.ad-payout-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.ad-payout-pill--ok {
+  background: #ecfdf5;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.ad-payout-pill--wait {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.ad-payout-pill--fail {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.ad-payout-pill--none {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.ad-recent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px !important;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.ad-recent-side {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.ad-recent-amt {
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.ad-pager--bar {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 4px 4px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.ad-pager--bar .ad-pager-info {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.ad-pager--bar .ad-pager-btn {
+  min-width: 110px;
+}
+
+.ad-portal .ad-btn--delete,
+.ad-portal .ad-btn--delete i,
+.ad-portal .ad-btn--delete span {
+  color: #b91c1c !important;
+}
+
+.ad-portal .ad-btn--delete {
+  border-color: #b91c1c !important;
+  background: #fff !important;
 }
 
 .ad-portal .ad-detail-sections .ad-card h2 {

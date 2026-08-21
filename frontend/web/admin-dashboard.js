@@ -101,11 +101,29 @@
     }
     pager.hidden = false;
     pager.innerHTML = `
-      <button type="button" class="ad-pager-btn" data-page="prev" ${current <= 1 ? "disabled" : ""}>Previous</button>
+      <button type="button" class="ad-btn ad-btn--ghost ad-pager-btn" data-page="prev" ${current <= 1 ? "disabled" : ""}><i class="fa-solid fa-chevron-left"></i><span>Previous</span></button>
       <span class="ad-pager-info">Page ${current} of ${totalPages}</span>
-      <button type="button" class="ad-pager-btn" data-page="next" ${current >= totalPages ? "disabled" : ""}>Next</button>`;
+      <button type="button" class="ad-btn ad-btn--ghost ad-pager-btn" data-page="next" ${current >= totalPages ? "disabled" : ""}><span>Next</span><i class="fa-solid fa-chevron-right"></i></button>`;
     pager.querySelector('[data-page="prev"]')?.addEventListener("click", () => onPage(current - 1));
     pager.querySelector('[data-page="next"]')?.addEventListener("click", () => onPage(current + 1));
+  }
+
+  function payoutBadge(status) {
+    const s = String(status || "—").trim();
+    const upper = s.toUpperCase();
+    if (upper === "WITHDRAWN" || upper === "SUCCESS" || upper === "COMPLETED" || upper === "SETTLED") {
+      return `<span class="ad-payout-pill ad-payout-pill--ok"><i class="fa-solid fa-circle-check"></i> Paid out</span>`;
+    }
+    if (upper.includes("PROCESS") || upper.includes("QUEUE") || upper.includes("PENDING")) {
+      return `<span class="ad-payout-pill ad-payout-pill--wait"><i class="fa-solid fa-clock"></i> ${esc(s)}</span>`;
+    }
+    if (upper.includes("FAIL")) {
+      return `<span class="ad-payout-pill ad-payout-pill--fail"><i class="fa-solid fa-circle-xmark"></i> ${esc(s)}</span>`;
+    }
+    if (upper === "—" || upper === "NOT WITHDRAWN" || upper === "") {
+      return `<span class="ad-payout-pill ad-payout-pill--none">Not paid out</span>`;
+    }
+    return `<span class="ad-payout-pill">${esc(s)}</span>`;
   }
 
   async function promptAdminPassword() {
@@ -398,12 +416,12 @@
       { label: "Failed", count: failed, color: "#882828" },
     ].filter((s) => s.count > 0);
 
-    const W = 320;
-    const H = 220;
-    const cx = 110;
-    const cy = 110;
-    const r = 78;
-    const inner = 42;
+    const W = 420;
+    const H = 300;
+    const cx = 150;
+    const cy = 150;
+    const r = 118;
+    const inner = 58;
     let angle = 0;
     const paths = [];
 
@@ -429,8 +447,8 @@
         <svg class="ad-pie-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Payment status pie chart">
           ${paths.join("")}
           <circle cx="${cx}" cy="${cy}" r="${inner}" fill="#ffffff"/>
-          <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b">TOTAL</text>
-          <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="20" font-weight="800" fill="#002d58">${total}</text>
+          <text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="13" font-weight="700" fill="#64748b">TOTAL</text>
+          <text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="28" font-weight="800" fill="#002d58">${total}</text>
         </svg>
         <ul class="ad-pie-legend">${legend}</ul>
       </div>`;
@@ -453,63 +471,32 @@
     const labels = list.map((d) => String(d.label || ""));
     const values = list.map((d) => Number(d.count || 0));
     const seriesData = labels.map((label, index) => ({ x: label, y: values[index] ?? 0 }));
-    let peakIdx = 0;
-    values.forEach((v, i) => {
-      if (v > values[peakIdx]) peakIdx = i;
-    });
-    const midIdx = Math.floor(values.length / 2);
-    const points = [
-      {
-        x: labels[peakIdx],
-        y: values[peakIdx],
-        marker: { size: 6, fillColor: "#F3B61F", strokeColor: "#002d58", strokeWidth: 2 },
-        label: {
-          text: "Peak",
-          borderColor: "#F3B61F",
-          style: { color: "#002d58", background: "#F3B61F", fontWeight: 700 },
-        },
-      },
-      {
-        x: labels[midIdx],
-        y: values[midIdx],
-        marker: { size: 5, fillColor: "#0D8ACB", strokeColor: "#fff", strokeWidth: 2 },
-        label: {
-          text: "Typical",
-          borderColor: "#0D8ACB",
-          style: { color: "#fff", background: "#0D8ACB", fontWeight: 700 },
-        },
-      },
-    ];
 
     el.innerHTML = "";
     const chart = new ApexCharts(el, {
       series: [{ name: "Transactions", data: seriesData }],
       chart: {
-        height: 220,
+        height: 300,
         type: "line",
         id: "ad-annotation-trend",
         zoom: { enabled: false },
         selection: { enabled: false },
         toolbar: { show: false },
-        background: "#ffffff",
+        background: "transparent",
         foreColor: "#334155",
         parentHeightOffset: 0,
         sparkline: { enabled: false },
       },
       theme: { mode: "light" },
-      annotations: { points },
+      annotations: { points: [] },
       dataLabels: { enabled: false },
       stroke: { curve: "smooth", width: 3 },
       grid: {
-        padding: { top: 8, right: 16, bottom: 0, left: 8 },
+        padding: { top: 8, right: 12, bottom: 0, left: 4 },
         borderColor: "#e2e8f0",
-        row: { colors: ["#ffffff", "#f8fafc"], opacity: 0.6 },
+        row: { colors: ["transparent", "transparent"], opacity: 0 },
       },
-      title: {
-        text: "Transaction trend · last 14 days",
-        align: "left",
-        style: { fontSize: "14px", fontWeight: 700, color: "#002d58" },
-      },
+      title: { text: undefined },
       colors: ["#008FFB"],
       markers: { size: 3, colors: ["#0868AC"], strokeColors: "#fff", strokeWidth: 2 },
       xaxis: {
@@ -521,7 +508,6 @@
       yaxis: {
         min: 0,
         decimalsInFloat: 0,
-        title: { text: "Count", style: { color: "#64748b" } },
         labels: { style: { colors: "#64748b" } },
       },
       tooltip: {
@@ -532,6 +518,7 @@
           },
         },
       },
+      legend: { show: false },
     });
     chartStore.trend = chart;
     chart.render();
@@ -539,18 +526,13 @@
 
   function updatePeriodLabels(analytics) {
     const label = analytics.periodLabel || "All time";
-    const first = analytics.firstTransactionAt ? fmtDate(analytics.firstTransactionAt) : null;
-    const last = analytics.lastTransactionAt ? fmtDate(analytics.lastTransactionAt) : null;
-    const rangeText = first && last ? `${first} → ${last}` : label;
     const periodEl = document.getElementById("ad-period-label");
     const incomingPeriodEl = document.getElementById("stat-incoming-period");
     const recentPeriodEl = document.getElementById("ad-recent-period");
     const count = Number(analytics.recordCount || 0);
 
     if (periodEl) {
-      periodEl.textContent = count > 0
-        ? `${label} · ${count} record${count === 1 ? "" : "s"} · ${rangeText}`
-        : `${label} · no records yet`;
+      periodEl.textContent = count > 0 ? `${label} · ${count} records` : label;
     }
     if (incomingPeriodEl) incomingPeriodEl.textContent = label;
     if (recentPeriodEl) recentPeriodEl.textContent = label;
@@ -614,14 +596,42 @@
     const slice = rows.slice((recentPage - 1) * PAGE_SIZE, recentPage * PAGE_SIZE);
     recent.innerHTML = slice.length
       ? slice.map((row) => `
-          <li>
-            <div>
+          <li class="ad-recent-row">
+            <div class="ad-recent-main">
               <strong>${esc(row.orderReference || row.controlNumber || "—")}</strong>
               <div class="ad-recent-meta">${statusBadge(row.status)} · ${fmtDate(row.createdAt)}</div>
             </div>
-            <strong>${money(row.amount)}</strong>
+            <div class="ad-recent-side">
+              <strong class="ad-recent-amt">${money(row.amount)}</strong>
+              <div class="ad-actions">
+                <button type="button" class="ad-btn ad-btn--delete" data-recent-delete="${esc(String(row.id || ""))}" data-recent-ref="${esc(row.orderReference || row.controlNumber || "")}" title="Delete"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+              </div>
+            </div>
           </li>`).join("")
-      : '<li class="ad-recent-empty">No ClickPesa transactions were found for this period.</li>';
+      : '<li class="ad-recent-empty">No collections found for this period.</li>';
+
+    recent.querySelectorAll("[data-recent-delete]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = Number(btn.getAttribute("data-recent-delete"));
+        const ref = btn.getAttribute("data-recent-ref") || String(id || "");
+        if (!id) {
+          notify("Cannot delete this item (missing id).", "error");
+          return;
+        }
+        if (!window.confirm(`Delete collection ${ref}?`)) return;
+        btn.disabled = true;
+        try {
+          const result = await requestJson("delete-payment", { method: "POST", body: { id } });
+          notify(result.message || "Deleted.", "success");
+          await Promise.all([loadStatement(), loadControls()]);
+        } catch (error) {
+          notify(error.message || "Delete failed.", "error");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
     renderPager("ad-recent-pager", recentPage, rows.length, (page) => {
       recentPage = page;
       renderRecentCollections();
@@ -882,7 +892,7 @@
           <td>${esc(row.reference || "—")}</td>
           <td>${money(row.amount)}</td>
           <td>${row.receivedAmount != null ? money(row.receivedAmount) : "—"}</td>
-          <td>${esc(row.withdrawStatus || "—")}</td>
+          <td>${payoutBadge(row.withdrawStatus)}</td>
           <td>${statusBadge(row.status)}</td>
           <td>
             <div class="ad-actions">
@@ -1162,7 +1172,66 @@
           <td>${esc(row.username || "—")}</td>
           <td>${statusBadge(row.role || "user")}</td>
           <td>${fmtDate(row.createdAt)}</td>
-        </tr>`).join("") : `<tr><td colspan="5">No registered users yet.</td></tr>`;
+          <td>
+            <div class="ad-actions">
+              <button type="button" class="ad-btn ad-btn--view" data-view-user="${esc(row.id || "")}" title="View user"><i class="fa-solid fa-eye"></i><span>View</span></button>
+              <button type="button" class="ad-btn ad-btn--delete" data-delete-user="${esc(row.id || "")}" data-delete-name="${esc(row.fullName || row.username || row.phone || "")}" title="Delete user"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+            </div>
+          </td>
+        </tr>`).join("") : `<tr><td colspan="6">No registered users yet.</td></tr>`;
+
+    body.querySelectorAll("[data-view-user]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-view-user");
+        const user = latestUserRows.find((u) => String(u.id) === String(id));
+        if (!user) return;
+        const html = `
+          <div style="text-align:left;font-size:0.9rem;line-height:1.5">
+            <p><strong>Name:</strong> ${esc(user.fullName || "—")}</p>
+            <p><strong>Phone:</strong> ${esc(user.phone || "—")}</p>
+            <p><strong>Username:</strong> ${esc(user.username || "—")}</p>
+            <p><strong>Role:</strong> ${esc(user.role || "user")}</p>
+            <p><strong>Joined:</strong> ${esc(fmtDate(user.createdAt))}</p>
+          </div>`;
+        if (window.Swal) {
+          window.Swal.fire({
+            title: "Registered user",
+            html,
+            confirmButtonText: "Close",
+            confirmButtonColor: "#005691",
+          });
+        } else {
+          window.alert(`${user.fullName || ""}\n${user.phone || ""}\n${user.username || ""}`);
+        }
+      });
+    });
+
+    body.querySelectorAll("[data-delete-user]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-delete-user") || "";
+        const name = btn.getAttribute("data-delete-name") || id;
+        if (!id) return;
+        if (!window.confirm(`Delete registered user ${name}?`)) return;
+        btn.disabled = true;
+        try {
+          const res = await fetch("auth-api.php?action=delete-user", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) throw new Error(data.message || "Delete failed.");
+          notify(data.message || "User deleted.", "success");
+          await loadUsers();
+        } catch (error) {
+          notify(error.message || "Delete failed.", "error");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
     renderPager("ad-users-pager", usersPage, rows.length, (page) => {
       usersPage = page;
       renderUsersTable();
@@ -1173,7 +1242,7 @@
   async function loadUsers() {
     const body = document.getElementById("ad-users-body");
     if (!body) return;
-    body.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
     try {
       const res = await fetch("auth-api.php?action=list-users", { credentials: "same-origin" });
       const data = await res.json();
@@ -1183,7 +1252,7 @@
       renderUsersTable();
       setBanner("ad-users-error", "");
     } catch (error) {
-      body.innerHTML = `<tr><td colspan="5">No registered users yet.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="6">No registered users yet.</td></tr>`;
       setBanner("ad-users-error", error.message);
     }
   }

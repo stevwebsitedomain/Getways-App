@@ -320,6 +320,34 @@ if ($method === 'GET' && $action === 'list-users') {
     jsonResponse(200, ['ok' => true, 'items' => $items]);
 }
 
+if ($method === 'POST' && $action === 'delete-user') {
+    $current = currentUserSummary();
+    if ($current === null || strtolower((string) ($current['role'] ?? '')) !== 'admin') {
+        jsonResponse(403, ['ok' => false, 'message' => 'Admin login required.']);
+    }
+    $id = trim((string) ($input['id'] ?? ''));
+    if ($id === '') {
+        jsonResponse(422, ['ok' => false, 'message' => 'User id is required.']);
+    }
+    $store = ensureStore($storePath);
+    $before = count($store['users'] ?? []);
+    $store['users'] = array_values(array_filter(
+        $store['users'] ?? [],
+        static function ($user) use ($id) {
+            if ((string) ($user['id'] ?? '') !== $id) {
+                return true;
+            }
+            // Never delete admin accounts from this endpoint.
+            return strtolower((string) ($user['role'] ?? 'user')) === 'admin';
+        }
+    ));
+    if (count($store['users']) === $before) {
+        jsonResponse(404, ['ok' => false, 'message' => 'User not found or cannot be deleted.']);
+    }
+    writeStore($storePath, $store);
+    jsonResponse(200, ['ok' => true, 'message' => 'User deleted.']);
+}
+
 if ($method !== 'POST') {
     jsonResponse(405, ['ok' => false, 'message' => 'Method not allowed.']);
 }
