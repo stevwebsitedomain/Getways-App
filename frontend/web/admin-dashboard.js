@@ -559,12 +559,15 @@
     try {
       const result = await requestJson("payout-settings");
       latestSettings = result;
+      const phoneInput = document.querySelector('#ad-payout-form input[name="mobileMoneyNumber"]');
+      if (phoneInput && (result.displayDestination || result.maskedDestination)) {
+        // Prefer full display number when API returns it; otherwise keep existing input.
+        if (result.displayDestination) {
+          phoneInput.value = result.displayDestination;
+        }
+      }
       document.getElementById("stat-dest").textContent = result.maskedDestination || "—";
       setAutoPayoutUi(!!result.enabled, result.mode || "TEST");
-      const modeSelect = document.getElementById("ad-payout-mode");
-      if (modeSelect && result.mode) {
-        modeSelect.value = result.mode === "LIVE_AUTO" ? "LIVE_AUTO" : "MANUAL_APPROVAL";
-      }
       if (result.warning) {
         setBanner("ad-payouts-error", result.warning, "warning", { toast: true });
       }
@@ -1289,21 +1292,23 @@
         msg.textContent = "Saving...";
       }
       const payload = Object.fromEntries(new FormData(event.target).entries());
+      // Saving a destination always enables LIVE automatic payout to that number.
       await requestJson("payout-settings", {
         method: "POST",
         body: {
-          ...payload,
-          mode: payload.payoutMode || latestSettings?.mode || "MANUAL_APPROVAL",
-          enabled: latestSettings?.enabled ?? false,
+          mobileMoneyNumber: payload.mobileMoneyNumber,
+          enabled: true,
+          mode: "LIVE_AUTO",
+          manualApprovalRequired: false,
           currentAdminPassword: adminPassword,
         },
       });
       await loadSettings();
       if (msg) {
         msg.className = "ad-msg is-ok";
-        msg.textContent = "Payout destination saved.";
+        msg.textContent = "Payout number saved. Payments will go here automatically.";
       }
-      notify("Payout destination saved.", "success");
+      notify("Payout number saved — automatic payout is ON.", "success");
     } catch (error) {
       if (msg) {
         msg.className = "ad-msg";
@@ -1314,39 +1319,8 @@
   }
 
   async function toggleAutoPayout() {
-    const toggleCard = document.getElementById("stat-auto-card");
-    const enabling = document.getElementById("stat-auto")?.textContent !== "ON";
-    const adminPassword = await promptAdminPassword();
-    if (!adminPassword) return;
-    const payoutPhone = document.querySelector('#ad-payout-form input[name="mobileMoneyNumber"]')?.value || "+255715296092";
-    const payoutMode = document.getElementById("ad-payout-mode")?.value || "MANUAL_APPROVAL";
-    try {
-      if (toggleCard) toggleCard.style.pointerEvents = "none";
-      await requestJson("payout-settings", {
-        method: "POST",
-        body: {
-          enabled: enabling,
-          mode: enabling ? payoutMode : "TEST",
-          mobileMoneyNumber: payoutPhone,
-          currentAdminPassword: adminPassword,
-          manualApprovalRequired: payoutMode === "MANUAL_APPROVAL",
-        },
-      });
-      await loadSettings();
-      setBanner(
-        "ad-payouts-error",
-        enabling
-          ? payoutMode === "LIVE_AUTO"
-            ? "Automatic payout enabled — funds go to destination when paid."
-            : "Manual payout enabled — use Withdraw button on each payment."
-          : "Automatic payout disabled.",
-        "success"
-      );
-    } catch (error) {
-      setBanner("ad-payouts-error", error.message, "error");
-    } finally {
-      if (toggleCard) toggleCard.style.pointerEvents = "";
-    }
+    // Manual/auto toggle removed — open destination settings instead.
+    document.querySelector('[data-ad-target="payout-dest"]')?.click();
   }
 
   async function createControlNumber(event) {
@@ -1391,19 +1365,19 @@
       ["stat-pending", "ad-portal-pending"],
       ["stat-failed", "ad-portal-failed"],
       ["stat-dest", "ad-portal-dest"],
-      ["stat-auto", "ad-portal-auto"],
-      ["stat-auto-mode", "ad-portal-auto-mode"],
     ];
     map.forEach(([fromId, toId]) => {
       const from = document.getElementById(fromId);
       const to = document.getElementById(toId);
       if (from && to) {
         to.textContent = from.textContent || "";
-        if (fromId === "stat-auto") {
-          to.className = "ad-service-value " + (from.className || "");
-        }
       }
     });
+    // Keep hidden auto stats in sync for GA hub / legacy helpers.
+    setAutoPayoutUi(
+      Boolean(latestSettings?.enabled) && String(latestSettings?.mode || "").toUpperCase() === "LIVE_AUTO",
+      latestSettings?.mode || "LIVE_AUTO"
+    );
     const recentSub = document.getElementById("ad-portal-recent-sub");
     if (recentSub) {
       recentSub.textContent = `${latestRecentRows.length} record${latestRecentRows.length === 1 ? "" : "s"}`;
@@ -2417,7 +2391,8 @@
       const autoOn = document.getElementById("stat-auto")?.textContent === "ON";
       if (balanceEl) balanceEl.textContent = balance;
       if (autoEl) {
-        autoEl.textContent = autoOn ? "Auto payout ON" : "Auto payout OFF";
+        const dest = document.getElementById("stat-dest")?.textContent || "—";
+        autoEl.textContent = autoOn ? `Auto → ${dest}` : "Set payout number";
         autoEl.classList.toggle("is-on", autoOn);
       }
     }

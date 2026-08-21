@@ -182,7 +182,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
             <p>Failed</p>
             <strong id="stat-failed">0</strong>
           </article>
-          <article class="ad-stat ad-stat--toggle" id="stat-auto-card" role="button" tabindex="0" title="Bofya kubadilisha auto payout">
+          <article class="ad-stat ad-stat--toggle" id="stat-auto-card" hidden aria-hidden="true">
             <p>Auto payout</p>
             <strong id="stat-auto" class="ad-auto-off">OFF</strong>
             <small id="stat-auto-mode">TEST</small>
@@ -283,15 +283,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-body">
                   <span class="ad-service-title">Payout destination</span>
                   <strong class="ad-service-value ad-service-value--accent" id="ad-portal-dest">—</strong>
-                  <small>Mobile money number</small>
-                </span>
-              </button>
-              <button type="button" class="ad-service-card" id="ad-portal-auto-card">
-                <span class="ad-service-ico"><i class="fa-solid fa-bolt"></i></span>
-                <span class="ad-service-body">
-                  <span class="ad-service-title">Auto payout</span>
-                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-auto">OFF</strong>
-                  <small id="ad-portal-auto-mode">TEST</small>
+                  <small>Number that receives every successful payment</small>
                 </span>
               </button>
               <button type="button" class="ad-service-card" data-ad-target="payouts">
@@ -430,15 +422,10 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       <div class="ad-card-head">
         <h2>Payout destination</h2>
       </div>
+      <p class="ad-note">Weka namba ya kupokea. Mtu akilipa (SUCCESS), pesa inatumwa automatic kwenda namba hii.</p>
       <form id="ad-payout-form" class="ad-form">
         <label>Payout phone number
           <input name="mobileMoneyNumber" type="tel" value="+255715296092" required placeholder="+255715296092" />
-        </label>
-        <label>Payout mode
-          <select name="payoutMode" id="ad-payout-mode">
-            <option value="MANUAL_APPROVAL">Manual — Withdraw button per payment</option>
-            <option value="LIVE_AUTO">Automatic — send to destination when paid</option>
-          </select>
         </label>
         <button type="submit">Save destination</button>
       </form>
