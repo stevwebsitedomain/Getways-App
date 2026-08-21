@@ -98,6 +98,8 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
         <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest"><span class="ad-sidebar-link-text"><i class="fa-solid fa-mobile-screen ad-nav-ico ad-nav-ico--mobile"></i> <span class="ad-sidebar-text">Payout destination</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <button type="button" class="ad-sidebar-link" data-ad-target="payouts"><span class="ad-sidebar-link-text"><i class="fa-solid fa-money-bill-transfer ad-nav-ico ad-nav-ico--money"></i> <span class="ad-sidebar-text">Automatic payouts</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <button type="button" class="ad-sidebar-link" data-ad-target="users"><span class="ad-sidebar-link-text"><i class="fa-solid fa-users ad-nav-ico ad-nav-ico--users"></i> <span class="ad-sidebar-text">Registered users</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <p class="ad-sidebar-label">MESSAGING</p>
+        <a class="ad-sidebar-link" href="whatsapp-send.php"><span class="ad-sidebar-link-text"><i class="fa-brands fa-whatsapp ad-nav-ico" style="color:#25d366"></i> <span class="ad-sidebar-text">Send WhatsApp</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></a>
       </nav>
       <div class="ad-sidebar-foot">
         <span class="ad-sidebar-user ad-sidebar-text"><?php echo $authName; ?></span>
