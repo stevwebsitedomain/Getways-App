@@ -60,10 +60,24 @@ function animateCount(el, target, options = {}) {
 function initMerchantAmountToggle() {
   const amountEl = document.getElementById("success-amount");
   const toggleBtn = document.getElementById("merchant-amount-toggle");
+  const noteEl = document.getElementById("merchant-amount-note");
   if (!amountEl || !toggleBtn) return;
 
   const storageKey = "gw_merchant_amount_visible";
   const iconEl = toggleBtn.querySelector("i");
+
+  const setNote = (visible) => {
+    if (!noteEl) return;
+    const title = noteEl.querySelector("strong");
+    const detail = noteEl.querySelector("span");
+    if (visible) {
+      if (title) title.textContent = "Privacy";
+      if (detail) detail.textContent = "Tap eye to hide sales";
+    } else {
+      if (title) title.textContent = "Hidden";
+      if (detail) detail.textContent = "Tap eye to show sales";
+    }
+  };
 
   const setVisible = (visible) => {
     const show = Boolean(visible);
@@ -87,6 +101,7 @@ function initMerchantAmountToggle() {
       toggleBtn.setAttribute("title", "View amount");
       if (iconEl) iconEl.className = "fa-solid fa-eye";
     }
+    setNote(show);
     try {
       localStorage.setItem(storageKey, show ? "1" : "0");
     } catch (_) {

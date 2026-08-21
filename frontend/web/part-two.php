@@ -108,20 +108,26 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
                 </p>
               </div>
               <div class="ch-acct-side">
-                <button
-                  type="button"
-                  class="ch-amt-toggle"
-                  id="merchant-amount-toggle"
-                  aria-pressed="false"
-                  aria-controls="success-amount"
-                  aria-label="Hide amount"
-                  title="Hide amount"
-                >
-                  <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
-                </button>
-                <button type="button" class="ch-acct-more" aria-label="More options" data-top-action="history">
-                  <i class="fa-solid fa-ellipsis-vertical"></i>
-                </button>
+                <div class="ch-acct-side-tools">
+                  <button
+                    type="button"
+                    class="ch-amt-toggle"
+                    id="merchant-amount-toggle"
+                    aria-pressed="false"
+                    aria-controls="success-amount"
+                    aria-label="Hide amount"
+                    title="Hide amount"
+                  >
+                    <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="ch-acct-more" aria-label="More options" data-top-action="history">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                  </button>
+                </div>
+                <p class="ch-acct-side-note" id="merchant-amount-note">
+                  <strong>Privacy</strong>
+                  <span>Tap eye to hide sales</span>
+                </p>
               </div>
             </div>
             <p class="ch-acct-deposit">Depositing to Business Wallet</p>

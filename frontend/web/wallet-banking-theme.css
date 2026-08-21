@@ -1527,11 +1527,42 @@
 }
 
 .ch-acct-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  max-width: 7.2rem;
+  text-align: right;
+}
+
+.ch-acct-side-tools {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
-  margin-top: 2px;
+}
+
+.ch-acct-side-note {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+}
+
+.ch-acct-side-note strong {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #0b1f3a;
+  letter-spacing: 0.01em;
+}
+
+.ch-acct-side-note span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #8b95a5;
+  line-height: 1.25;
+  max-width: 6.6rem;
 }
 
 .ch-acct-balance {
