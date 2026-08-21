@@ -9,6 +9,7 @@ declare(strict_types=1);
  * GET  ?action=messages&status=all|sent|queue|unsent|invalid|expired&page=1&limit=50
  * GET  ?action=webhook-events
  * POST ?action=send  JSON { to, body, priority? }
+ * POST ?action=delete JSON { id }
  */
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -213,10 +214,36 @@ if ($action === 'webhook-events') {
     ]);
 }
 
+if ($action === 'delete' && $method === 'POST') {
+    $input = waReadJsonBody();
+    $id = trim((string) ($input['id'] ?? $input['msgId'] ?? ''));
+    if ($id === '') {
+        waJson(422, ['ok' => false, 'message' => 'Message id is required.']);
+    }
+
+    // Best-effort Ultramsg delete; UI also hides locally.
+    $url = $config['apiUrl'] . '/messages/delete';
+    $res = waUltamsgPost($url, [
+        'token' => $config['token'],
+        'msgId' => $id,
+        'id' => $id,
+    ]);
+    $ok = $res['http'] >= 200 && $res['http'] < 300
+        && !(is_array($res['json']) && isset($res['json']['error']));
+
+    waJson(200, [
+        'ok' => true,
+        'message' => $ok ? 'Message deleted.' : 'Removed locally. Provider delete may be unsupported.',
+        'providerOk' => $ok,
+        'http' => $res['http'],
+        'data' => $res['json'] ?? $res['body'],
+    ]);
+}
+
 if ($action !== 'send' || $method !== 'POST') {
     waJson(400, [
         'ok' => false,
-        'message' => 'Use POST action=send, or GET action=status|messages|webhook-events.',
+        'message' => 'Use POST action=send|delete, or GET action=status|messages|webhook-events.',
     ]);
 }
 
@@ -279,5 +306,4 @@ waJson(502, [
     'message' => 'Ultramsg request failed.',
     'http' => $res['http'],
     'senderName' => $sender,
-    'data' => $payload ?? $res['body'],
-]);
+    'data

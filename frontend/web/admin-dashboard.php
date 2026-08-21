@@ -513,52 +513,75 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-whatsapp" data-ad-page="whatsapp">
-      <div class="ad-card-head ad-card-head--stack">
+      <div class="ad-card-head">
         <div>
-          <h2><i class="fa-brands fa-whatsapp" style="color:#25d366"></i> WhatsApp messages</h2>
-          <p class="ad-period-sub">Sender: <strong id="ad-wa-sender-label"><?php echo $waSender; ?></strong></p>
+          <h2><i class="fa-brands fa-whatsapp" style="color:#25d366"></i> WhatsApp</h2>
+          <p class="ad-period-sub" id="ad-wa-sender-label"><?php echo $waSender; ?></p>
         </div>
         <div class="ad-card-actions">
-          <button type="button" class="ad-refresh" id="ad-wa-refresh">Refresh recent</button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-wa-refresh"><i class="fa-solid fa-rotate"></i><span>Refresh</span></button>
         </div>
       </div>
 
       <div class="ad-wa-layout">
         <div class="ad-wa-send-col">
-          <div class="ad-wa-mode" role="group" aria-label="Send mode">
+          <div class="ad-wa-mode" role="group" aria-label="Mode">
             <button type="button" class="ad-wa-mode-btn is-active" data-wa-mode="manual">Manual</button>
             <button type="button" class="ad-wa-mode-btn" data-wa-mode="auto">Automatic</button>
           </div>
-          <p class="ad-note" id="ad-wa-mode-hint">Manual: andika namba + ujumbe, kisha Send.</p>
 
-          <form id="ad-wa-form" class="ad-form" autocomplete="off">
-            <label>Phone (international)
-              <input id="ad-wa-to" name="to" type="tel" placeholder="2557XXXXXXXX" required />
+          <form id="ad-wa-form" class="ad-form ad-wa-form" autocomplete="off">
+            <label class="ad-wa-label">Phone
+              <div class="ad-wa-phone-row">
+                <input id="ad-wa-to" name="to" type="tel" placeholder="2557XXXXXXXX" required />
+                <label class="ad-wa-excel-btn" title="Upload Excel / CSV">
+                  <i class="fa-solid fa-file-excel"></i>
+                  <span>Excel</span>
+                  <input type="file" id="ad-wa-excel" accept=".xlsx,.xls,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+                </label>
+              </div>
             </label>
-            <label id="ad-wa-body-wrap">Message
-              <textarea id="ad-wa-body" name="body" rows="4" placeholder="Habari…" required></textarea>
+            <div id="ad-wa-phone-chips" class="ad-wa-chips" hidden></div>
+
+            <label class="ad-wa-label" id="ad-wa-body-wrap">Message
+              <textarea id="ad-wa-body" name="body" rows="5" placeholder="Andika ujumbe…" required></textarea>
             </label>
-            <label id="ad-wa-auto-wrap" hidden>Automatic message (inatumiwa peke yake ukiweka namba)
-              <textarea id="ad-wa-auto-body" rows="4" placeholder="Habari kutoka Digital Matrix Technology…"></textarea>
+            <label class="ad-wa-label" id="ad-wa-auto-wrap" hidden>Auto message
+              <textarea id="ad-wa-auto-body" rows="5" placeholder="Ujumbe wa automatic…"></textarea>
             </label>
-            <label>Priority
+
+            <div class="ad-wa-schedule" id="ad-wa-schedule" hidden>
+              <label class="ad-wa-label">Send after
+                <div class="ad-wa-schedule-row">
+                  <input id="ad-wa-delay-value" type="number" min="0" value="5" />
+                  <select id="ad-wa-delay-unit">
+                    <option value="minutes">Minutes</option>
+                    <option value="days">Days</option>
+                    <option value="months">Months</option>
+                  </select>
+                </div>
+              </label>
+            </div>
+
+            <label class="ad-wa-label">Priority
               <select id="ad-wa-priority">
                 <option value="0">High</option>
                 <option value="5">Normal</option>
                 <option value="10" selected>Low</option>
               </select>
             </label>
+
             <div class="ad-wa-actions">
-              <button type="submit" id="ad-wa-send">Send message</button>
-              <button type="button" class="ad-refresh" id="ad-wa-status">Check status</button>
+              <button type="submit" class="ad-wa-send-btn" id="ad-wa-send"><i class="fa-brands fa-whatsapp"></i> Send</button>
+              <button type="button" class="ad-btn ad-btn--ghost" id="ad-wa-status">Status</button>
             </div>
           </form>
           <p id="ad-wa-msg" class="ad-msg"></p>
-          <div class="ad-wa-hook">
-            <strong>Webhook URL (Ultramsg → Settings)</strong>
+          <details class="ad-wa-hook">
+            <summary>Webhook</summary>
             <code id="ad-wa-webhook"><?php echo $waWebhook; ?></code>
-            <button type="button" class="ad-refresh" id="ad-wa-copy-hook">Copy webhook</button>
-          </div>
+            <button type="button" class="ad-btn ad-btn--ghost" id="ad-wa-copy-hook">Copy</button>
+          </details>
         </div>
 
         <div class="ad-wa-list-col">
@@ -571,7 +594,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
             <button type="button" class="ad-wa-tab" data-wa-status="expired">Expired</button>
           </div>
           <ul class="ad-wa-list" id="ad-wa-list">
-            <li class="ad-wa-empty">Open this section to load messages…</li>
+            <li class="ad-wa-empty">Loading…</li>
           </ul>
         </div>
       </div>
@@ -696,6 +719,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="tis-api-base.js"></script>
   <script src="payments-merge.js?v=2"></script>
   <script src="admin-dashboard.js?v=<?php echo $jsV; ?>"></script>

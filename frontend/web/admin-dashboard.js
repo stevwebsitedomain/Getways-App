@@ -1363,7 +1363,7 @@
     payouts: "Automatic payouts",
     users: "Registered users",
     recent: "Recent collections",
-    whatsapp: "WhatsApp messages",
+    whatsapp: "WhatsApp",
   };
 
   function scrollToPortalSection(key) {
@@ -1531,8 +1531,12 @@
   let waAutoTimer = null;
   let waLastAutoSentTo = "";
   let waSending = false;
+  let waPhoneList = [];
+  let waHiddenIds = new Set();
   const WA_MODE_KEY = "gw_wa_send_mode";
   const WA_AUTO_BODY_KEY = "gw_wa_auto_body";
+  const WA_HIDDEN_KEY = "gw_wa_hidden_ids";
+  const WA_SCHEDULE_KEY = "gw_wa_schedule";
   const WA_DEFAULT_AUTO =
     "Habari, ujumbe huu umetumwa na Digital Matrix Technology kupitia Getway.";
 
@@ -1544,23 +1548,71 @@
     el.classList.toggle("is-ok", Boolean(text) && !isError);
   }
 
+  function waSwalSent(title, text) {
+    if (typeof Swal === "undefined") {
+      setWaMsg(title || "Sent");
+      return Promise.resolve();
+    }
+    return Swal.fire({
+      title: title || "Sent",
+      html: `<div style="display:grid;gap:10px;justify-items:center">
+        <div style="width:72px;height:72px;border-radius:50%;background:#ecfdf5;display:grid;place-items:center;animation:wa-bounce 0.9s ease infinite alternate">
+          <i class="fa-brands fa-whatsapp" style="font-size:2.2rem;color:#25d366"></i>
+        </div>
+        <p style="margin:0;color:#334155;font-weight:600">${esc(text || "Message updated successfully.")}</p>
+      </div>
+      <style>@keyframes wa-bounce{from{transform:scale(.92)}to{transform:scale(1.08)}}</style>`,
+      confirmButtonText: "OK",
+      confirmButtonColor: "#25d366",
+      showClass: { popup: "swal2-show" },
+      hideClass: { popup: "swal2-hide" },
+    });
+  }
+
+  function loadWaHidden() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(WA_HIDDEN_KEY) || "[]");
+      waHiddenIds = new Set(Array.isArray(raw) ? raw.map(String) : []);
+    } catch (_) {
+      waHiddenIds = new Set();
+    }
+  }
+
+  function saveWaHidden() {
+    try {
+      localStorage.setItem(WA_HIDDEN_KEY, JSON.stringify([...waHiddenIds]));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function delayMsFromUi() {
+    const value = Math.max(0, Number(document.getElementById("ad-wa-delay-value")?.value || 0));
+    const unit = document.getElementById("ad-wa-delay-unit")?.value || "minutes";
+    if (unit === "days") return value * 24 * 60 * 60 * 1000;
+    if (unit === "months") return value * 30 * 24 * 60 * 60 * 1000;
+    return value * 60 * 1000;
+  }
+
   function applyWaMode(mode) {
     waMode = mode === "auto" ? "auto" : "manual";
     document.querySelectorAll(".ad-wa-mode-btn").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.waMode === waMode);
     });
-    const hint = document.getElementById("ad-wa-mode-hint");
     const bodyWrap = document.getElementById("ad-wa-body-wrap");
     const autoWrap = document.getElementById("ad-wa-auto-wrap");
+    const schedule = document.getElementById("ad-wa-schedule");
     const sendBtn = document.getElementById("ad-wa-send");
-    if (hint) {
-      hint.textContent = waMode === "auto"
-        ? "Automatic: weka namba ya simu — system itatuma ujumbe wa automatic yenyewe."
-        : "Manual: andika namba + ujumbe, kisha Send.";
-    }
+    const bodyInput = document.getElementById("ad-wa-body");
     if (bodyWrap) bodyWrap.hidden = waMode === "auto";
     if (autoWrap) autoWrap.hidden = waMode !== "auto";
-    if (sendBtn) sendBtn.textContent = waMode === "auto" ? "Send now" : "Send message";
+    if (schedule) schedule.hidden = waMode !== "auto";
+    if (bodyInput) bodyInput.required = waMode !== "auto";
+    if (sendBtn) {
+      sendBtn.innerHTML = waMode === "auto"
+        ? '<i class="fa-brands fa-whatsapp"></i> Schedule / Send'
+        : '<i class="fa-brands fa-whatsapp"></i> Send';
+    }
     try {
       localStorage.setItem(WA_MODE_KEY, waMode);
     } catch (_) {
@@ -1572,28 +1624,149 @@
     return String(value || "").replace(/\D+/g, "");
   }
 
+  function renderWaPhoneChips() {
+    const wrap = document.getElementById("ad-wa-phone-chips");
+    if (!wrap) return;
+    if (!waPhoneList.length) {
+      wrap.hidden = true;
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.hidden = false;
+    wrap.innerHTML = waPhoneList.map((phone, index) => `
+      <span class="ad-wa-chip">
+        <i class="fa-brands fa-whatsapp"></i>${esc(phone)}
+        <button type="button" data-wa-chip-remove="${index}" aria-label="Remove">&times;</button>
+      </span>
+    `).join("");
+    wrap.querySelectorAll("[data-wa-chip-remove]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.getAttribute("data-wa-chip-remove"));
+        waPhoneList.splice(idx, 1);
+        renderWaPhoneChips();
+      });
+    });
+  }
+
+  function collectWaTargets() {
+    const single = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+    const list = [...waPhoneList];
+    if (single && !list.includes(single)) list.unshift(single);
+    return [...new Set(list.filter((p) => p.length >= 9))];
+  }
+
+  function formatWaWhen(when) {
+    if (when == null || when === "") return "";
+    if (typeof when === "number" && when > 1000000000) {
+      return new Date(when * (when < 1e12 ? 1000 : 1)).toLocaleString();
+    }
+    return String(when);
+  }
+
   function renderWaMessages(messages) {
     const list = document.getElementById("ad-wa-list");
     if (!list) return;
-    if (!messages || !messages.length) {
-      list.innerHTML = '<li class="ad-wa-empty">Hakuna messages kwa status hii.</li>';
+    const visible = (messages || []).filter((m) => {
+      const id = String(m.id || m.messageId || m.msgId || "");
+      return !id || !waHiddenIds.has(id);
+    });
+    if (!visible.length) {
+      list.innerHTML = '<li class="ad-wa-empty">No messages</li>';
       return;
     }
-    list.innerHTML = messages.map((m) => {
-      const to = m.to || m.chatId || m.from || m.id || "—";
+    list.innerHTML = visible.map((m) => {
+      const rawTo = String(m.to || m.chatId || m.from || m.id || "—");
+      const phone = normalizeWaPhone(rawTo) || rawTo;
       const body = m.body || m.message || m.text || m.caption || "";
       const st = String(m.status || m.ack || m.state || waCurrentStatus || "all").toLowerCase();
-      let when = m.timestamp || m.time || m.created || m.date || m.sent_at || "";
-      if (typeof when === "number" && when > 1000000000) {
-        when = new Date(when * (when < 1e12 ? 1000 : 1)).toLocaleString();
-      }
-      const id = m.id || m.messageId || m.msgId || "";
-      return `<li>
-        <div class="ad-wa-item-top"><span>${esc(to)}</span><span>${esc(st)}</span></div>
+      const when = formatWaWhen(m.timestamp || m.time || m.created || m.date || m.sent_at || "");
+      const id = String(m.id || m.messageId || m.msgId || "");
+      const payload = encodeURIComponent(JSON.stringify({
+        id,
+        to: phone,
+        body,
+        status: st,
+        when,
+      }));
+      return `<li class="ad-wa-item">
+        <div class="ad-wa-item-top">
+          <span class="ad-wa-phone"><i class="fa-brands fa-whatsapp"></i>${esc(phone)}</span>
+          <span class="ad-wa-status is-${esc(st)}">${esc(st)}</span>
+        </div>
         <p class="ad-wa-item-body">${esc(body)}</p>
-        <p class="ad-wa-item-meta">ID: ${esc(id)}${when ? " · " + esc(when) : ""}</p>
+        <p class="ad-wa-item-meta">${id ? "ID: " + esc(id) : ""}${when ? (id ? " · " : "") + esc(when) : ""}</p>
+        <div class="ad-wa-item-actions">
+          <button type="button" class="ad-btn ad-btn--view" data-wa-view="${payload}"><i class="fa-solid fa-eye"></i><span>View</span></button>
+          <button type="button" class="ad-btn ad-btn--delete" data-wa-delete="${payload}"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+        </div>
       </li>`;
     }).join("");
+
+    list.querySelectorAll("[data-wa-view]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        let row = null;
+        try {
+          row = JSON.parse(decodeURIComponent(btn.getAttribute("data-wa-view") || ""));
+        } catch (_) {
+          row = null;
+        }
+        if (!row) return;
+        if (typeof Swal === "undefined") {
+          window.alert(`${row.to}\n\n${row.body}`);
+          return;
+        }
+        Swal.fire({
+          title: `<span style="display:inline-flex;align-items:center;gap:8px"><i class="fa-brands fa-whatsapp" style="color:#25d366"></i>${esc(row.to || "")}</span>`,
+          html: `<p style="text-align:left;white-space:pre-wrap;color:#334155;font-weight:600">${esc(row.body || "")}</p>
+                 <p style="margin:10px 0 0;color:#94a3b8;font-size:.8rem">${esc(row.status || "")}${row.when ? " · " + esc(row.when) : ""}</p>`,
+          confirmButtonColor: "#25d366",
+          confirmButtonText: "Close",
+        });
+      });
+    });
+
+    list.querySelectorAll("[data-wa-delete]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        let row = null;
+        try {
+          row = JSON.parse(decodeURIComponent(btn.getAttribute("data-wa-delete") || ""));
+        } catch (_) {
+          row = null;
+        }
+        if (!row) return;
+        const confirm = typeof Swal !== "undefined"
+          ? await Swal.fire({
+              title: "Delete message?",
+              text: row.to || "",
+              icon: "warning",
+              showCancelButton: true,
+              confirmButtonColor: "#dc2626",
+              cancelButtonColor: "#64748b",
+              confirmButtonText: "Delete",
+            })
+          : { isConfirmed: window.confirm("Delete this message?") };
+        if (!confirm.isConfirmed) return;
+        if (row.id) {
+          waHiddenIds.add(String(row.id));
+          saveWaHidden();
+          try {
+            await fetch("whatsapp-api.php?action=delete", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: row.id }),
+            });
+          } catch (_) {
+            /* local hide still applied */
+          }
+        }
+        btn.closest("li")?.remove();
+        await waSwalSent("Sent", "Message removed from recent list.");
+        if (!document.querySelector("#ad-wa-list .ad-wa-item")) {
+          list.innerHTML = '<li class="ad-wa-empty">No messages</li>';
+        }
+      });
+    });
   }
 
   async function loadWhatsappMessages(status) {
@@ -1643,31 +1816,106 @@
     }
   }
 
+  function readWaSchedule() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(WA_SCHEDULE_KEY) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeWaSchedule(items) {
+    try {
+      localStorage.setItem(WA_SCHEDULE_KEY, JSON.stringify(items));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function queueWaSchedule(entry) {
+    const items = readWaSchedule();
+    items.push(entry);
+    writeWaSchedule(items);
+  }
+
+  async function processWaSchedule() {
+    const now = Date.now();
+    const items = readWaSchedule();
+    if (!items.length) return;
+    const keep = [];
+    for (const item of items) {
+      if (!item || !item.at || item.at > now) {
+        keep.push(item);
+        continue;
+      }
+      try {
+        await sendWhatsappMessage({
+          to: item.to,
+          body: item.body,
+          priority: item.priority || "10",
+        });
+        await waSwalSent("Sent", `Scheduled message sent to ${item.to}`);
+      } catch (_) {
+        keep.push({ ...item, at: now + 60000 });
+      }
+    }
+    writeWaSchedule(keep);
+  }
+
   function scheduleAutoSend() {
     if (waMode !== "auto") return;
     window.clearTimeout(waAutoTimer);
+    const delay = delayMsFromUi();
     waAutoTimer = window.setTimeout(async () => {
-      const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+      const targets = collectWaTargets();
       const body = String(document.getElementById("ad-wa-auto-body")?.value || "").trim() || WA_DEFAULT_AUTO;
       const priority = document.getElementById("ad-wa-priority")?.value || "10";
-      if (to.length < 12) return;
-      if (to === waLastAutoSentTo) return;
+      if (!targets.length) return;
+      const key = targets.join(",");
+      if (key === waLastAutoSentTo) return;
       try {
-        await sendWhatsappMessage({ to, body, priority });
-        waLastAutoSentTo = to;
+        if (delay > 0) {
+          const at = Date.now() + delay;
+          targets.forEach((to) => queueWaSchedule({ to, body, priority, at }));
+          waLastAutoSentTo = key;
+          setWaMsg(`Scheduled ${targets.length} message(s).`);
+          await waSwalSent("Sent", "Messages scheduled for later.");
+          return;
+        }
+        for (const to of targets) {
+          await sendWhatsappMessage({ to, body, priority });
+        }
+        waLastAutoSentTo = key;
         try {
           localStorage.setItem(WA_AUTO_BODY_KEY, body);
         } catch (_) {
           /* ignore */
         }
+        await waSwalSent("Sent", `Sent to ${targets.length} number(s).`);
       } catch (_) {
         /* message already shown */
       }
-    }, 900);
+    }, delay > 0 ? 400 : 900);
+  }
+
+  function parsePhonesFromSheet(workbook) {
+    const phones = [];
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+    rows.forEach((row) => {
+      (Array.isArray(row) ? row : []).forEach((cell) => {
+        const phone = normalizeWaPhone(cell);
+        if (phone.length >= 9) phones.push(phone);
+      });
+    });
+    return [...new Set(phones)];
   }
 
   function bindWhatsappSection() {
     if (!document.getElementById("ad-section-whatsapp")) return;
+    loadWaHidden();
 
     try {
       const savedMode = localStorage.getItem(WA_MODE_KEY);
@@ -1696,12 +1944,26 @@
 
     document.getElementById("ad-wa-refresh")?.addEventListener("click", () => {
       loadWhatsappMessages(waCurrentStatus);
+      processWaSchedule();
     });
 
     document.getElementById("ad-wa-to")?.addEventListener("input", () => {
       const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
       if (to !== waLastAutoSentTo) waLastAutoSentTo = "";
-      scheduleAutoSend();
+      if (waMode === "auto") scheduleAutoSend();
+    });
+
+    document.getElementById("ad-wa-delay-value")?.addEventListener("change", () => {
+      if (waMode === "auto") {
+        waLastAutoSentTo = "";
+        scheduleAutoSend();
+      }
+    });
+    document.getElementById("ad-wa-delay-unit")?.addEventListener("change", () => {
+      if (waMode === "auto") {
+        waLastAutoSentTo = "";
+        scheduleAutoSend();
+      }
     });
 
     document.getElementById("ad-wa-auto-body")?.addEventListener("change", () => {
@@ -1712,35 +1974,80 @@
       }
     });
 
+    document.getElementById("ad-wa-excel")?.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (typeof window.XLSX === "undefined") {
+        setWaMsg("Excel library failed to load.", true);
+        return;
+      }
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = window.XLSX.read(buffer, { type: "array" });
+        const phones = parsePhonesFromSheet(workbook);
+        if (!phones.length) {
+          setWaMsg("No phone numbers found in the file.", true);
+          return;
+        }
+        waPhoneList = phones;
+        renderWaPhoneChips();
+        const first = phones[0];
+        const input = document.getElementById("ad-wa-to");
+        if (input && first) input.value = first;
+        setWaMsg(`Loaded ${phones.length} number(s) from Excel.`);
+        if (waMode === "auto") {
+          waLastAutoSentTo = "";
+          scheduleAutoSend();
+        }
+      } catch (error) {
+        setWaMsg(error.message || "Could not read Excel file.", true);
+      } finally {
+        event.target.value = "";
+      }
+    });
+
     document.getElementById("ad-wa-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+      const targets = collectWaTargets();
       const priority = document.getElementById("ad-wa-priority")?.value || "10";
       const body = waMode === "auto"
         ? (String(document.getElementById("ad-wa-auto-body")?.value || "").trim() || WA_DEFAULT_AUTO)
         : String(document.getElementById("ad-wa-body")?.value || "").trim();
-      if (to.length < 9) {
-        setWaMsg("Enter a valid international phone number.", true);
+      if (!targets.length) {
+        setWaMsg("Enter a phone number or upload Excel.", true);
         return;
       }
       if (!body) {
-        setWaMsg("Message body is required.", true);
+        setWaMsg("Message is required.", true);
         return;
       }
       try {
-        await sendWhatsappMessage({ to, body, priority });
-        if (waMode === "auto") waLastAutoSentTo = to;
+        if (waMode === "auto") {
+          const delay = delayMsFromUi();
+          if (delay > 0) {
+            const at = Date.now() + delay;
+            targets.forEach((to) => queueWaSchedule({ to, body, priority, at }));
+            setWaMsg(`Scheduled ${targets.length} message(s).`);
+            await waSwalSent("Sent", "Messages scheduled.");
+            return;
+          }
+        }
+        for (const to of targets) {
+          await sendWhatsappMessage({ to, body, priority });
+        }
+        if (waMode === "auto") waLastAutoSentTo = targets.join(",");
+        await waSwalSent("Sent", `Sent to ${targets.length} number(s).`);
       } catch (_) {
         /* shown */
       }
     });
 
     document.getElementById("ad-wa-status")?.addEventListener("click", async () => {
-      setWaMsg("Checking status…");
+      setWaMsg("Checking…");
       try {
         const res = await fetch("whatsapp-api.php?action=status", { credentials: "same-origin" });
         const data = await res.json().catch(() => ({}));
-        setWaMsg(data.ok ? JSON.stringify(data.data || data, null, 2) : (data.message || "Status failed"), !data.ok);
+        setWaMsg(data.ok ? "Instance online." : (data.message || "Status failed"), !data.ok);
       } catch (error) {
         setWaMsg(error.message || String(error), true);
       }
@@ -1750,11 +2057,14 @@
       const url = document.getElementById("ad-wa-webhook")?.textContent?.trim() || "";
       try {
         await navigator.clipboard?.writeText(url);
-        setWaMsg("Webhook URL copied.");
+        setWaMsg("Webhook copied.");
       } catch (_) {
         setWaMsg(url);
       }
     });
+
+    processWaSchedule();
+    window.setInterval(processWaSchedule, 30000);
   }
 
   function bindGeneralAnalysis() {
