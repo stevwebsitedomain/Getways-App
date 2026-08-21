@@ -65,6 +65,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
     .ad-service-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:72px}
     .ad-service-title{font-size:.88rem;font-weight:700;color:#005691}
     .ad-service-value{font-size:1.05rem;font-weight:800;color:#1a1a2e}
+    .ad-service-value--money{color:#15803d!important}
     @media(max-width:900px){.ad-sidebar{transform:translateX(-100%)}.ad-sidebar.is-open{transform:translateX(0)}.ad-main-wrap{margin-left:0}.ad-menu-btn{display:grid!important;place-items:center;width:40px;height:40px;border:1px solid #c5cdd8;border-radius:8px;background:#fff;color:#005691;cursor:pointer}.ad-service-grid{grid-template-columns:1fr}}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
@@ -177,7 +178,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
                 <span class="ad-service-ico"><i class="fa-solid fa-chart-pie"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Payment analysis</span>
-                  <strong class="ad-service-value" id="ad-portal-incoming">TZS 0</strong>
+                  <strong class="ad-service-value ad-service-value--money" id="ad-portal-incoming">TZS 0</strong>
                   <small id="ad-portal-period">All time</small>
                 </span>
               </button>
@@ -233,7 +234,7 @@ $jsV = htmlspecialchars($jsV, ENT_QUOTES);
                 <span class="ad-service-ico"><i class="fa-solid fa-building-columns"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">ClickPesa balance</span>
-                  <strong class="ad-service-value" id="ad-portal-balance">Loading...</strong>
+                  <strong class="ad-service-value ad-service-value--money" id="ad-portal-balance">Loading...</strong>
                   <small id="ad-portal-balance-updated">Last updated: --</small>
                 </span>
               </button>

@@ -1870,6 +1870,10 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   white-space: nowrap;
 }
 
+.ad-service-value--money {
+  color: #15803d;
+}
+
 .ad-service-body small {
   font-size: 0.72rem;
   color: #64748b;
