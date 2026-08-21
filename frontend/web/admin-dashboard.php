@@ -70,7 +70,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="users"] #ad-section-users,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="recent"] #ad-section-recent,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="whatsapp"] #ad-section-whatsapp{display:block!important}
-    .ad-charts-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:16px}
+    .ad-charts-row{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,.75fr);gap:16px}
     .ad-form--narrow{max-width:480px}
     @media(max-width:900px){.ad-charts-row{grid-template-columns:1fr}}
     .ad-shell{display:flex;min-height:100svh}

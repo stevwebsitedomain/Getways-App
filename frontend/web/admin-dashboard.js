@@ -348,100 +348,92 @@
     }
   }
 
+  function waPolar(cx, cy, r, angleDeg) {
+    const rad = ((angleDeg - 90) * Math.PI) / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+
+  function waArcPath(cx, cy, r, startAngle, endAngle) {
+    const start = waPolar(cx, cy, r, endAngle);
+    const end = waPolar(cx, cy, r, startAngle);
+    const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
+    return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
+  }
+
+  function normalizePieCounts(pie) {
+    let success = Number(pie.success || 0);
+    let pending = Number(pie.pending || 0);
+    let failed = Number(pie.failed || pie.failedSales || 0);
+    if (success + pending + failed > 0) {
+      return { success, pending, failed };
+    }
+    const rows = Array.isArray(pie.recentCollections) ? pie.recentCollections : [];
+    rows.forEach((row) => {
+      const st = String(row.status || "").toUpperCase();
+      if (st === "SUCCESS" || st === "COMPLETED" || st === "PAID") success += 1;
+      else if (st === "FAILED" || st === "CANCELLED" || st === "EXPIRED") failed += 1;
+      else pending += 1;
+    });
+    return { success, pending, failed };
+  }
+
   function drawPie(el, pie) {
     if (!el) return;
-    const success = Number(pie.success || 0);
-    const pending = Number(pie.pending || 0);
-    const failed = Number(pie.failed || 0);
+    const counts = normalizePieCounts(pie || {});
+    const success = counts.success;
+    const pending = counts.pending;
+    const failed = counts.failed;
     const total = success + pending + failed;
     destroyChart("pie");
     el.classList.remove("is-empty");
     if (!total) {
       el.classList.add("is-empty");
-      el.innerHTML = `<p class="ad-trend-empty">No ClickPesa transactions were found for this period.</p>`;
-      return;
-    }
-    if (typeof ApexCharts === "undefined") {
-      el.classList.add("is-empty");
-      el.innerHTML = `<p class="ad-trend-empty">Chart library failed to load.</p>`;
+      el.innerHTML = `<p class="ad-trend-empty">No payments for this period.</p>`;
       return;
     }
 
-    const labels = [];
-    const series = [];
-    const colors = [];
-    if (success > 0) {
-      labels.push("Success");
-      series.push(success);
-      colors.push("#0868AC");
-    }
-    if (pending > 0) {
-      labels.push("Pending");
-      series.push(pending);
-      colors.push("#F3B61F");
-    }
-    if (failed > 0) {
-      labels.push("Failed");
-      series.push(failed);
-      colors.push("#882828");
-    }
+    const slices = [
+      { label: "Success", count: success, color: "#0868AC" },
+      { label: "Pending", count: pending, color: "#F3B61F" },
+      { label: "Failed", count: failed, color: "#882828" },
+    ].filter((s) => s.count > 0);
 
-    el.innerHTML = "";
-    const chart = new ApexCharts(el, {
-      series,
-      chart: {
-        type: "donut",
-        width: "100%",
-        height: 260,
-        parentHeightOffset: 0,
-        toolbar: { show: false },
-        background: "#ffffff",
-        foreColor: "#334155",
-      },
-      theme: { mode: "light" },
-      labels,
-      title: {
-        text: "Payment status",
-        align: "center",
-        style: { fontSize: "14px", fontWeight: 700, color: "#002d58" },
-      },
-      legend: { show: true, position: "bottom", fontWeight: 600, labels: { colors: "#334155" } },
-      stroke: { show: true, width: 2, colors: ["#fff"] },
-      dataLabels: {
-        enabled: true,
-        formatter: function (val) {
-          return Number(val).toFixed(1) + "%";
-        },
-        style: { fontSize: "12px", fontWeight: 600, colors: ["#fff"] },
-        dropShadow: { enabled: true, top: 1, left: 1, blur: 1, opacity: 0.45 },
-      },
-      plotOptions: {
-        pie: {
-          expandOnClick: false,
-          donut: {
-            size: "56%",
-            labels: {
-              show: true,
-              name: { color: "#334155" },
-              value: { color: "#002d58" },
-              total: {
-                show: true,
-                label: "TOTAL",
-                color: "#64748b",
-                formatter: function () {
-                  return String(total);
-                },
-              },
-            },
-          },
-        },
-      },
-      colors,
-      tooltip: { fillSeriesColor: false, theme: "light" },
-      responsive: [{ breakpoint: 480, options: { chart: { height: 220 } } }],
+    const W = 320;
+    const H = 220;
+    const cx = 110;
+    const cy = 110;
+    const r = 78;
+    const inner = 42;
+    let angle = 0;
+    const paths = [];
+
+    slices.forEach((slice) => {
+      const sweep = (slice.count / total) * 360;
+      const start = angle;
+      const end = angle + Math.min(sweep, 359.999);
+      if (slices.length === 1) {
+        paths.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${slice.color}" />`);
+      } else {
+        paths.push(`<path d="${waArcPath(cx, cy, r, start, end)}" fill="${slice.color}" stroke="#fff" stroke-width="2"/>`);
+      }
+      angle = end;
     });
-    chartStore.pie = chart;
-    chart.render();
+
+    const legend = slices.map((slice) => {
+      const pct = Math.round((slice.count / total) * 100);
+      return `<li><span class="ad-pie-dot" style="background:${slice.color}"></span><strong>${esc(slice.label)}</strong><em>${slice.count} · ${pct}%</em></li>`;
+    }).join("");
+
+    el.innerHTML = `
+      <div class="ad-pie-visual">
+        <svg class="ad-pie-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Payment status pie chart">
+          ${paths.join("")}
+          <circle cx="${cx}" cy="${cy}" r="${inner}" fill="#ffffff"/>
+          <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b">TOTAL</text>
+          <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="20" font-weight="800" fill="#002d58">${total}</text>
+        </svg>
+        <ul class="ad-pie-legend">${legend}</ul>
+      </div>`;
   }
 
   function drawTrend(el, days) {
@@ -740,7 +732,6 @@
       window.setTimeout(() => {
         try {
           chartStore.trend?.resize?.();
-          chartStore.pie?.resize?.();
         } catch (_) {
           /* ignore */
         }
@@ -1475,7 +1466,6 @@
     window.setTimeout(() => {
       try {
         chartStore.trend?.resize?.();
-        chartStore.pie?.resize?.();
       } catch (_) {
         /* ignore */
       }
