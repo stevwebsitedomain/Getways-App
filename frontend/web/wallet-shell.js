@@ -257,14 +257,14 @@
   }
 
   function initLayoutButtons() {
-    let saved = "phone";
+    let saved = "";
     try {
-      saved = localStorage.getItem(LAYOUT_STORAGE_KEY) || "phone";
+      saved = localStorage.getItem(LAYOUT_STORAGE_KEY) || "";
     } catch (_) {
       /* ignore */
     }
     if (saved !== "desktop" && saved !== "phone") {
-      saved = "phone";
+      saved = window.matchMedia("(min-width: 900px)").matches ? "desktop" : "phone";
     }
     applyLayout(saved);
     document.querySelectorAll("button[data-layout]").forEach((btn) => {

@@ -114,6 +114,83 @@
   max-width: 100% !important;
 }
 
+/* Desktop / wide screens: expand shell + nav to fill usable width */
+@media (min-width: 900px) {
+  .tis-wallet-dash.bk-theme.layout-phone .tis-wrap.w-shell,
+  .tis-wallet-dash.bk-theme.layout-desktop .tis-wrap.w-shell,
+  .w-home-sample.bk-theme .tis-wrap.w-shell,
+  .bk-theme.chase-home .tis-wrap.w-shell {
+    --w-phone-layout-col: min(1180px, calc(100vw - 32px));
+    max-width: var(--w-phone-layout-col) !important;
+    width: 100% !important;
+  }
+
+  .bk-theme .w-bottom-nav,
+  .bk-theme .ch-bottom-nav,
+  .tis-wallet-dash.bk-theme.layout-phone .w-bottom-nav,
+  .tis-wallet-dash.bk-theme.layout-desktop .w-bottom-nav,
+  .w-home-sample.bk-theme .w-bottom-nav {
+    --w-nav-col: min(1180px, calc(100vw - 32px));
+    width: var(--w-nav-col) !important;
+    max-width: 100% !important;
+  }
+
+  .bk-theme.chase-home .ch-hero {
+    padding-left: 28px;
+    padding-right: 28px;
+    padding-bottom: 36px;
+  }
+
+  .bk-theme.chase-home .ch-body {
+    padding-left: 24px;
+    padding-right: 24px;
+    gap: 18px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .bk-theme.chase-home .ch-body > .ch-open,
+  .bk-theme.chase-home .ch-body > .ch-panel,
+  .bk-theme.chase-home .ch-body > .w-trend,
+  .bk-theme.chase-home .ch-body > .w-pie-section,
+  .bk-theme.chase-home .ch-body > .w-recent,
+  .bk-theme.chase-home .ch-body > .w-api-line {
+    grid-column: 1 / -1;
+  }
+
+  .bk-theme.chase-home .ch-acct-card {
+    min-height: 100%;
+  }
+
+  .bk-theme.chase-home .w-recent-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .bk-theme.chase-home .w-recent-empty,
+  .bk-theme.chase-home .w-recent-more {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1280px) {
+  .tis-wallet-dash.bk-theme.layout-phone .tis-wrap.w-shell,
+  .tis-wallet-dash.bk-theme.layout-desktop .tis-wrap.w-shell,
+  .w-home-sample.bk-theme .tis-wrap.w-shell,
+  .bk-theme.chase-home .tis-wrap.w-shell {
+    --w-phone-layout-col: min(1320px, calc(100vw - 48px));
+  }
+
+  .bk-theme .w-bottom-nav,
+  .bk-theme .ch-bottom-nav,
+  .tis-wallet-dash.bk-theme.layout-phone .w-bottom-nav,
+  .tis-wallet-dash.bk-theme.layout-desktop .w-bottom-nav,
+  .w-home-sample.bk-theme .w-bottom-nav {
+    --w-nav-col: min(1320px, calc(100vw - 48px));
+  }
+}
+
 .bk-theme .w-nav-item {
   color: rgba(255, 255, 255, 0.72) !important;
   padding: 4px 2px !important;

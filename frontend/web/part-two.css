@@ -3346,6 +3346,25 @@ body.tis-wallet-dash {
   transform: translateX(-50%) !important;
 }
 
+@media (min-width: 900px) {
+  .tis-wallet-dash.layout-phone .tis-wrap.w-shell,
+  .tis-wallet-dash.layout-desktop .tis-wrap.w-shell,
+  .w-home-sample.tis-wallet-dash .tis-wrap.w-shell {
+    --w-phone-layout-col: min(1180px, calc(100vw - 32px)) !important;
+    max-width: var(--w-phone-layout-col) !important;
+  }
+
+  .tis-wallet-dash.layout-phone .w-bottom-nav,
+  .tis-wallet-dash.layout-desktop .w-bottom-nav,
+  .w-home-sample .w-bottom-nav,
+  .w-home-sample.bk-theme .w-bottom-nav {
+    width: min(1180px, calc(100vw - 32px)) !important;
+    max-width: 100% !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
 /* Create Payment: single column in phone layout, extra room above bottom nav */
 .tis-wallet-dash.layout-phone.create-pay-page .tis-grid {
   grid-template-columns: 1fr !important;
