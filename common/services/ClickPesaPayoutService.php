@@ -28,14 +28,14 @@ use yii\web\UnauthorizedHttpException;
  * 3) POST /payouts/create-mobile-money-payout   (Bearer token)
  * 4) GET  /payouts/{orderReference}             (Bearer token)
  *
- * Default recipient: 255715296092
+ * Default recipient: 255765149991
  */
 class ClickPesaPayoutService extends Component
 {
     private const LOG_CATEGORY = 'clickpesa';
     private const TOKEN_CACHE_KEY = 'clickpesa.payout.access_token.v1';
     private const TOKEN_LOCK_KEY = 'clickpesa.payout.token_refresh_lock';
-    public const DEFAULT_RECIPIENT = '255715296092';
+    public const DEFAULT_RECIPIENT = '255765149991';
 
     /**
      * Prefer Autopay (USSD) Client ID / API Key — same app that collects via USSD push.

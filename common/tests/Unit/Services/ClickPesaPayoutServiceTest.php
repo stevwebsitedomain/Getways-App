@@ -68,7 +68,7 @@ final class ClickPesaPayoutServiceTest extends Unit
 
     public function testDefaultPayoutPhone(): void
     {
-        verify(ClickPesaSetting::DEFAULT_PHONE)->equals('255715296092');
+        verify(ClickPesaSetting::DEFAULT_PHONE)->equals('255765149991');
     }
 
     public function testLegacyServiceNormalizePhone(): void

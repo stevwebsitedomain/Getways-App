@@ -82,7 +82,7 @@ $this->params['breadcrumbs'][] = $this->title;
             <label class="form-label">New mobile money number</label>
             <?= Html::textInput('destination_phone', '', [
                 'class' => 'form-control',
-                'placeholder' => '+255715296092',
+                'placeholder' => '+255765149991',
                 'autocomplete' => 'off',
             ]) ?>
             <div class="form-text">Leave blank to keep current number.</div>

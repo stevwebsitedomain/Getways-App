@@ -428,7 +428,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       <form id="ad-payout-form" class="ad-form ad-form--dest">
         <label>Payout phone number
           <span class="ad-dest-input-wrap">
-            <input name="mobileMoneyNumber" type="tel" value="+255715296092" required placeholder="+255715296092" autocomplete="tel" />
+            <input name="mobileMoneyNumber" type="tel" value="+255765149991" required placeholder="+255765149991" autocomplete="tel" />
             <i class="fa-solid fa-circle-check ad-dest-tick" aria-hidden="true"></i>
           </span>
         </label>

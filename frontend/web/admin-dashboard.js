@@ -1324,7 +1324,7 @@
     try {
       const preview = await requestJson("preview-payout", { method: "POST", body: { amount, note } });
       const confirmMsg = [
-        `Recipient: ${preview.recipientPhone || "+" + (latestSettings?.displayDestination || "255715296092")}`,
+        `Recipient: ${preview.recipientPhone || "+" + (latestSettings?.displayDestination || "255765149991")}`,
         preview.recipientName ? `Name: ${preview.recipientName}` : "",
         `Provider: ${preview.provider || "—"}`,
         `Amount: TZS ${Number(preview.amount || amount).toLocaleString()}`,

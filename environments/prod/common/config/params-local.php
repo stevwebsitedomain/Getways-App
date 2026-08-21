@@ -13,7 +13,7 @@ return [
         'internalApiToken' => getenv('CLICKPESA_INTERNAL_API_TOKEN') ?: '',
         'currency' => 'TZS',
         'autoPayoutEnabled' => filter_var(getenv('CLICKPESA_AUTO_PAYOUT_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN),
-        'autoPayoutPhone' => getenv('CLICKPESA_AUTO_PAYOUT_PHONE') ?: '255715296092',
+        'autoPayoutPhone' => getenv('CLICKPESA_AUTO_PAYOUT_PHONE') ?: '255765149991',
         'autoPayoutPercentage' => (float) (getenv('CLICKPESA_AUTO_PAYOUT_PERCENTAGE') ?: 100),
         'autoPayoutMinimum' => (float) (getenv('CLICKPESA_AUTO_PAYOUT_MINIMUM_AMOUNT') ?: 1000),
         'autoPayoutDelay' => (int) (getenv('CLICKPESA_AUTO_PAYOUT_DELAY_SECONDS') ?: 60),

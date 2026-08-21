@@ -624,7 +624,7 @@ async function getOrCreateSettingsRow(db) {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const encryptedDestination = encryptDestinationPhone("255715296092");
+  const encryptedDestination = encryptDestinationPhone("255765149991");
   await db.query(
     `INSERT INTO clickpesa_setting
       (auto_payout_enabled, mode, destination_type, encrypted_destination, payout_percentage, minimum_amount, daily_limit, delay_seconds, require_manual_approval, created_at, updated_at)
@@ -699,7 +699,7 @@ async function updateAutoPayoutSettings(data = {}) {
   if (data.mobileMoneyNumber) {
     encryptedDestination = encryptDestinationPhone(data.mobileMoneyNumber);
   } else if (enabled && !getDestinationPhone(encryptedDestination)) {
-    encryptedDestination = encryptDestinationPhone("255715296092");
+    encryptedDestination = encryptDestinationPhone("255765149991");
   }
 
   const phone = getDestinationPhone(encryptedDestination);

@@ -39,8 +39,8 @@ class ClickPesaSetting extends ActiveRecord
     public const DESTINATION_MOBILE = 'MOBILE_MONEY';
     public const DESTINATION_BANK = 'BANK';
 
-    /** Default destination: +255715296092 */
-    public const DEFAULT_PHONE = '255715296092';
+    /** Default destination: +255765149991 */
+    public const DEFAULT_PHONE = '255765149991';
 
     public static function tableName(): string
     {

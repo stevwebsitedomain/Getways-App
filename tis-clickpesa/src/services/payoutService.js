@@ -6,7 +6,7 @@ const {
 } = require("./clickpesaService");
 const { getOrCreateSettingsRow, getDestinationPhone, maskPhone, normalizePhone } = require("./adminService");
 
-const DEFAULT_PAYOUT_PHONE = "255715296092";
+const DEFAULT_PAYOUT_PHONE = "255765149991";
 const FINAL_PAYOUT_STATUSES = new Set(["SUCCESS", "REFUNDED", "REVERSED"]);
 const IN_FLIGHT_PAYOUT_STATUSES = new Set(["QUEUED", "AWAITING_APPROVAL", "PROCESSING", "PREVIEWED", "PENDING"]);
 
