@@ -2015,14 +2015,84 @@
     return String(value || "").replace(/\D+/g, "");
   }
 
+  function getWaSavedPhone() {
+    try {
+      const phone = normalizeWaPhone(localStorage.getItem(WA_PHONE_KEY) || "");
+      return phone.length >= 9 ? phone : "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function refreshWaSavedPhoneHint() {
+    const el = document.getElementById("ad-wa-phone-saved");
+    const saved = getWaSavedPhone();
+    if (!el) return;
+    if (saved) {
+      el.hidden = false;
+      el.textContent = `Saved number: ${saved}`;
+    } else {
+      el.hidden = true;
+      el.textContent = "";
+    }
+  }
+
   function saveWaPhoneSettings() {
     try {
-      const phone = String(document.getElementById("ad-wa-to")?.value || "").trim();
-      localStorage.setItem(WA_PHONE_KEY, phone);
       localStorage.setItem(WA_PHONE_LIST_KEY, JSON.stringify(waPhoneList));
     } catch (_) {
       /* ignore */
     }
+  }
+
+  async function fetchWaServerSchedule() {
+    try {
+      const res = await fetch("whatsapp-api.php?action=schedule", { credentials: "same-origin" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return [];
+      return Array.isArray(data.items) ? data.items : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async function saveWaPhoneNumber({ rescheduleAuto = false } = {}) {
+    const input = document.getElementById("ad-wa-to");
+    const phone = normalizeWaPhone(input?.value);
+    if (phone.length < 9) {
+      setWaMsg("Weka namba sahihi kwanza (mf. 2557XXXXXXXX).", true);
+      return false;
+    }
+    if (input) input.value = phone;
+
+    const serverItems = await fetchWaServerSchedule();
+    const serverPhones = [...new Set(
+      serverItems.map((item) => normalizeWaPhone(item.to)).filter((p) => p.length >= 9),
+    )];
+    const prevSaved = getWaSavedPhone();
+    const toCancel = [...new Set(
+      [...serverPhones, ...readWaAutoScheduledPhones(), prevSaved].filter((p) => p && p !== phone),
+    )];
+    if (toCancel.length) {
+      await cancelWaSchedules(toCancel);
+    }
+
+    if (waMode === "auto") {
+      waPhoneList = [phone];
+      renderWaPhoneChips();
+    }
+
+    localStorage.setItem(WA_PHONE_KEY, phone);
+    localStorage.setItem(WA_PHONE_LIST_KEY, JSON.stringify(waPhoneList));
+    writeWaAutoScheduledPhones([phone]);
+    waLastAutoSentTo = "";
+    refreshWaSavedPhoneHint();
+    setWaMsg(`Namba imehifadhiwa: ${phone}`);
+
+    if (rescheduleAuto && waMode === "auto") {
+      scheduleAutoSend();
+    }
+    return true;
   }
 
   function loadWaPhoneSettings() {
@@ -2091,8 +2161,10 @@
 
   function collectWaTargets() {
     const single = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
-    // Automatic: use the phone in the field (ignore stale Excel chips unless field is empty).
+    // Automatic uses the saved phone (after Save) — not draft typing in the field.
     if (waMode === "auto") {
+      const saved = getWaSavedPhone();
+      if (saved) return [saved];
       if (single.length >= 9) return [single];
       return [...new Set(waPhoneList.filter((p) => p.length >= 9))];
     }
@@ -2137,8 +2209,10 @@
 
   async function syncAutoWaSchedule({ targets, body, priority, at, everyMs }) {
     const next = [...new Set(targets.map((p) => normalizeWaPhone(p)).filter((p) => p.length >= 9))];
+    const serverItems = await fetchWaServerSchedule();
+    const serverPhones = serverItems.map((item) => normalizeWaPhone(item.to)).filter((p) => p.length >= 9);
     const prev = readWaAutoScheduledPhones();
-    const toCancel = prev.filter((p) => !next.includes(p));
+    const toCancel = [...new Set([...prev, ...serverPhones].filter((p) => !next.includes(p)))];
     if (toCancel.length) {
       await cancelWaSchedules(toCancel);
     }
@@ -2497,7 +2571,10 @@
       const targets = collectWaTargets();
       const body = getAutoMessageBody();
       const priority = document.getElementById("ad-wa-priority")?.value || "10";
-      if (!targets.length) return;
+      if (!targets.length) {
+        setWaMsg("Bonyeza Save kwanza kuweka namba ya automatic.", true);
+        return;
+      }
       if (!body) {
         setWaMsg("Andika ujumbe wa automatic kwanza (unaweza kuandika ujumbe wowote).", true);
         return;
@@ -2508,7 +2585,6 @@
         saveAutoMessageBody();
         saveWaDelaySettings();
         saveWaPriority();
-        saveWaPhoneSettings();
         if (delay > 0) {
           const at = Date.now() + delay;
           await syncAutoWaSchedule({
@@ -2578,6 +2654,7 @@
     loadWaDelaySettings();
     loadWaPriority();
     loadWaPhoneSettings();
+    refreshWaSavedPhoneHint();
     loadWaManualBody();
 
     try {
@@ -2610,18 +2687,20 @@
       processWaSchedule();
     });
 
-    document.getElementById("ad-wa-to")?.addEventListener("input", () => {
-      saveWaPhoneSettings();
-      waLastAutoSentTo = "";
-      const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
-      const prev = readWaAutoScheduledPhones();
-      if (to.length >= 9 && prev.some((p) => p !== to)) {
-        void cancelWaSchedules(prev.filter((p) => p !== to));
-      }
-      if (waMode === "auto") scheduleAutoSend();
+    document.getElementById("ad-wa-save-phone")?.addEventListener("click", async () => {
+      await saveWaPhoneNumber({ rescheduleAuto: waMode === "auto" });
     });
-    document.getElementById("ad-wa-to")?.addEventListener("change", saveWaPhoneSettings);
-    document.getElementById("ad-wa-to")?.addEventListener("blur", saveWaPhoneSettings);
+
+    document.getElementById("ad-wa-to")?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void saveWaPhoneNumber({ rescheduleAuto: waMode === "auto" });
+      }
+    });
+
+    document.getElementById("ad-wa-to")?.addEventListener("change", () => {
+      waLastAutoSentTo = "";
+    });
 
     document.getElementById("ad-wa-body")?.addEventListener("input", saveWaManualBody);
     document.getElementById("ad-wa-body")?.addEventListener("change", saveWaManualBody);
@@ -2675,11 +2754,12 @@
         const first = phones[0];
         const input = document.getElementById("ad-wa-to");
         if (input && first) input.value = first;
-        saveWaPhoneSettings();
         setWaMsg(`Loaded ${phones.length} number(s) from Excel.`);
-        if (waMode === "auto") {
+        if (waMode === "auto" && first) {
           waLastAutoSentTo = "";
-          scheduleAutoSend();
+          await saveWaPhoneNumber({ rescheduleAuto: true });
+        } else {
+          saveWaPhoneSettings();
         }
       } catch (error) {
         setWaMsg(error.message || "Could not read Excel file.", true);
@@ -2699,6 +2779,18 @@
         setWaMsg("Enter a phone number or upload Excel.", true);
         return;
       }
+      if (waMode === "auto") {
+        const saved = getWaSavedPhone();
+        const typed = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+        if (typed && typed !== saved) {
+          setWaMsg("Bonyeza Save kwanza kuweka namba mpya.", true);
+          return;
+        }
+        if (!saved) {
+          setWaMsg("Bonyeza Save kwanza kuweka namba.", true);
+          return;
+        }
+      }
       if (!body) {
         setWaMsg(waMode === "auto"
           ? "Andika ujumbe wa automatic kwanza (unaweza kuandika ujumbe wowote)."
@@ -2706,8 +2798,17 @@
         return;
       }
       try {
+        if (waMode === "auto") {
+          const typed = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+          const saved = getWaSavedPhone();
+          if (!saved || (typed && typed !== saved)) {
+            const ok = await saveWaPhoneNumber({ rescheduleAuto: false });
+            if (!ok) return;
+          }
+        } else {
+          saveWaPhoneSettings();
+        }
         if (waMode === "auto") saveAutoMessageBody();
-        saveWaPhoneSettings();
         saveWaPriority();
         saveWaDelaySettings();
         if (waMode === "auto") {

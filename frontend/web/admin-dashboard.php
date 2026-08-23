@@ -541,6 +541,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
             <label class="ad-wa-label">Phone
               <div class="ad-wa-phone-row">
                 <input id="ad-wa-to" name="to" type="tel" placeholder="2557XXXXXXXX" required />
+                <button type="button" class="ad-wa-save-phone-btn" id="ad-wa-save-phone">Save</button>
                 <label class="ad-wa-excel-btn" title="Upload Excel / CSV">
                   <i class="fa-solid fa-file-excel"></i>
                   <span>Excel</span>
@@ -548,6 +549,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 </label>
               </div>
             </label>
+            <p id="ad-wa-phone-saved" class="ad-wa-phone-saved" hidden></p>
             <div id="ad-wa-phone-chips" class="ad-wa-chips" hidden></div>
 
             <label class="ad-wa-label" id="ad-wa-body-wrap">Message

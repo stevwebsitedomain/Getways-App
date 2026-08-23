@@ -3100,9 +3100,32 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 }
 .ad-wa-phone-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 8px;
   align-items: stretch;
+}
+.ad-wa-save-phone-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ad-wa-save-phone-btn:hover {
+  background: #dbeafe;
+}
+.ad-wa-phone-saved {
+  margin: -2px 0 8px;
+  font-size: 0.74rem;
+  color: #15803d;
+  font-weight: 700;
 }
 .ad-wa-excel-btn {
   display: inline-flex;
