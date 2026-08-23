@@ -1841,6 +1841,7 @@
   const WA_SCHEDULE_KEY = "gw_wa_schedule";
   const WA_DELAY_VALUE_KEY = "gw_wa_delay_value";
   const WA_DELAY_UNIT_KEY = "gw_wa_delay_unit";
+  const WA_AUTO_SCHEDULED_PHONES_KEY = "gw_wa_auto_scheduled_phones";
 
   function setWaMsg(text, isError) {
     const el = document.getElementById("ad-wa-msg");
@@ -2090,9 +2091,61 @@
 
   function collectWaTargets() {
     const single = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+    // Automatic: use the phone in the field (ignore stale Excel chips unless field is empty).
+    if (waMode === "auto") {
+      if (single.length >= 9) return [single];
+      return [...new Set(waPhoneList.filter((p) => p.length >= 9))];
+    }
     const list = [...waPhoneList];
     if (single && !list.includes(single)) list.unshift(single);
     return [...new Set(list.filter((p) => p.length >= 9))];
+  }
+
+  function readWaAutoScheduledPhones() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(WA_AUTO_SCHEDULED_PHONES_KEY) || "[]");
+      return Array.isArray(raw)
+        ? [...new Set(raw.map((p) => normalizeWaPhone(p)).filter((p) => p.length >= 9))]
+        : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeWaAutoScheduledPhones(phones) {
+    try {
+      localStorage.setItem(
+        WA_AUTO_SCHEDULED_PHONES_KEY,
+        JSON.stringify([...new Set((phones || []).map((p) => normalizeWaPhone(p)).filter((p) => p.length >= 9))]),
+      );
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  async function cancelWaSchedules(phones) {
+    const list = [...new Set((phones || []).map((p) => normalizeWaPhone(p)).filter((p) => p.length >= 9))];
+    if (!list.length) return null;
+    const res = await fetch("whatsapp-api.php?action=schedule-cancel", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phones: list }),
+    });
+    return res.json().catch(() => ({}));
+  }
+
+  async function syncAutoWaSchedule({ targets, body, priority, at, everyMs }) {
+    const next = [...new Set(targets.map((p) => normalizeWaPhone(p)).filter((p) => p.length >= 9))];
+    const prev = readWaAutoScheduledPhones();
+    const toCancel = prev.filter((p) => !next.includes(p));
+    if (toCancel.length) {
+      await cancelWaSchedules(toCancel);
+    }
+    for (const to of next) {
+      await queueWaSchedule({ to, body, priority, at, everyMs });
+    }
+    writeWaAutoScheduledPhones(next);
   }
 
   function formatWaWhen(when) {
@@ -2458,11 +2511,15 @@
         saveWaPhoneSettings();
         if (delay > 0) {
           const at = Date.now() + delay;
-          for (const to of targets) {
-            await queueWaSchedule({ to, body, priority, at, everyMs: delay });
-          }
+          await syncAutoWaSchedule({
+            targets,
+            body,
+            priority,
+            at,
+            everyMs: delay,
+          });
           waLastAutoSentTo = key;
-          setWaMsg(`Automatic ON · ${formatWaIntervalLabel(delay)} · next ${formatWaScheduleTime(at)}`);
+          setWaMsg(`Automatic ON · ${formatWaIntervalLabel(delay)} · ${targets.join(", ")} · next ${formatWaScheduleTime(at)}`);
           return;
         }
         for (const to of targets) {
@@ -2555,8 +2612,12 @@
 
     document.getElementById("ad-wa-to")?.addEventListener("input", () => {
       saveWaPhoneSettings();
+      waLastAutoSentTo = "";
       const to = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
-      if (to !== waLastAutoSentTo) waLastAutoSentTo = "";
+      const prev = readWaAutoScheduledPhones();
+      if (to.length >= 9 && prev.some((p) => p !== to)) {
+        void cancelWaSchedules(prev.filter((p) => p !== to));
+      }
       if (waMode === "auto") scheduleAutoSend();
     });
     document.getElementById("ad-wa-to")?.addEventListener("change", saveWaPhoneSettings);
@@ -2653,11 +2714,15 @@
           const delay = delayMsFromUi();
           if (delay > 0) {
             const at = Date.now() + delay;
-            for (const to of targets) {
-              await queueWaSchedule({ to, body, priority, at, everyMs: delay });
-            }
+            await syncAutoWaSchedule({
+              targets,
+              body,
+              priority,
+              at,
+              everyMs: delay,
+            });
             waLastAutoSentTo = `${targets.join(",")}|${delay}|${priority}|${body}`;
-            setWaMsg(`Automatic ON · ${formatWaIntervalLabel(delay)} · next ${formatWaScheduleTime(at)}`);
+            setWaMsg(`Automatic ON · ${formatWaIntervalLabel(delay)} · ${targets.join(", ")} · next ${formatWaScheduleTime(at)}`);
             return;
           }
         }
@@ -2700,6 +2765,7 @@
         const data = await res.json().catch(() => ({}));
         waLastAutoSentTo = "";
         clearWaLocalSchedule();
+        writeWaAutoScheduledPhones([]);
         setWaMsg(data.ok ? (data.message || "Automatic stopped.") : (data.message || "Stop failed"), !data.ok);
       } catch (error) {
         setWaMsg(error.message || String(error), true);
