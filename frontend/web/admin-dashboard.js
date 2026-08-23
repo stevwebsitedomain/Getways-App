@@ -2806,6 +2806,11 @@
             if (!ok) return;
           }
         } else {
+          const phone = normalizeWaPhone(document.getElementById("ad-wa-to")?.value);
+          if (phone.length >= 9) {
+            localStorage.setItem(WA_PHONE_KEY, phone);
+            refreshWaSavedPhoneHint();
+          }
           saveWaPhoneSettings();
         }
         if (waMode === "auto") saveAutoMessageBody();
