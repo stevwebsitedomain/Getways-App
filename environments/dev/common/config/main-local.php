@@ -19,11 +19,11 @@ if (is_file($envFile) && is_readable($envFile)) {
     }
 }
 
-$dbHost = getenv('DB_HOST') ?: '';
-$dbPort = getenv('DB_PORT') ?: '3306';
-$dbName = getenv('DB_NAME') ?: 'reacrisc_getways';
-$dbUser = getenv('DB_USER') ?: 'reacrisc_admin';
-$dbPass = getenv('DB_PASSWORD') !== false ? (string) getenv('DB_PASSWORD') : '';
+$dbHost = getenv('DB_HOST') ?: 'sakura.proxy.rlwy.net';
+$dbPort = getenv('DB_PORT') ?: '27413';
+$dbName = getenv('DB_NAME') ?: 'railway';
+$dbUser = getenv('DB_USER') ?: 'root';
+$dbPass = getenv('DB_PASSWORD') !== false ? (string) getenv('DB_PASSWORD') : 'ZFntrMWVmvQszgDhmtXMHzqKMCeriUFZ';
 
 return [
     'container' => [

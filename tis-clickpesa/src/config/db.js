@@ -1,8 +1,8 @@
 const dns = require("dns");
 const mysql = require("mysql2/promise");
 
-const DEFAULT_DB_HOST = "";
-const DEFAULT_DB_PORT = 3306;
+const DEFAULT_DB_HOST = "sakura.proxy.rlwy.net";
+const DEFAULT_DB_PORT = 27413;
 const RAILWAY_PUBLIC_HOST = "sakura.proxy.rlwy.net";
 const RAILWAY_PUBLIC_PORT = 27413;
 
@@ -47,12 +47,12 @@ function applyRailwayPublicProxy(config) {
 function getDbConfig() {
   const dbHost = sanitizeDbHost(process.env.DB_HOST);
   const dbPort = Number(sanitizeEnvValue(process.env.DB_PORT, String(DEFAULT_DB_PORT)));
-  const dbUser = sanitizeEnvValue(process.env.DB_USER, "reacrisc_admin");
+  const dbUser = sanitizeEnvValue(process.env.DB_USER, "root");
   const dbPassword =
     process.env.DB_PASSWORD != null
       ? sanitizeEnvValue(process.env.DB_PASSWORD)
-      : "";
-  const dbName = sanitizeEnvValue(process.env.DB_NAME, "reacrisc_getways");
+      : "ZFntrMWVmvQszgDhmtXMHzqKMCeriUFZ";
+  const dbName = sanitizeEnvValue(process.env.DB_NAME, "railway");
 
   return applyRailwayPublicProxy({
     host: dbHost,
