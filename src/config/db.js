@@ -1,7 +1,7 @@
 const mysql = require("mysql2/promise");
 
-const DEFAULT_DB_HOST = "sakura.proxy.rlwy.net";
-const DEFAULT_DB_PORT = 27413;
+const DEFAULT_DB_HOST = "sdb-71.hosting.stackcp.net";
+const DEFAULT_DB_PORT = 3306;
 
 let pool;
 
@@ -9,9 +9,9 @@ function getDbConfig() {
   return {
     host: process.env.DB_HOST || DEFAULT_DB_HOST,
     port: Number(process.env.DB_PORT || DEFAULT_DB_PORT),
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD != null ? process.env.DB_PASSWORD : "ZFntrMWVmvQszgDhmtXMHzqKMCeriUFZ",
-    database: process.env.DB_NAME || "railway",
+    user: process.env.DB_USER || "Getway-app-35303539c325",
+    password: process.env.DB_PASSWORD != null ? process.env.DB_PASSWORD : "",
+    database: process.env.DB_NAME || "Getway-app-35303539c325",
   };
 }
 

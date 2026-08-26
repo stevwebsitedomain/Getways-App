@@ -1,46 +1,46 @@
 <?php
 
+/**
+ * Prefer project-root .env; fall back to StackCP host defaults (no password in git).
+ */
+$envFile = dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . '.env';
+if (is_file($envFile) && is_readable($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+            continue;
+        }
+        [$k, $v] = array_map('trim', explode('=', $line, 2));
+        $v = trim($v, " \t\"'");
+        if ($k !== '' && getenv($k) === false) {
+            putenv("{$k}={$v}");
+            $_ENV[$k] = $v;
+        }
+    }
+}
+
+$dbHost = getenv('DB_HOST') ?: 'sdb-71.hosting.stackcp.net';
+$dbPort = getenv('DB_PORT') ?: '3306';
+$dbName = getenv('DB_NAME') ?: 'Getway-app-35303539c325';
+$dbUser = getenv('DB_USER') ?: 'Getway-app-35303539c325';
+$dbPass = getenv('DB_PASSWORD') !== false ? (string) getenv('DB_PASSWORD') : '';
+
 return [
     'container' => [
         'singletons' => [
             \yii\mail\MailerInterface::class => [
                 'class' => \yii\symfonymailer\Mailer::class,
                 'viewPath' => '@common/mail',
-                // send all mails to a file by default.
                 'useFileTransport' => true,
-                // You have to set
-                //
-                // 'useFileTransport' => false,
-                //
-                // and configure a transport for the mailer to send real emails.
-                //
-                // SMTP server example:
-                //    'transport' => [
-                //        'scheme' => 'smtps',
-                //        'host' => '',
-                //        'username' => '',
-                //        'password' => '',
-                //        'port' => 465,
-                //        'dsn' => 'native://default',
-                //    ],
-                //
-                // DSN example:
-                //    'transport' => [
-                //        'dsn' => 'smtp://user:pass@smtp.example.com:25',
-                //    ],
-                //
-                // See: https://symfony.com/doc/current/mailer.html#using-built-in-transports
-                // Or if you use a 3rd party service, see:
-                // https://symfony.com/doc/current/mailer.html#using-a-3rd-party-transport
             ],
         ],
     ],
     'components' => [
         'db' => [
             'class' => \yii\db\Connection::class,
-            'dsn' => 'mysql:host=sdb-71.hosting.stackcp.net;port=3306;dbname=Getway-app-35303539c325',
-            'username' => 'admin-48da',
-            'password' => 'Getway2026',
+            'dsn' => "mysql:host={$dbHost};port={$dbPort};dbname={$dbName}",
+            'username' => $dbUser,
+            'password' => $dbPass,
             'charset' => 'utf8mb4',
         ],
         'mailer' => \yii\mail\MailerInterface::class,
