@@ -1,10 +1,16 @@
 <?php
 require __DIR__ . '/auth-guard.php';
+$authUser = $_SESSION['gw_auth_user'] ?? [];
 $cssVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
 $bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
 $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
 $autopayJsVersion = (string) (@filemtime(__DIR__ . '/autopay.js') ?: time());
 $phoneTopbarTitle = 'AutoPay';
+$gwAuthJson = json_encode([
+    'id' => (string) ($authUser['id'] ?? ''),
+    'fullName' => (string) ($authUser['fullName'] ?? ''),
+    'phone' => (string) ($authUser['phone'] ?? ''),
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -129,6 +135,7 @@ $phoneTopbarTitle = 'AutoPay';
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
   <script src="receipt-actions.js?v=2"></script>
   <script src="receipt-slip.js?v=13"></script>
+  <script>window.GW_AUTH_USER = <?= $gwAuthJson ?: '{}' ?>;</script>
   <script src="autopay.js?v=<?= urlencode($autopayJsVersion) ?>"></script>
 </body>
 </html>

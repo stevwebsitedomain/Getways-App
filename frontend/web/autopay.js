@@ -236,6 +236,7 @@ async function createAutoPay(event) {
     customerEmail: "customer@example.com",
     description: String(descriptionEl?.value || "AutoPay HaloPesa Payment").trim() || "AutoPay HaloPesa Payment",
     orderCurrency: "TZS",
+    collectorUserId: String(window.GW_AUTH_USER?.id || "").trim(),
   };
 
   if (payBtn) payBtn.disabled = true;

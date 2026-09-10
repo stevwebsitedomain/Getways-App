@@ -50,6 +50,20 @@ try {
   /* ignore warm-up errors */
 }
 
+function normalizeCollectorUserId(raw) {
+  const id = String(raw || "").trim().slice(0, 64);
+  return id || null;
+}
+
+function withCollectorTag(description, collectorUserId) {
+  const base = String(description || "").trim() || "ClickPesa Payment";
+  const id = normalizeCollectorUserId(collectorUserId);
+  if (!id) return base.slice(0, 512);
+  const tag = `[gw:${id}]`;
+  if (base.includes(tag)) return base.slice(0, 512);
+  return `${tag} ${base}`.slice(0, 512);
+}
+
 async function persistPaymentToDb(entry) {
   if (!entry || !entry.orderReference) {
     return;
@@ -61,28 +75,52 @@ async function persistPaymentToDb(entry) {
   const phone = String(entry.phone || "").trim().slice(0, 32) || null;
   const channel = String(entry.channel || entry.paymentMode || "tis").slice(0, 64) || null;
   const customerName = String(entry.customerName || "").trim().slice(0, 255) || null;
-  const description = String(entry.description || "").trim().slice(0, 512) || null;
+  const collectorUserId = normalizeCollectorUserId(entry.collectorUserId);
+  const description = withCollectorTag(entry.description, collectorUserId);
 
   try {
     const db = getPool();
-    await db.query(
-      `INSERT INTO clickpesa_transactions
-        (order_reference, amount, currency, phone, customer_name, description, payment_status, transaction_type, channel, created_at, updated_at)
-       VALUES (?, ?, 'TZS', ?, ?, ?, ?, 'collection', ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         amount = IF(VALUES(amount) > 0, VALUES(amount), amount),
-         phone = COALESCE(VALUES(phone), phone),
-         customer_name = COALESCE(VALUES(customer_name), customer_name),
-         description = COALESCE(VALUES(description), description),
-         payment_status = CASE
-           WHEN payment_status IN ('SUCCESS', 'FAILED', 'REFUNDED')
-             AND VALUES(payment_status) = 'PENDING' THEN payment_status
-           ELSE VALUES(payment_status)
-         END,
-         channel = COALESCE(VALUES(channel), channel),
-         updated_at = VALUES(updated_at)`,
-      [orderReference, amount, phone, customerName, description, status, channel, now, now]
-    );
+    try {
+      await db.query(
+        `INSERT INTO clickpesa_transactions
+          (order_reference, amount, currency, phone, collector_user_id, customer_name, description, payment_status, transaction_type, channel, created_at, updated_at)
+         VALUES (?, ?, 'TZS', ?, ?, ?, ?, ?, 'collection', ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           amount = IF(VALUES(amount) > 0, VALUES(amount), amount),
+           phone = COALESCE(VALUES(phone), phone),
+           collector_user_id = COALESCE(VALUES(collector_user_id), collector_user_id),
+           customer_name = COALESCE(VALUES(customer_name), customer_name),
+           description = COALESCE(VALUES(description), description),
+           payment_status = CASE
+             WHEN payment_status IN ('SUCCESS', 'FAILED', 'REFUNDED')
+               AND VALUES(payment_status) = 'PENDING' THEN payment_status
+             ELSE VALUES(payment_status)
+           END,
+           channel = COALESCE(VALUES(channel), channel),
+           updated_at = VALUES(updated_at)`,
+        [orderReference, amount, phone, collectorUserId, customerName, description, status, channel, now, now]
+      );
+    } catch (colErr) {
+      // Older schemas without collector_user_id
+      await db.query(
+        `INSERT INTO clickpesa_transactions
+          (order_reference, amount, currency, phone, customer_name, description, payment_status, transaction_type, channel, created_at, updated_at)
+         VALUES (?, ?, 'TZS', ?, ?, ?, ?, 'collection', ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           amount = IF(VALUES(amount) > 0, VALUES(amount), amount),
+           phone = COALESCE(VALUES(phone), phone),
+           customer_name = COALESCE(VALUES(customer_name), customer_name),
+           description = COALESCE(VALUES(description), description),
+           payment_status = CASE
+             WHEN payment_status IN ('SUCCESS', 'FAILED', 'REFUNDED')
+               AND VALUES(payment_status) = 'PENDING' THEN payment_status
+             ELSE VALUES(payment_status)
+           END,
+           channel = COALESCE(VALUES(channel), channel),
+           updated_at = VALUES(updated_at)`,
+        [orderReference, amount, phone, customerName, description, status, channel, now, now]
+      );
+    }
   } catch (err) {
     console.warn("persistPaymentToDb failed:", err.message);
   }
@@ -121,22 +159,39 @@ async function listRecentPayments() {
 
   try {
     const db = getPool();
-    const [rows] = await db.query(
-      `SELECT order_reference, amount, phone, payment_status, channel, created_at, updated_at
-       FROM clickpesa_transactions
-       ORDER BY updated_at DESC
-       LIMIT 300`
-    );
+    let rows = [];
+    try {
+      const [dbRows] = await db.query(
+        `SELECT order_reference, amount, phone, collector_user_id, customer_name, description, payment_status, channel, created_at, updated_at
+         FROM clickpesa_transactions
+         WHERE transaction_type = 'collection' OR transaction_type IS NULL OR transaction_type = ''
+         ORDER BY updated_at DESC
+         LIMIT 300`
+      );
+      rows = dbRows || [];
+    } catch (_) {
+      const [dbRows] = await db.query(
+        `SELECT order_reference, amount, phone, customer_name, description, payment_status, channel, created_at, updated_at
+         FROM clickpesa_transactions
+         ORDER BY updated_at DESC
+         LIMIT 300`
+      );
+      rows = dbRows || [];
+    }
     for (const row of rows || []) {
       const orderReference = String(row.order_reference || "").toUpperCase();
       if (!orderReference) continue;
       const createdSec = Number(row.created_at || 0);
+      const collectorUserId = normalizeCollectorUserId(row.collector_user_id);
       byRef.set(orderReference, {
         id: orderReference,
         orderReference,
         amount: Number(row.amount || 0),
         status: mapWalletStatus(row.payment_status),
         phone: row.phone || "",
+        customerName: row.customer_name || "",
+        description: row.description || "",
+        collectorUserId: collectorUserId || "",
         channel: row.channel || "",
         createdAt: createdSec > 0 ? new Date(createdSec * 1000).toISOString() : new Date().toISOString(),
         updatedAt:
@@ -442,7 +497,11 @@ async function createPaymentWithChannel(req, res, next, channel = "default") {
       customerEmail = "customer@example.com",
       customerPhone = "255700000000",
       description = channel === "autopay" ? "AutoPay HaloPesa Payment" : "ClickPesa Payment",
+      collectorUserId = "",
     } = req.body || {};
+
+    const collectorId = normalizeCollectorUserId(collectorUserId);
+    const taggedDescription = withCollectorTag(description, collectorId);
 
     const customerPhoneSafe = String(customerPhone ?? "")
       .trim()
@@ -494,7 +553,8 @@ async function createPaymentWithChannel(req, res, next, channel = "default") {
         channel: "autopay",
         paymentMode: "ussd-push",
         customerName: String(customerName || "").trim() || "Customer",
-        description,
+        description: taggedDescription,
+        collectorUserId: collectorId || "",
         createdAt: new Date().toISOString(),
       });
       broadcastPaymentUpdate({
@@ -522,7 +582,7 @@ async function createPaymentWithChannel(req, res, next, channel = "default") {
       customerName,
       customerEmail,
       customerPhone: customerPhoneForOrder,
-      description,
+      description: taggedDescription,
     };
 
     const { checkoutLink, raw } = await createCheckoutLink(payload, channel);
@@ -535,7 +595,8 @@ async function createPaymentWithChannel(req, res, next, channel = "default") {
       channel,
       paymentMode: "checkout-link",
       customerName: String(customerName || "").trim() || "Customer",
-      description,
+      description: taggedDescription,
+      collectorUserId: collectorId || "",
       createdAt: new Date().toISOString(),
     });
     broadcastPaymentUpdate({
@@ -807,7 +868,16 @@ async function deletePayment(req, res, next) {
 
 async function getPayments(req, res, next) {
   try {
-    const payments = await listRecentPayments();
+    let payments = await listRecentPayments();
+    const collectorFilter = normalizeCollectorUserId(req.query?.collectorUserId || req.query?.userId || "");
+    if (collectorFilter) {
+      const tag = `[gw:${collectorFilter}]`;
+      payments = payments.filter((payment) => {
+        const collector = normalizeCollectorUserId(payment.collectorUserId);
+        const desc = String(payment.description || "");
+        return collector === collectorFilter || desc.includes(tag);
+      });
+    }
     const totalSales = payments
       .filter((payment) => isSuccessStatus(payment.status))
       .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);

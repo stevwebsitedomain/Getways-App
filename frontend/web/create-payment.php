@@ -1,9 +1,15 @@
 <?php
 require __DIR__ . '/auth-guard.php';
+$authUser = $_SESSION['gw_auth_user'] ?? [];
 $cssVersion = (string) (@filemtime(__DIR__ . '/part-two.css') ?: time());
 $bkVersion = (string) (@filemtime(__DIR__ . '/wallet-banking-theme.css') ?: time());
 $shellVersion = (string) (@filemtime(__DIR__ . '/wallet-shell.js') ?: time());
 $phoneTopbarTitle = 'Transfer money';
+$gwAuthJson = json_encode([
+    'id' => (string) ($authUser['id'] ?? ''),
+    'fullName' => (string) ($authUser['fullName'] ?? ''),
+    'phone' => (string) ($authUser['phone'] ?? ''),
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -134,6 +140,7 @@ $phoneTopbarTitle = 'Transfer money';
   <script src="tis-api-base.js"></script>
   <script src="script.js"></script>
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
+  <script>window.GW_AUTH_USER = <?= $gwAuthJson ?: '{}' ?>;</script>
   <script src="create-payment.js"></script>
 </body>
 </html>

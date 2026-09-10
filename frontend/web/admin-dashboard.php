@@ -67,7 +67,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="control-number"] #ad-section-control-number,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="transactions"] #ad-section-transactions,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="payout-dest"] #ad-section-payout-dest,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="payouts"] #ad-section-payouts,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="users"] #ad-section-users,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="recent"] #ad-section-recent,
     body.ad-body.ad-portal.ad-view-detail[data-ad-section="whatsapp"] #ad-section-whatsapp,
@@ -98,6 +97,8 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     .ad-service-value--pending{color:#ca8a04!important}
     .ad-service-value--failed{color:#dc2626!important}
     .ad-service-value--accent{color:#0369a1!important}
+    .ad-tx-filters{display:flex;flex-wrap:wrap;gap:6px;margin-right:8px}
+    .ad-tx-filters .ad-btn.is-active{background:#005691;color:#fff;border-color:#005691}
     @media(max-width:900px){.ad-sidebar{transform:translateX(-100%)}.ad-sidebar.is-open{transform:translateX(0)}.ad-main-wrap{margin-left:0}.ad-menu-btn{display:grid!important;place-items:center;width:40px;height:40px;border:1px solid #c5cdd8;border-radius:8px;background:#fff;color:#005691;cursor:pointer}.ad-service-grid{grid-template-columns:1fr}}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
@@ -129,7 +130,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
         <button type="button" class="ad-sidebar-link" data-ad-target="recent"><span class="ad-sidebar-link-text"><i class="fa-solid fa-clock-rotate-left ad-nav-ico ad-nav-ico--recent"></i> <span class="ad-sidebar-text">Recent collections</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <p class="ad-sidebar-label">PAYOUTS</p>
         <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest"><span class="ad-sidebar-link-text"><i class="fa-solid fa-mobile-screen ad-nav-ico ad-nav-ico--mobile"></i> <span class="ad-sidebar-text">Payout destination</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="payouts"><span class="ad-sidebar-link-text"><i class="fa-solid fa-money-bill-transfer ad-nav-ico ad-nav-ico--money"></i> <span class="ad-sidebar-text">Automatic payouts</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <button type="button" class="ad-sidebar-link" data-ad-target="users"><span class="ad-sidebar-link-text"><i class="fa-solid fa-users ad-nav-ico ad-nav-ico--users"></i> <span class="ad-sidebar-text">Registered users</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
         <p class="ad-sidebar-label">MESSAGING</p>
         <button type="button" class="ad-sidebar-link" data-ad-target="whatsapp"><span class="ad-sidebar-link-text"><i class="fa-brands fa-whatsapp ad-nav-ico" style="color:#25d366"></i> <span class="ad-sidebar-text">Send WhatsApp</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
@@ -225,7 +225,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                   <small>BillPay collections</small>
                 </span>
               </button>
-              <button type="button" class="ad-service-card" data-ad-target="transactions">
+              <button type="button" class="ad-service-card" data-ad-target="transactions" data-tx-filter="SUCCESS">
                 <span class="ad-service-ico"><i class="fa-solid fa-circle-check"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Successful payments</span>
@@ -233,7 +233,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                   <small>Paid transactions</small>
                 </span>
               </button>
-              <button type="button" class="ad-service-card" data-ad-target="transactions">
+              <button type="button" class="ad-service-card" data-ad-target="transactions" data-tx-filter="PENDING">
                 <span class="ad-service-ico"><i class="fa-solid fa-hourglass-half"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Pending payments</span>
@@ -241,7 +241,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                   <small>Awaiting payment</small>
                 </span>
               </button>
-              <button type="button" class="ad-service-card" data-ad-target="transactions">
+              <button type="button" class="ad-service-card" data-ad-target="transactions" data-tx-filter="FAILED">
                 <span class="ad-service-ico"><i class="fa-solid fa-circle-xmark"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Failed payments</span>
@@ -290,14 +290,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                   <span class="ad-service-title">Payout destination</span>
                   <strong class="ad-service-value ad-service-value--accent" id="ad-portal-dest">—</strong>
                   <small>Number that receives every successful payment</small>
-                </span>
-              </button>
-              <button type="button" class="ad-service-card" data-ad-target="payouts">
-                <span class="ad-service-ico"><i class="fa-solid fa-money-bill-transfer"></i></span>
-                <span class="ad-service-body">
-                  <span class="ad-service-title">Automatic payouts</span>
-                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-payouts">0</strong>
-                  <small>Payout history</small>
                 </span>
               </button>
               <button type="button" class="ad-service-card" data-ad-target="users">
@@ -383,8 +375,14 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
 
     <section class="ad-card ad-page-section" id="ad-section-transactions" data-ad-page="transactions">
       <div class="ad-card-head">
-        <h2>Transactions</h2>
+        <h2 id="ad-transactions-title">Transactions</h2>
         <div class="ad-top-actions">
+          <div class="ad-tx-filters" role="group" aria-label="Transaction status filter">
+            <button type="button" class="ad-btn ad-btn--ghost is-active" data-set-tx-filter="ALL">All</button>
+            <button type="button" class="ad-btn ad-btn--ghost" data-set-tx-filter="SUCCESS">Successful</button>
+            <button type="button" class="ad-btn ad-btn--ghost" data-set-tx-filter="PENDING">Pending</button>
+            <button type="button" class="ad-btn ad-btn--ghost" data-set-tx-filter="FAILED">Failed</button>
+          </div>
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-balance-refresh"><i class="fa-solid fa-wallet"></i><span>Refresh Balance</span></button>
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-refresh"><i class="fa-solid fa-rotate"></i><span>Refresh</span></button>
         </div>
@@ -427,8 +425,11 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     <section class="ad-card ad-page-section" id="ad-section-payout-dest" data-ad-page="payout-dest">
       <div class="ad-card-head">
         <h2>Payout destination</h2>
+        <div class="ad-card-actions">
+          <button type="button" class="ad-btn ad-btn--primary" id="ad-manual-payout-open"><i class="fa-solid fa-paper-plane"></i><span>Manual payout</span></button>
+        </div>
       </div>
-      <p class="ad-note">Weka namba ya kupokea. Mtu akilipa (SUCCESS), pesa inatumwa automatic kwenda namba hii.</p>
+      <p class="ad-note">Default: <strong>+255715296092</strong>. Badilisha namba hapa — malipo yanayofuata yatatumwa moja kwa moja kwenye namba mpya.</p>
       <form id="ad-payout-form" class="ad-form ad-form--dest">
         <label>Payout phone number
           <span class="ad-dest-input-wrap">
@@ -441,12 +442,11 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
       <p id="ad-payout-msg" class="ad-msg" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="ad-card ad-page-section" id="ad-section-payouts" data-ad-page="payouts">
+    <section class="ad-card ad-page-section" id="ad-section-payouts" data-ad-page="payouts" hidden aria-hidden="true">
       <div class="ad-card-head">
         <h2>Payout dashboard</h2>
         <div class="ad-card-actions">
           <span id="ad-test-mode-badge" class="ad-badge ad-badge--warn" hidden>TEST MODE</span>
-          <button type="button" class="ad-btn ad-btn--primary" id="ad-manual-payout-open"><i class="fa-solid fa-paper-plane"></i><span>Manual payout</span></button>
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-payouts-refresh"><i class="fa-solid fa-rotate"></i><span>Refresh</span></button>
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-payouts-export"><i class="fa-solid fa-file-csv"></i><span>Export CSV</span></button>
         </div>
@@ -496,7 +496,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
               <th>Name</th>
               <th>Phone</th>
               <th>Username</th>
-              <th>Role</th>
+              <th>Paid amount</th>
               <th>Joined</th>
               <th>Actions</th>
             </tr>
@@ -701,8 +701,8 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
           <p class="ad-ga-hint">Bofya ikoni ili kufungua sehemu husika · Ikoni zinazunguka kiotomatiki</p>
 
           <div class="ad-ga-extra">
-            <button type="button" class="ad-ga-chip" data-ga-target="payouts" data-ga-action="scroll">
-              <i class="fa-solid fa-money-bill-transfer"></i> Payouts
+            <button type="button" class="ad-ga-chip" data-ga-target="payout-dest" data-ga-action="scroll">
+              <i class="fa-solid fa-mobile-screen"></i> Payout destination
             </button>
             <button type="button" class="ad-ga-chip" data-ga-target="users" data-ga-action="scroll">
               <i class="fa-solid fa-users"></i> Users

@@ -161,6 +161,9 @@ function userMergePaymentLists(array $listA, array $listB): array
             'amount' => (float) ($raw['amount'] ?? 0),
             'status' => $status,
             'phone' => (string) ($raw['phone'] ?? ''),
+            'customerName' => (string) ($raw['customerName'] ?? $raw['customer_name'] ?? ''),
+            'description' => (string) ($raw['description'] ?? ''),
+            'collectorUserId' => (string) ($raw['collectorUserId'] ?? $raw['collector_user_id'] ?? ''),
             'channel' => (string) ($raw['channel'] ?? $raw['mobileChannel'] ?? ''),
             'createdAt' => $raw['createdAt'] ?? $raw['created_at'] ?? null,
             'updatedAt' => $raw['updatedAt'] ?? $raw['updated_at'] ?? null,
@@ -230,6 +233,57 @@ function userFilterPaymentsByType(array $payments, string $type): array
 }
 
 /**
+ * Keep only payments that belong to this logged-in wallet account.
+ *
+ * @param array<int,array<string,mixed>> $payments
+ * @param array<string,mixed> $user
+ * @return array<int,array<string,mixed>>
+ */
+function userFilterPaymentsForAccount(array $payments, array $user): array
+{
+    $uid = trim((string) ($user['id'] ?? ''));
+    $phone = normalizePhone((string) ($user['phone'] ?? ''));
+    $name = strtolower(trim((string) ($user['fullName'] ?? '')));
+    $tag = $uid !== '' ? '[gw:' . $uid . ']' : '';
+
+    $filtered = array_values(array_filter($payments, static function (array $payment) use ($uid, $phone, $name, $tag): bool {
+        $collector = trim((string) ($payment['collectorUserId'] ?? ''));
+        $desc = (string) ($payment['description'] ?? '');
+        if ($uid !== '' && ($collector === $uid || ($tag !== '' && str_contains($desc, $tag)))) {
+            return true;
+        }
+        $payPhone = normalizePhone((string) ($payment['phone'] ?? ''));
+        $payName = strtolower(trim((string) ($payment['customerName'] ?? '')));
+        if ($phone !== '' && $payPhone !== '' && $payPhone === $phone) {
+            return true;
+        }
+        if ($name !== '' && $payName !== '' && $payName === $name) {
+            return true;
+        }
+
+        return false;
+    }));
+
+    // Legacy shared wallet: if nothing is attributed yet, keep showing all so totals are not blanked.
+    if ($filtered === [] && $payments !== []) {
+        $anyTagged = false;
+        foreach ($payments as $payment) {
+            $collector = trim((string) ($payment['collectorUserId'] ?? ''));
+            $desc = (string) ($payment['description'] ?? '');
+            if ($collector !== '' || str_contains($desc, '[gw:')) {
+                $anyTagged = true;
+                break;
+            }
+        }
+        if (!$anyTagged) {
+            return $payments;
+        }
+    }
+
+    return $filtered;
+}
+
+/**
  * @return array<string,mixed>
  */
 function userLoadWalletPayments(): array
@@ -246,7 +300,13 @@ function userLoadWalletPayments(): array
     $remote = userFetchRenderGet('/payments');
     $remotePayments = is_array($remote['payments'] ?? null) ? $remote['payments'] : [];
 
-    return userSummarizePayments(userMergePaymentLists($localPayments, $remotePayments));
+    $merged = userMergePaymentLists($localPayments, $remotePayments);
+    global $user;
+    if (is_array($user)) {
+        $merged = userFilterPaymentsForAccount($merged, $user);
+    }
+
+    return userSummarizePayments($merged);
 }
 
 function normalizePhone(string $phone): string
@@ -398,18 +458,26 @@ if ($action === 'create-control-number' && $method === 'POST') {
     $body = readJsonBody();
     $customerName = (string) ($user['fullName'] ?? 'Customer');
     $customerPhone = !empty($user['phone']) ? (string) $user['phone'] : '';
-    $userId = isset($user['id']) && $user['id'] !== '' ? (int) $user['id'] : null;
+    $collectorId = trim((string) ($user['id'] ?? ''));
+    $rawDescription = trim((string) ($body['description'] ?? ''));
+    if ($collectorId !== '') {
+        $tag = '[gw:' . $collectorId . ']';
+        $rawDescription = $rawDescription === '' || !str_contains($rawDescription, $tag)
+            ? trim($tag . ' ' . $rawDescription)
+            : $rawDescription;
+    }
 
     try {
         userYiiApp();
         $result = userClickPesa()->createControlNumber([
             'order_id' => $body['order_id'] ?? $body['orderId'] ?? '',
             'amount' => $body['amount'] ?? 0,
-            'description' => $body['description'] ?? '',
+            'description' => $rawDescription,
             'payment_mode' => $body['payment_mode'] ?? 'EXACT',
             'customerName' => $customerName,
             'phone' => $customerPhone,
-        ], $userId);
+            'collector_user_id' => $collectorId,
+        ], null);
         userJson(200, ['ok' => true, 'success' => true, 'source' => 'local-clickpesa'] + userNormalizeControlNumberResult($result));
     } catch (yii\web\HttpException $e) {
         userJson($e->statusCode, ['ok' => false, 'success' => false, 'message' => $e->getMessage()]);

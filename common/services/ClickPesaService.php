@@ -245,7 +245,7 @@ class ClickPesaService extends Component
         $this->processPendingPayouts(10);
         $settings = ClickPesaSetting::current();
         $models = ClickPesaTransaction::find()
-            ->where(['or', ['channel' => 'billpay'], ['not', ['control_number' => null]]])
+            ->where(['transaction_type' => ClickPesaTransaction::TYPE_COLLECTION])
             ->orderBy(['id' => SORT_DESC])
             ->limit($limit)
             ->all();
@@ -955,6 +955,10 @@ class ClickPesaService extends Component
 
         $rows = [];
         foreach ($models as $tx) {
+            $collectorUserId = '';
+            if (preg_match('/\[gw:([^\]]+)\]/', (string) ($tx->description ?? ''), $m)) {
+                $collectorUserId = (string) $m[1];
+            }
             $rows[] = [
                 'id' => $tx->order_reference,
                 'orderReference' => $tx->order_reference,
@@ -963,6 +967,9 @@ class ClickPesaService extends Component
                     ? ClickPesaTransaction::STATUS_SUCCESS
                     : $tx->payment_status,
                 'phone' => $tx->phone ?: '',
+                'customerName' => $tx->customer_name ?: '',
+                'description' => $tx->description ?: '',
+                'collectorUserId' => $collectorUserId,
                 'channel' => $tx->channel ?: '',
                 'controlNumber' => $tx->control_number,
                 'createdAt' => $tx->created_at ? date('c', (int) $tx->created_at) : null,

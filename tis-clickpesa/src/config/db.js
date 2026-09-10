@@ -260,6 +260,26 @@ async function initializeTables() {
   `);
 }
 
+async function ensureCollectorUserColumn() {
+  const db = getPool();
+  try {
+    const [cols] = await db.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'clickpesa_transactions'
+         AND COLUMN_NAME = 'collector_user_id'`
+    );
+    if (Array.isArray(cols) && cols.length) return;
+    await db.query(
+      `ALTER TABLE clickpesa_transactions
+       ADD COLUMN collector_user_id VARCHAR(64) NULL AFTER phone,
+       ADD KEY idx_clickpesa_collector_user (collector_user_id)`
+    );
+  } catch (err) {
+    console.warn("ensureCollectorUserColumn:", err.message);
+  }
+}
+
 async function connectDatabase() {
   const config = getDbConfig();
   logDatabaseConfig(config);
@@ -287,6 +307,7 @@ async function connectDatabase() {
 
     await pool.query("SELECT 1");
     await initializeTables();
+    await ensureCollectorUserColumn();
     console.log(`MySQL connected (${config.database}).`);
   } catch (err) {
     logMysqlConnectionError(err, config);

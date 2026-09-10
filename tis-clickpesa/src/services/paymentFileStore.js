@@ -57,6 +57,7 @@ function upsertPayment(entry) {
     phone: entry.phone || "",
     customerName: String(entry.customerName || "").trim(),
     description: String(entry.description || "").trim(),
+    collectorUserId: String(entry.collectorUserId || "").trim(),
     channel: entry.channel || entry.paymentMode || "",
     createdAt: entry.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -142,6 +142,7 @@ async function createPayment(event) {
     customerEmail: String(customerEmailEl?.value || "customer@example.com").trim() || "customer@example.com",
     description: String(descriptionEl?.value || "ClickPesa Payment").trim() || "ClickPesa Payment",
     orderCurrency: "TZS",
+    collectorUserId: String(window.GW_AUTH_USER?.id || "").trim(),
   };
 
   if (payNowBtn) payNowBtn.disabled = true;

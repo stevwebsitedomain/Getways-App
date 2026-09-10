@@ -4,6 +4,7 @@
   const PAGE_SIZE = 5;
   let latestPayoutRows = [];
   let latestControlRows = [];
+  let latestAllControlRows = [];
   let latestUserRows = [];
   let controlsPage = 1;
   let payoutsPage = 1;
@@ -12,6 +13,8 @@
   let latestRecentRows = [];
   let latestSettings = null;
   let analyticsPeriod = "all";
+  let txStatusFilter = "ALL";
+  let latestPaymentRows = [];
 
   function money(n) {
     return "TZS " + new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(n || 0));
@@ -542,13 +545,31 @@
       return;
     }
 
-    const labels = list.map((d) => String(d.label || ""));
-    const values = list.map((d) => Number(d.count || 0));
-    const seriesData = labels.map((label, index) => ({ x: label, y: values[index] ?? 0 }));
+    const values = list.map((d) => {
+      const amount = Number(d.amount || 0);
+      return amount > 0 ? amount : Number(d.count || 0);
+    });
+    const maxVal = Math.max(...values, 1);
+    const colorFor = (value) => {
+      const ratio = Number(value || 0) / maxVal;
+      if (ratio >= 0.66) return "#16a34a";
+      if (ratio >= 0.33) return "#ca8a04";
+      return "#dc2626";
+    };
+    const labels = list.map((d, index) => {
+      const raw = String(d.label || "");
+      if (list.length > 14 && index % 2 !== 0) return "";
+      if (list.length > 28 && index % 3 !== 0) return "";
+      return raw;
+    });
+    const seriesData = list.map((d, index) => ({
+      x: String(d.label || labels[index] || index),
+      y: values[index] ?? 0,
+    }));
 
     el.innerHTML = "";
     const chart = new ApexCharts(el, {
-      series: [{ name: "Transactions", data: seriesData }],
+      series: [{ name: "Collections", data: seriesData }],
       chart: {
         height: 300,
         type: "line",
@@ -564,18 +585,41 @@
       theme: { mode: "light" },
       annotations: { points: [] },
       dataLabels: { enabled: false },
-      stroke: { curve: "smooth", width: 3 },
+      stroke: { curve: "smooth", width: 3, colors: ["#64748b"] },
       grid: {
-        padding: { top: 8, right: 12, bottom: 0, left: 4 },
+        padding: { top: 8, right: 12, bottom: 8, left: 4 },
         borderColor: "#e2e8f0",
         row: { colors: ["transparent", "transparent"], opacity: 0 },
       },
       title: { text: undefined },
-      colors: ["#008FFB"],
-      markers: { size: 3, colors: ["#0868AC"], strokeColors: "#fff", strokeWidth: 2 },
+      colors: ["#64748b"],
+      markers: {
+        size: 5,
+        strokeColors: "#fff",
+        strokeWidth: 2,
+        discrete: values.map((value, index) => ({
+          seriesIndex: 0,
+          dataPointIndex: index,
+          fillColor: colorFor(value),
+          strokeColor: "#fff",
+          size: 6,
+        })),
+      },
       xaxis: {
         type: "category",
-        labels: { style: { colors: "#64748b", fontSize: "11px" } },
+        tickAmount: Math.min(list.length, list.length > 20 ? 10 : list.length > 12 ? 8 : list.length),
+        labels: {
+          rotate: list.length > 8 ? -35 : 0,
+          rotateAlways: list.length > 8,
+          hideOverlappingLabels: true,
+          trim: true,
+          style: { colors: "#64748b", fontSize: "10px" },
+          formatter(value, _opts, opts) {
+            const idx = opts?.i ?? opts?.dataPointIndex;
+            if (typeof idx === "number" && labels[idx] === "") return "";
+            return String(value || "");
+          },
+        },
         axisBorder: { color: "#e2e8f0" },
         axisTicks: { color: "#e2e8f0" },
       },
@@ -586,10 +630,15 @@
       },
       tooltip: {
         theme: "light",
-        y: {
-          formatter: function (val) {
-            return `${val} transaction${Number(val) === 1 ? "" : "s"}`;
-          },
+        custom({ series, seriesIndex, dataPointIndex }) {
+          const day = list[dataPointIndex] || {};
+          const value = series[seriesIndex][dataPointIndex];
+          const color = colorFor(value);
+          const amountText = Number(day.amount || 0) > 0 ? money(day.amount) : `${value}`;
+          return `<div style="padding:8px 10px;font-size:12px">
+            <div style="font-weight:700;margin-bottom:4px">${esc(day.label || "")}</div>
+            <div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${esc(amountText)} · ${Number(day.count || 0)} tx</div>
+          </div>`;
         },
       },
       legend: { show: false },
@@ -806,13 +855,20 @@
         date: key,
         label: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
         count: 0,
+        amount: 0,
       };
     }
     list.forEach((p) => {
       const raw = p.createdAt || p.updatedAt;
       if (!raw) return;
       const key = localDateKey(raw);
-      if (key && map[key]) map[key].count += 1;
+      if (key && map[key]) {
+        map[key].count += 1;
+        const status = String(p.status || "").toUpperCase();
+        if (["SUCCESS", "SUCCESSFUL", "COMPLETED", "PAID", "SETTLED"].includes(status)) {
+          map[key].amount += Number(p.amount || 0);
+        }
+      }
     });
     return Object.values(map);
   }
@@ -1006,8 +1062,18 @@
       }
 
       latestRecentRows = analytics.recentCollections || [];
+      latestPaymentRows = Array.isArray(analytics.payments) && analytics.payments.length
+        ? analytics.payments
+        : Array.isArray(analytics.recentCollections)
+          ? analytics.recentCollections
+          : latestPaymentRows;
       recentPage = 1;
       renderRecentCollections();
+      applyUserPaidAmounts();
+      if (!latestAllControlRows.length && latestPaymentRows.length) {
+        latestAllControlRows = mapPaymentsToControlRows(latestPaymentRows);
+        applyTxFilter();
+      }
       if (warning && analyticsChartTotals(analytics).pieTotal <= 0) {
         setBanner("ad-statement-error", warning, "error");
       } else {
@@ -1085,6 +1151,99 @@
       notify(error.message || "Could not download invoice.", "error");
       window.open(target, "_blank", "noopener");
     }
+  }
+
+  function normalizeTxStatus(status) {
+    const s = String(status || "").trim().toUpperCase();
+    if (["SUCCESS", "SUCCESSFUL", "SETTLED", "COMPLETED", "PAID"].includes(s)) return "SUCCESS";
+    if (["FAILED", "FAILURE", "DECLINED", "CANCELLED", "EXPIRED"].includes(s)) return "FAILED";
+    if (s === "PENDING") return "PENDING";
+    return s || "PENDING";
+  }
+
+  function mapPaymentsToControlRows(payments) {
+    return (Array.isArray(payments) ? payments : []).map((p, index) => {
+      const status = normalizeTxStatus(p.status);
+      return {
+        id: p.id || p.orderReference || `pay-${index}`,
+        orderId: p.orderReference || p.orderId || "—",
+        customerName: p.customerName || p.phone || "—",
+        controlNumber: p.controlNumber || "—",
+        hasControlNumber: Boolean(p.controlNumber),
+        reference: p.orderReference || "—",
+        amount: Number(p.amount || 0),
+        receivedAmount: status === "SUCCESS" ? Number(p.amount || 0) : null,
+        status,
+        description: p.description || "",
+        channel: p.channel || null,
+        createdAt: p.createdAt || p.updatedAt || null,
+        withdrawStatus: "—",
+        canWithdraw: false,
+        canResend: status === "PENDING",
+        invoiceUrl: "",
+        collectorUserId: p.collectorUserId || "",
+        phone: p.phone || "",
+      };
+    });
+  }
+
+  function applyTxFilter() {
+    const filter = String(txStatusFilter || "ALL").toUpperCase();
+    const source = latestAllControlRows.length ? latestAllControlRows : latestControlRows;
+    latestControlRows = filter === "ALL"
+      ? source.slice()
+      : source.filter((row) => normalizeTxStatus(row.status) === filter);
+    controlsPage = 1;
+    const titleEl = document.getElementById("ad-transactions-title");
+    if (titleEl) {
+      const labels = {
+        ALL: "Transactions",
+        SUCCESS: "Successful payments",
+        PENDING: "Pending payments",
+        FAILED: "Failed payments",
+      };
+      titleEl.textContent = labels[filter] || "Transactions";
+    }
+    document.querySelectorAll("[data-set-tx-filter]").forEach((btn) => {
+      btn.classList.toggle("is-active", String(btn.getAttribute("data-set-tx-filter") || "").toUpperCase() === filter);
+    });
+    renderControlsTable();
+  }
+
+  function normalizePhoneDigits(raw) {
+    return String(raw || "").replace(/\D/g, "");
+  }
+
+  function paymentBelongsToUser(payment, user) {
+    if (!payment || !user) return false;
+    const uid = String(user.id || "").trim();
+    const tag = uid ? `[gw:${uid}]` : "";
+    const collector = String(payment.collectorUserId || "").trim();
+    const desc = String(payment.description || "");
+    if (uid && (collector === uid || (tag && desc.includes(tag)))) return true;
+    const userPhone = normalizePhoneDigits(user.phone);
+    const payPhone = normalizePhoneDigits(payment.phone);
+    if (userPhone && payPhone && userPhone === payPhone) return true;
+    const userName = String(user.fullName || "").trim().toLowerCase();
+    const payName = String(payment.customerName || "").trim().toLowerCase();
+    return Boolean(userName && payName && userName === payName);
+  }
+
+  function applyUserPaidAmounts() {
+    if (!latestUserRows.length) return;
+    const payments = latestPaymentRows.length
+      ? latestPaymentRows
+      : (latestAnalytics?.payments || latestAnalytics?.recentCollections || []);
+    latestUserRows = latestUserRows.map((user) => {
+      const paidAmount = (Array.isArray(payments) ? payments : []).reduce((sum, payment) => {
+        const status = normalizeTxStatus(payment.status);
+        if (status !== "SUCCESS") return sum;
+        if (!paymentBelongsToUser(payment, user)) return sum;
+        return sum + Number(payment.amount || 0);
+      }, 0);
+      return { ...user, paidAmount };
+    });
+    renderUsersTable();
   }
 
   function renderControlsTable() {
@@ -1189,13 +1348,33 @@
     const body = document.getElementById("ad-controls-body");
     body.innerHTML = `<tr><td colspan="9">Loading...</td></tr>`;
     try {
-      const result = await requestJson("control-numbers");
-      latestControlRows = result.items || [];
-      if (result.payoutSettings) {
-        latestSettings = { ...(latestSettings || {}), ...result.payoutSettings };
+      let items = [];
+      try {
+        const result = await requestJson("control-numbers");
+        items = result.items || [];
+        if (result.payoutSettings) {
+          latestSettings = { ...(latestSettings || {}), ...result.payoutSettings };
+        }
+      } catch (_) {
+        items = [];
       }
-      controlsPage = 1;
-      renderControlsTable();
+
+      if (!items.length) {
+        try {
+          const proxied = await requestJson("live-payments");
+          const payments = Array.isArray(proxied?.payments) ? proxied.payments : [];
+          latestPaymentRows = payments;
+          items = mapPaymentsToControlRows(payments);
+        } catch (_) {
+          if (latestPaymentRows.length) {
+            items = mapPaymentsToControlRows(latestPaymentRows);
+          }
+        }
+      }
+
+      latestAllControlRows = items;
+      applyTxFilter();
+      applyUserPaidAmounts();
       setBanner("ad-controls-error", "");
     } catch (error) {
       body.innerHTML = `<tr><td colspan="9">No transactions yet.</td></tr>`;
@@ -1383,9 +1562,9 @@
     body.innerHTML = slice.length ? slice.map((row) => `
         <tr>
           <td>${esc(row.fullName || "—")}</td>
-          <td>${esc(row.phone || "—")}</td>
+          <td>${esc(row.phone || row.email || "—")}</td>
           <td>${esc(row.username || "—")}</td>
-          <td>${statusBadge(row.role || "user")}</td>
+          <td>${money(row.paidAmount || 0)}</td>
           <td>${fmtDate(row.createdAt)}</td>
           <td>
             <div class="ad-actions">
@@ -1404,8 +1583,9 @@
           <div style="text-align:left;font-size:0.9rem;line-height:1.5">
             <p><strong>Name:</strong> ${esc(user.fullName || "—")}</p>
             <p><strong>Phone:</strong> ${esc(user.phone || "—")}</p>
+            <p><strong>Email:</strong> ${esc(user.email || "—")}</p>
             <p><strong>Username:</strong> ${esc(user.username || "—")}</p>
-            <p><strong>Role:</strong> ${esc(user.role || "user")}</p>
+            <p><strong>Paid amount:</strong> ${esc(money(user.paidAmount || 0))}</p>
             <p><strong>Joined:</strong> ${esc(fmtDate(user.createdAt))}</p>
           </div>`;
         if (window.Swal) {
@@ -1464,7 +1644,10 @@
       if (!res.ok || !data.ok) throw new Error(data.message || "Could not load users.");
       latestUserRows = data.items || [];
       usersPage = 1;
-      renderUsersTable();
+      applyUserPaidAmounts();
+      if (!latestUserRows.length) {
+        renderUsersTable();
+      }
       setBanner("ad-users-error", "");
     } catch (error) {
       body.innerHTML = `<tr><td colspan="6">No registered users yet.</td></tr>`;
@@ -1641,9 +1824,9 @@
       recentSub.textContent = `${latestRecentRows.length} record${latestRecentRows.length === 1 ? "" : "s"}`;
     }
     document.getElementById("ad-portal-recent").textContent = String(latestRecentRows.length);
-    document.getElementById("ad-portal-controls").textContent = String(latestControlRows.length);
-    document.getElementById("ad-portal-payouts").textContent = String(latestPayoutRows.length);
-    document.getElementById("ad-portal-users").textContent = String(latestUserRows.length);
+    document.getElementById("ad-portal-controls").textContent = String(latestAllControlRows.length || latestControlRows.length);
+    const portalUsers = document.getElementById("ad-portal-users");
+    if (portalUsers) portalUsers.textContent = String(latestUserRows.length);
   }
 
   const PORTAL_SECTION_TITLES = {
@@ -1653,25 +1836,30 @@
     "control-number": "Create control number",
     transactions: "Transactions",
     "payout-dest": "Payout destination",
-    payouts: "Automatic payouts",
     users: "Registered users",
     recent: "Recent collections",
     whatsapp: "WhatsApp",
   };
 
-  function scrollToPortalSection(key) {
+  function scrollToPortalSection(key, options = {}) {
     const idMap = {
       "general-analysis": "ad-section-general-analysis",
       analytics: "ad-section-analytics",
       "control-number": "ad-section-control-number",
       transactions: "ad-section-transactions",
       "payout-dest": "ad-section-payout-dest",
-      payouts: "ad-section-payouts",
       users: "ad-section-users",
       recent: "ad-section-recent",
       whatsapp: "ad-section-whatsapp",
     };
+    if (key === "payouts") key = "payout-dest";
     if (!idMap[key]) return;
+
+    if (key === "transactions") {
+      const filter = String(options.txFilter || "ALL").toUpperCase();
+      txStatusFilter = ["SUCCESS", "PENDING", "FAILED", "ALL"].includes(filter) ? filter : "ALL";
+      applyTxFilter();
+    }
 
     document.body.classList.add("ad-view-detail");
     document.body.classList.remove("ad-view-home");
@@ -1808,7 +1996,17 @@
       btn.addEventListener("click", () => scrollToPortalSection(btn.dataset.adTarget || ""));
     });
     document.querySelectorAll(".ad-service-card[data-ad-target]").forEach((btn) => {
-      btn.addEventListener("click", () => scrollToPortalSection(btn.dataset.adTarget || ""));
+      btn.addEventListener("click", () => {
+        scrollToPortalSection(btn.dataset.adTarget || "", {
+          txFilter: btn.getAttribute("data-tx-filter") || "ALL",
+        });
+      });
+    });
+    document.querySelectorAll("[data-set-tx-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        txStatusFilter = String(btn.getAttribute("data-set-tx-filter") || "ALL").toUpperCase();
+        applyTxFilter();
+      });
     });
     document.querySelectorAll(".ad-service-card[data-ad-action='sync']").forEach((btn) => {
       btn.addEventListener("click", () => syncTransactions());

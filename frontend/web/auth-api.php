@@ -301,8 +301,27 @@ if ($method === 'GET' && $action === 'list-users') {
     if ($current === null || strtolower((string) ($current['role'] ?? '')) !== 'admin') {
         jsonResponse(403, ['ok' => false, 'message' => 'Admin login required.']);
     }
+    $store = ensureStore($storePath);
+    if (is_file($legacyStorePath)) {
+        $legacy = ensureStore($legacyStorePath);
+        $byId = [];
+        foreach (array_merge($legacy['users'] ?? [], $store['users'] ?? []) as $user) {
+            if (!is_array($user)) {
+                continue;
+            }
+            $id = (string) ($user['id'] ?? '');
+            if ($id === '') {
+                continue;
+            }
+            $byId[$id] = $user;
+        }
+        $store['users'] = array_values($byId);
+    }
     $items = [];
-    foreach ($users as $user) {
+    foreach ($store['users'] as $user) {
+        if (!is_array($user)) {
+            continue;
+        }
         if (strtolower((string) ($user['role'] ?? 'user')) === 'admin') {
             continue;
         }
@@ -310,14 +329,16 @@ if ($method === 'GET' && $action === 'list-users') {
             'id' => (string) ($user['id'] ?? ''),
             'fullName' => (string) ($user['fullName'] ?? ''),
             'phone' => (string) ($user['phone'] ?? ''),
+            'email' => (string) ($user['email'] ?? ''),
             'username' => (string) ($user['username'] ?? ''),
             'role' => (string) ($user['role'] ?? 'user'),
             'createdAt' => (string) ($user['createdAt'] ?? ''),
             'avatar' => (string) ($user['avatar'] ?? ''),
+            'paidAmount' => 0,
         ];
     }
     usort($items, static fn($a, $b) => strcmp((string) ($b['createdAt'] ?? ''), (string) ($a['createdAt'] ?? '')));
-    jsonResponse(200, ['ok' => true, 'items' => $items]);
+    jsonResponse(200, ['ok' => true, 'items' => $items, 'count' => count($items)]);
 }
 
 if ($method === 'POST' && $action === 'delete-user') {
