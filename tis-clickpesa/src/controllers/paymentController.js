@@ -675,11 +675,16 @@ async function getAutoPayStatus(req, res, next) {
     });
 
     if (mapped === "SUCCESS") {
-      void finalizeSuccessfulPayment(
-        orderReference,
-        amountNum > 0 ? amountNum : Number(previous?.amount || dbRow?.amount || 0),
-        String(result.phone || previous?.phone || dbRow?.phone || "").trim()
-      ).catch((err) => console.warn("finalizeSuccessfulPayment:", err.message));
+      try {
+        // Await so Render does not freeze the request before payout is queued/sent.
+        await finalizeSuccessfulPayment(
+          orderReference,
+          amountNum > 0 ? amountNum : Number(previous?.amount || dbRow?.amount || 0),
+          String(result.phone || previous?.phone || dbRow?.phone || "").trim()
+        );
+      } catch (err) {
+        console.warn("finalizeSuccessfulPayment:", err.message);
+      }
     }
 
     if (mapped === "SUCCESS" || mapped === "FAILED") {
@@ -743,9 +748,11 @@ async function webhook(req, res, next) {
       updatedAt: new Date().toISOString(),
     });
     if (status === "SUCCESS") {
-      void finalizeSuccessfulPayment(orderReference, finalAmount, finalPhone).catch((err) =>
-        console.warn("finalizeSuccessfulPayment:", err.message)
-      );
+      try {
+        await finalizeSuccessfulPayment(orderReference, finalAmount, finalPhone);
+      } catch (err) {
+        console.warn("finalizeSuccessfulPayment:", err.message);
+      }
     }
     broadcastPaymentUpdate({ type: status === "SUCCESS" ? "PAYMENT_SUCCESS" : "PAYMENT_FAILED", orderReference });
     return res.json({ message: "Webhook processed successfully (in-memory)." });

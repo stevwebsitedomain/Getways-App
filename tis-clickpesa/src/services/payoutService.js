@@ -212,37 +212,68 @@ async function queueOrCreatePayout(db, tx, amount, phone, fromAuto = false) {
   return payout;
 }
 
+async function resolvePayoutPhone(settings) {
+  return (
+    getDestinationPhone(settings?.encrypted_destination) ||
+    String(process.env.CLICKPESA_DEFAULT_PAYOUT_PHONE || "").trim() ||
+    DEFAULT_PAYOUT_PHONE
+  );
+}
+
 async function maybeQueueAutomaticPayout(tx) {
   const db = getPool();
   const settings = await getOrCreateSettingsRow(db);
   const mode = String(settings.mode || "TEST").toUpperCase();
   if (!settings.auto_payout_enabled || mode === "TEST" || mode !== "LIVE_AUTO") {
+    console.info("Auto payout skipped (settings)", {
+      paymentId: tx.id,
+      enabled: Boolean(settings.auto_payout_enabled),
+      mode,
+    });
     return false;
   }
 
-  const [existingRows] = await db.query("SELECT id FROM clickpesa_payout WHERE payment_id = ? LIMIT 1", [tx.id]);
+  const [existingRows] = await db.query("SELECT id, payout_status FROM clickpesa_payout WHERE payment_id = ? LIMIT 1", [
+    tx.id,
+  ]);
   if (existingRows[0]) {
-    return false;
+    const existingStatus = String(existingRows[0].payout_status || "").toUpperCase();
+    if (FINAL_PAYOUT_STATUSES.has(existingStatus) || IN_FLIGHT_PAYOUT_STATUSES.has(existingStatus)) {
+      return false;
+    }
   }
 
-  const phone =
-    getDestinationPhone(settings.encrypted_destination) ||
-    process.env.CLICKPESA_DEFAULT_PAYOUT_PHONE ||
-    DEFAULT_PAYOUT_PHONE;
+  const phone = await resolvePayoutPhone(settings);
+  if (!phone) {
+    console.warn("Auto payout skipped — no destination phone", { paymentId: tx.id });
+    return false;
+  }
 
   const amount = calculatePayoutAmount(tx, settings);
   if (amount < Number(settings.minimum_amount || 0)) {
+    console.info("Auto payout skipped — below minimum", {
+      paymentId: tx.id,
+      amount,
+      minimum: settings.minimum_amount,
+    });
     return false;
   }
 
   const payout = await queueOrCreatePayout(db, tx, amount, phone, true);
   const delay = Math.max(0, Number(settings.delay_seconds || 0));
   const nextRetryAt = Math.floor(Date.now() / 1000) + delay;
-  await db.query("UPDATE clickpesa_payout SET next_retry_at = ?, updated_at = ? WHERE id = ?", [
+  await db.query("UPDATE clickpesa_payout SET next_retry_at = ?, phone_number = ?, updated_at = ? WHERE id = ?", [
     nextRetryAt,
+    normalizePhone(phone),
     Math.floor(Date.now() / 1000),
     payout.id,
-  ]);
+  ]).catch(async () => {
+    await db.query("UPDATE clickpesa_payout SET next_retry_at = ?, updated_at = ? WHERE id = ?", [
+      nextRetryAt,
+      Math.floor(Date.now() / 1000),
+      payout.id,
+    ]);
+  });
 
   // After USSD SUCCESS: preview → create → query (same Autopay bearer token)
   if (delay <= 0) {
@@ -259,18 +290,33 @@ async function processPendingAutoPayouts(limit = 5) {
     return { processed: 0 };
   }
 
-  const phone =
-    getDestinationPhone(settings.encrypted_destination) ||
-    process.env.CLICKPESA_DEFAULT_PAYOUT_PHONE ||
-    DEFAULT_PAYOUT_PHONE;
+  const phone = await resolvePayoutPhone(settings);
   if (!phone) {
     return { processed: 0 };
+  }
+
+  // Recover SUCCESS payments that never got a payout row (the main user-facing bug).
+  const [orphanPayments] = await db.query(
+    `SELECT t.* FROM clickpesa_transactions t
+     LEFT JOIN clickpesa_payout p ON p.payment_id = t.id
+     WHERE t.payment_status IN ('SUCCESS', 'PAID', 'SETTLED', 'COMPLETED')
+       AND p.id IS NULL
+     ORDER BY t.id DESC
+     LIMIT ?`,
+    [limit]
+  );
+  for (const tx of orphanPayments) {
+    try {
+      await maybeQueueAutomaticPayout(tx);
+    } catch (error) {
+      console.warn("Recover orphan payout failed:", error.message);
+    }
   }
 
   const now = Math.floor(Date.now() / 1000);
   const [rows] = await db.query(
     `SELECT * FROM clickpesa_payout
-     WHERE payout_status IN ('QUEUED', 'FAILED')
+     WHERE payout_status IN ('QUEUED', 'FAILED', 'PENDING', 'PREVIEWED')
        AND (next_retry_at IS NULL OR next_retry_at <= ?)
      ORDER BY id ASC
      LIMIT ?`,
@@ -306,7 +352,6 @@ async function finalizeSuccessfulPayment(orderReference, amount = 0, phone = "")
     return null;
   }
 
-  const wasPaid = isSuccessfulPayment(tx.payment_status);
   const paidAmount = Number(amount || tx.received_amount || tx.expected_amount || tx.amount || 0);
   await db.query(
     `UPDATE clickpesa_transactions SET
@@ -325,12 +370,13 @@ async function finalizeSuccessfulPayment(orderReference, amount = 0, phone = "")
     return null;
   }
 
-  if (!wasPaid) {
-    try {
-      await maybeQueueAutomaticPayout(updated);
-    } catch (error) {
-      console.warn("Auto payout queue failed:", error.message);
-    }
+  // Always attempt auto-payout if none exists yet.
+  // Previously we only ran this on first SUCCESS transition; if that attempt failed,
+  // later status polls skipped payout forever while payment stayed SUCCESS.
+  try {
+    await maybeQueueAutomaticPayout(updated);
+  } catch (error) {
+    console.warn("Auto payout queue failed:", error.message);
   }
   return updated;
 }

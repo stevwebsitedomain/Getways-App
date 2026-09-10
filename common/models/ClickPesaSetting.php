@@ -95,7 +95,8 @@ class ClickPesaSetting extends ActiveRecord
     public function setDestinationPhone(string $phone): void
     {
         $normalized = self::normalizePhoneStatic($phone);
-        $this->encrypted_destination = self::encryptValue($normalized);
+        // plain:base64 — readable by Node (tis-clickpesa) without Yii encryption key.
+        $this->encrypted_destination = 'plain:' . base64_encode($normalized);
     }
 
     public function getDestinationPhone(): ?string
@@ -104,7 +105,14 @@ class ClickPesaSetting extends ActiveRecord
             return null;
         }
 
-        return self::decryptValue($this->encrypted_destination);
+        $raw = (string) $this->encrypted_destination;
+        if (str_starts_with($raw, 'plain:')) {
+            $decoded = base64_decode(substr($raw, 6), true);
+
+            return is_string($decoded) && $decoded !== '' ? $decoded : null;
+        }
+
+        return self::decryptValue($raw);
     }
 
     public function getMaskedDestination(): string

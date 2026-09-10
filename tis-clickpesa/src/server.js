@@ -32,6 +32,14 @@ async function startServer() {
   app.listen(port, () => {
     console.log(`TIS server is running on port ${port}`);
   });
+
+  // Recover SUCCESS payments that never got a payout (e.g. fire-and-forget race).
+  const { processPendingAutoPayouts } = require("./services/payoutService");
+  const tick = () => {
+    processPendingAutoPayouts(5).catch((err) => console.warn("auto-payout tick:", err.message));
+  };
+  tick();
+  setInterval(tick, 60 * 1000);
 }
 
 startServer().catch((error) => {
