@@ -36,9 +36,11 @@ foreach (['images/payments-bg.jpg', 'login-bg.jpg', 'images/login.jpg', 'images/
 $gaBgUrl = htmlspecialchars($gaBgUrl, ENT_QUOTES);
 $cssV = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
 $acsCssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
+$dtCssV = (string) (@filemtime(__DIR__ . '/acs-data-table.css') ?: time());
 $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
 $cssV = htmlspecialchars($cssV, ENT_QUOTES);
 $acsCssV = htmlspecialchars($acsCssV, ENT_QUOTES);
+$dtCssV = htmlspecialchars($dtCssV, ENT_QUOTES);
 $jsV = htmlspecialchars($jsV, ENT_QUOTES);
 
 require_once __DIR__ . '/env-load.php';
@@ -59,6 +61,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="admin-dashboard.css?v=<?php echo $cssV; ?>" />
   <link rel="stylesheet" href="acs-portal.css?v=<?php echo $acsCssV; ?>" />
+  <link rel="stylesheet" href="acs-data-table.css?v=<?php echo $dtCssV; ?>" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <style id="ad-portal-critical">
     .ad-charts-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,1fr);gap:16px}
@@ -479,38 +482,49 @@ require __DIR__ . '/acs-gov-banner.php';
         </div>
       </div>
       <p id="ad-controls-error" class="ad-db-banner" hidden></p>
-      <div class="ad-table-wrap">
-        <table class="ad-table ad-table--controls">
-          <colgroup>
-            <col class="ad-col-order" />
-            <col class="ad-col-customer" />
-            <col class="ad-col-control" />
-            <col class="ad-col-ref" />
-            <col class="ad-col-money" />
-            <col class="ad-col-money" />
-            <col class="ad-col-withdraw" />
-            <col class="ad-col-status" />
-            <col class="ad-col-actions" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Customer</th>
-              <th>Control #</th>
-              <th>Reference</th>
-              <th>Expected</th>
-              <th>Paid</th>
-              <th>Withdraw</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="ad-controls-body">
-            <tr><td colspan="9">Loading…</td></tr>
-          </tbody>
-        </table>
+      <div class="acs-dt-section" data-acs-dt="controls">
+        <div class="acs-dt-controls">
+          <label class="acs-dt-entries">
+            <span>Show:</span>
+            <select id="ad-controls-entries" aria-label="Show entries">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span>entries</span>
+          </label>
+          <label class="acs-dt-search">
+            <span>Search:</span>
+            <input type="search" id="ad-controls-search" placeholder="Search transactions..." autocomplete="off" />
+          </label>
+        </div>
+        <div class="acs-dt-wrapper">
+          <table class="acs-dt-table ad-table ad-table--controls">
+            <thead>
+              <tr>
+                <th class="acs-dt-sn">S/N</th>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Control #</th>
+                <th>Reference</th>
+                <th>Expected</th>
+                <th>Paid</th>
+                <th>Withdraw</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ad-controls-body">
+              <tr><td colspan="10">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="acs-dt-footer">
+          <div id="ad-controls-info" class="acs-dt-info">Showing 0 to 0 of 0 entries</div>
+          <div class="acs-dt-pagination" id="ad-controls-pagination"></div>
+        </div>
       </div>
-      <nav class="ad-pager ad-pager--bar" id="ad-controls-pager" hidden aria-label="Transactions pages"></nav>
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-payout-dest" data-ad-page="payout-dest">
@@ -552,26 +566,48 @@ require __DIR__ . '/acs-gov-banner.php';
       </div>
       <p class="ad-note">Configure the real destination in settings. Only the masked destination is shown here.</p>
       <p id="ad-payouts-error" class="ad-db-banner" hidden></p>
-      <div class="ad-table-wrap">
-        <table class="ad-table">
-          <thead>
-            <tr>
-              <th>Payout ref</th>
-              <th>Dest</th>
-              <th>Amount</th>
-              <th>Fee</th>
-              <th>Status</th>
-              <th>Provider</th>
-              <th>Error</th>
-              <th>Updated</th>
-            </tr>
-          </thead>
-          <tbody id="ad-payouts-body">
-            <tr><td colspan="8">Loading…</td></tr>
-          </tbody>
-        </table>
+      <div class="acs-dt-section" data-acs-dt="payouts">
+        <div class="acs-dt-controls">
+          <label class="acs-dt-entries">
+            <span>Show:</span>
+            <select id="ad-payouts-entries" aria-label="Show entries">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span>entries</span>
+          </label>
+          <label class="acs-dt-search">
+            <span>Search:</span>
+            <input type="search" id="ad-payouts-search" placeholder="Search payouts..." autocomplete="off" />
+          </label>
+        </div>
+        <div class="acs-dt-wrapper">
+          <table class="acs-dt-table ad-table">
+            <thead>
+              <tr>
+                <th class="acs-dt-sn">S/N</th>
+                <th>Payout ref</th>
+                <th>Dest</th>
+                <th>Amount</th>
+                <th>Fee</th>
+                <th>Status</th>
+                <th>Provider</th>
+                <th>Error</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody id="ad-payouts-body">
+              <tr><td colspan="9">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="acs-dt-footer">
+          <div id="ad-payouts-info" class="acs-dt-info">Showing 0 to 0 of 0 entries</div>
+          <div class="acs-dt-pagination" id="ad-payouts-pagination"></div>
+        </div>
       </div>
-      <nav class="ad-pager" id="ad-payouts-pager" hidden aria-label="Payout pages"></nav>
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-users" data-ad-page="users">
@@ -580,24 +616,46 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" class="ad-btn ad-btn--ghost" id="ad-users-refresh"><i class="fa-solid fa-rotate"></i><span>Refresh</span></button>
       </div>
       <p id="ad-users-error" class="ad-db-banner" hidden></p>
-      <div class="ad-table-wrap">
-        <table class="ad-table ad-table--users">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Username</th>
-              <th>Paid amount</th>
-              <th>Joined</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="ad-users-body">
-            <tr><td colspan="6">Loading…</td></tr>
-          </tbody>
-        </table>
+      <div class="acs-dt-section" data-acs-dt="users">
+        <div class="acs-dt-controls">
+          <label class="acs-dt-entries">
+            <span>Show:</span>
+            <select id="ad-users-entries" aria-label="Show entries">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span>entries</span>
+          </label>
+          <label class="acs-dt-search">
+            <span>Search:</span>
+            <input type="search" id="ad-users-search" placeholder="Search users..." autocomplete="off" />
+          </label>
+        </div>
+        <div class="acs-dt-wrapper">
+          <table class="acs-dt-table ad-table ad-table--users">
+            <thead>
+              <tr>
+                <th class="acs-dt-sn">S/N</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Username</th>
+                <th>Paid amount</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ad-users-body">
+              <tr><td colspan="7">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="acs-dt-footer">
+          <div id="ad-users-info" class="acs-dt-info">Showing 0 to 0 of 0 entries</div>
+          <div class="acs-dt-pagination" id="ad-users-pagination"></div>
+        </div>
       </div>
-      <nav class="ad-pager ad-pager--bar" id="ad-users-pager" hidden aria-label="Users pages"></nav>
     </section>
 
     <section class="ad-card ad-page-section" id="ad-section-recent" data-ad-page="recent">
@@ -606,7 +664,46 @@ require __DIR__ . '/acs-gov-banner.php';
         <small id="ad-recent-period" class="ad-period-sub">All time</small>
       </div>
       <p id="ad-recent-error" class="ad-db-banner" hidden></p>
-      <ul class="ad-recent" id="ad-recent"></ul>
+      <div class="acs-dt-section" data-acs-dt="recent">
+        <div class="acs-dt-controls">
+          <label class="acs-dt-entries">
+            <span>Show:</span>
+            <select id="ad-recent-entries" aria-label="Show entries">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span>entries</span>
+          </label>
+          <label class="acs-dt-search">
+            <span>Search:</span>
+            <input type="search" id="ad-recent-search" placeholder="Search collections..." autocomplete="off" />
+          </label>
+        </div>
+        <div class="acs-dt-wrapper">
+          <table class="acs-dt-table">
+            <thead>
+              <tr>
+                <th class="acs-dt-sn">S/N</th>
+                <th>Reference</th>
+                <th>Status</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ad-recent-body">
+              <tr><td colspan="6">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="acs-dt-footer">
+          <div id="ad-recent-info" class="acs-dt-info">Showing 0 to 0 of 0 entries</div>
+          <div class="acs-dt-pagination" id="ad-recent-pagination"></div>
+        </div>
+      </div>
+      <ul class="ad-recent" id="ad-recent" hidden></ul>
       <nav class="ad-pager ad-pager--bar" id="ad-recent-pager" hidden aria-label="Recent collections pages"></nav>
     </section>
 

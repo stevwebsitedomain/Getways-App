@@ -1,15 +1,16 @@
 (function () {
   const API = "admin-api.php";
   const REFRESH_MS = 60000;
-  const PAGE_SIZE = 5;
+  const tableUi = {
+    controls: { page: 1, perPage: 10, search: "" },
+    payouts: { page: 1, perPage: 10, search: "" },
+    users: { page: 1, perPage: 10, search: "" },
+    recent: { page: 1, perPage: 10, search: "" },
+  };
   let latestPayoutRows = [];
   let latestControlRows = [];
   let latestAllControlRows = [];
   let latestUserRows = [];
-  let controlsPage = 1;
-  let payoutsPage = 1;
-  let usersPage = 1;
-  let recentPage = 1;
   let latestRecentRows = [];
   let latestSettings = null;
   let analyticsPeriod = "all";
@@ -26,6 +27,101 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function filterTableRows(rows, searchText, fieldsFn) {
+    const list = Array.isArray(rows) ? rows : [];
+    const q = String(searchText || "").trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((row) => {
+      try {
+        return String(fieldsFn(row) || "").toLowerCase().includes(q);
+      } catch (_) {
+        return false;
+      }
+    });
+  }
+
+  function paginateTableRows(rows, state) {
+    const list = Array.isArray(rows) ? rows : [];
+    const perPage = Math.max(1, Number(state.perPage) || 10);
+    const total = list.length;
+    const totalPages = Math.max(1, Math.ceil(total / perPage) || 1);
+    state.page = Math.min(Math.max(1, Number(state.page) || 1), totalPages);
+    const start = (state.page - 1) * perPage;
+    const end = Math.min(start + perPage, total);
+    return {
+      slice: list.slice(start, end),
+      start,
+      end,
+      total,
+      totalPages,
+      perPage,
+    };
+  }
+
+  function updateTableInfo(infoId, start, end, total) {
+    const el = document.getElementById(infoId);
+    if (!el) return;
+    if (!total) {
+      el.textContent = "Showing 0 to 0 of 0 entries";
+      return;
+    }
+    el.textContent = `Showing ${start + 1} to ${end} of ${total} entries`;
+  }
+
+  function renderTablePagination(containerId, page, totalPages, onPage) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = "";
+    const pages = Math.max(1, Number(totalPages) || 1);
+    const current = Math.min(Math.max(1, Number(page) || 1), pages);
+
+    const prev = document.createElement("button");
+    prev.type = "button";
+    prev.textContent = "Previous";
+    prev.disabled = current <= 1;
+    prev.addEventListener("click", () => {
+      if (current > 1) onPage(current - 1);
+    });
+    el.appendChild(prev);
+
+    const maxButtons = 7;
+    let from = Math.max(1, current - Math.floor(maxButtons / 2));
+    let to = Math.min(pages, from + maxButtons - 1);
+    from = Math.max(1, to - maxButtons + 1);
+    for (let n = from; n <= to; n += 1) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = String(n);
+      if (n === current) btn.classList.add("active");
+      btn.addEventListener("click", () => onPage(n));
+      el.appendChild(btn);
+    }
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.textContent = "Next";
+    next.disabled = current >= pages;
+    next.addEventListener("click", () => {
+      if (current < pages) onPage(current + 1);
+    });
+    el.appendChild(next);
+  }
+
+  function bindDataTableControls(key, renderFn) {
+    const entries = document.getElementById(`ad-${key}-entries`);
+    const search = document.getElementById(`ad-${key}-search`);
+    entries?.addEventListener("change", () => {
+      tableUi[key].perPage = Number(entries.value) || 10;
+      tableUi[key].page = 1;
+      renderFn();
+    });
+    search?.addEventListener("input", () => {
+      tableUi[key].search = search.value || "";
+      tableUi[key].page = 1;
+      renderFn();
+    });
   }
 
   function fmtDate(value) {
@@ -99,12 +195,13 @@
     });
   }
 
-  function renderPager(pagerId, page, totalItems, onPage) {
+  function renderPager(pagerId, page, totalItems, onPage, pageSize = 10) {
     const pager = document.getElementById(pagerId);
     if (!pager) return;
-    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    const size = Math.max(1, Number(pageSize) || 10);
+    const totalPages = Math.max(1, Math.ceil(totalItems / size));
     const current = Math.min(Math.max(1, page), totalPages);
-    if (totalItems <= PAGE_SIZE) {
+    if (totalItems <= size) {
       pager.hidden = true;
       pager.innerHTML = "";
       return;
@@ -831,52 +928,58 @@
   }
 
   function renderRecentCollections() {
-    const recent = document.getElementById("ad-recent");
-    if (!recent) return;
-    const rows = latestRecentRows;
-    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    recentPage = Math.min(Math.max(1, recentPage), totalPages);
-    const slice = rows.slice((recentPage - 1) * PAGE_SIZE, recentPage * PAGE_SIZE);
-    recent.innerHTML = slice.length
-      ? slice.map((row) => `
-          <li class="ad-recent-row">
-            <div class="ad-recent-main">
-              <strong>${esc(row.orderReference || row.controlNumber || "—")}</strong>
-              <div class="ad-recent-meta">${statusBadge(row.status)} · ${fmtDate(row.createdAt)}</div>
-            </div>
-            <div class="ad-recent-side">
-              <strong class="ad-recent-amt">${money(row.amount)}</strong>
-              <div class="ad-actions">
-                <button type="button" class="ad-btn ad-btn--delete" data-recent-delete="${esc(String(row.id || ""))}" data-recent-ref="${esc(row.orderReference || row.controlNumber || "")}" title="Delete"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+    const body = document.getElementById("ad-recent-body");
+    const legacy = document.getElementById("ad-recent");
+    if (!body && !legacy) return;
+
+    const filtered = filterTableRows(latestRecentRows, tableUi.recent.search, (row) =>
+      [row.orderReference, row.controlNumber, row.status, row.amount, row.createdAt].join(" ")
+    );
+    const page = paginateTableRows(filtered, tableUi.recent);
+
+    if (body) {
+      body.innerHTML = page.slice.length
+        ? page.slice.map((row, index) => `
+          <tr>
+            <td class="acs-dt-sn">${page.start + index + 1}</td>
+            <td><strong>${esc(row.orderReference || row.controlNumber || "—")}</strong></td>
+            <td>${statusBadge(row.status)}</td>
+            <td>${money(row.amount)}</td>
+            <td>${fmtDate(row.createdAt)}</td>
+            <td>
+              <div class="acs-dt-actions">
+                <button type="button" class="acs-dt-action acs-dt-action--danger" data-recent-delete="${esc(String(row.id || ""))}" data-recent-ref="${esc(row.orderReference || row.controlNumber || "")}" title="Delete"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
               </div>
-            </div>
-          </li>`).join("")
-      : '<li class="ad-recent-empty">No collections found for this period.</li>';
+            </td>
+          </tr>`).join("")
+        : `<tr class="acs-dt-empty"><td colspan="6"><strong>No matching collections</strong>Try another reference or clear the search.</td></tr>`;
 
-    recent.querySelectorAll("[data-recent-delete]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const id = Number(btn.getAttribute("data-recent-delete"));
-        const ref = btn.getAttribute("data-recent-ref") || String(id || "");
-        if (!id) {
-          notify("Cannot delete this item (missing id).", "error");
-          return;
-        }
-        if (!window.confirm(`Delete collection ${ref}?`)) return;
-        btn.disabled = true;
-        try {
-          const result = await requestJson("delete-payment", { method: "POST", body: { id } });
-          notify(result.message || "Deleted.", "success");
-          await Promise.all([loadStatement(), loadControls()]);
-        } catch (error) {
-          notify(error.message || "Delete failed.", "error");
-        } finally {
-          btn.disabled = false;
-        }
+      body.querySelectorAll("[data-recent-delete]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = Number(btn.getAttribute("data-recent-delete"));
+          const ref = btn.getAttribute("data-recent-ref") || String(id || "");
+          if (!id) {
+            notify("Cannot delete this item (missing id).", "error");
+            return;
+          }
+          if (!window.confirm(`Delete collection ${ref}?`)) return;
+          btn.disabled = true;
+          try {
+            const result = await requestJson("delete-payment", { method: "POST", body: { id } });
+            notify(result.message || "Deleted.", "success");
+            await Promise.all([loadStatement(), loadControls()]);
+          } catch (error) {
+            notify(error.message || "Delete failed.", "error");
+          } finally {
+            btn.disabled = false;
+          }
+        });
       });
-    });
+    }
 
-    renderPager("ad-recent-pager", recentPage, rows.length, (page) => {
-      recentPage = page;
+    updateTableInfo("ad-recent-info", page.start, page.end, page.total);
+    renderTablePagination("ad-recent-pagination", tableUi.recent.page, page.totalPages, (p) => {
+      tableUi.recent.page = p;
       renderRecentCollections();
     });
     syncPortalCards();
@@ -1135,7 +1238,7 @@
         : Array.isArray(analytics.recentCollections)
           ? analytics.recentCollections
           : latestPaymentRows;
-      recentPage = 1;
+      tableUi.recent.page = 1;
       renderRecentCollections();
       applyUserPaidAmounts();
       if (!latestAllControlRows.length && latestPaymentRows.length) {
@@ -1156,7 +1259,7 @@
         latestAnalytics = { success: 0, pending: 0, failed: 0, trendDays: [], recentCollections: [] };
         applyAnalyticsToCharts(latestAnalytics);
         latestRecentRows = [];
-        recentPage = 1;
+        tableUi.recent.page = 1;
         renderRecentCollections();
       }
       setBanner("ad-statement-error", error.message, "error", { toast: true });
@@ -1261,7 +1364,7 @@
     latestControlRows = filter === "ALL"
       ? source.slice()
       : source.filter((row) => normalizeTxStatus(row.status) === filter);
-    controlsPage = 1;
+    tableUi.controls.page = 1;
     const titleEl = document.getElementById("ad-transactions-title");
     if (titleEl) {
       const labels = {
@@ -1317,17 +1420,27 @@
   function renderControlsTable() {
     const body = document.getElementById("ad-controls-body");
     if (!body) return;
-    const rows = latestControlRows;
-    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    controlsPage = Math.min(Math.max(1, controlsPage), totalPages);
-    const slice = rows.slice((controlsPage - 1) * PAGE_SIZE, controlsPage * PAGE_SIZE);
-    body.innerHTML = slice.length ? slice.map((row) => {
+    const filtered = filterTableRows(latestControlRows, tableUi.controls.search, (row) =>
+      [
+        row.orderId,
+        row.customerName,
+        row.controlNumber,
+        row.reference,
+        row.amount,
+        row.receivedAmount,
+        row.withdrawStatus,
+        row.status,
+      ].join(" ")
+    );
+    const page = paginateTableRows(filtered, tableUi.controls);
+    body.innerHTML = page.slice.length ? page.slice.map((row, index) => {
       const status = String(row.status || "").toUpperCase();
       const isPending = status === "PENDING";
       const showResend = isPending && row.canResend !== false;
       const showWithdraw = row.canWithdraw && isManualPayoutActive();
       return `
         <tr>
+          <td class="acs-dt-sn">${page.start + index + 1}</td>
           <td>${esc(row.orderId || "—")}</td>
           <td>${esc(row.customerName || "—")}</td>
           <td>${esc(row.controlNumber || "—")}</td>
@@ -1337,17 +1450,17 @@
           <td>${payoutBadge(row.withdrawStatus)}</td>
           <td>${statusBadge(row.status)}</td>
           <td>
-            <div class="ad-actions">
-            ${row.hasControlNumber ? `<button type="button" class="ad-btn ad-btn--copy" data-copy="${esc(row.controlNumber)}"><i class="fa-regular fa-copy"></i><span>Copy</span></button>` : ""}
-            ${showResend ? `<button type="button" class="ad-btn ad-btn--resend" data-resend="${row.id}"><i class="fa-solid fa-paper-plane"></i><span>Resend</span></button>` : ""}
-            ${showWithdraw ? `<button type="button" class="ad-btn ad-btn--withdraw" data-withdraw="${row.id}"><i class="fa-solid fa-money-bill-wave"></i><span>Withdraw</span></button>` : ""}
-            ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--view" data-invoice="${esc(row.invoiceUrl)}"><i class="fa-solid fa-receipt"></i><span>View</span></button>` : ""}
-            ${row.invoiceUrl ? `<button type="button" class="ad-btn ad-btn--download" data-invoice-download="${esc(row.invoiceUrl)}"><i class="fa-solid fa-file-pdf"></i><span>PDF</span></button>` : ""}
-            <button type="button" class="ad-btn ad-btn--delete" data-delete-payment="${row.id}" data-delete-ref="${esc(row.reference || row.orderId || row.id)}" title="Delete transaction"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+            <div class="acs-dt-actions ad-actions">
+            ${row.hasControlNumber ? `<button type="button" class="acs-dt-action acs-dt-action--ghost" data-copy="${esc(row.controlNumber)}"><i class="fa-regular fa-copy"></i><span>Copy</span></button>` : ""}
+            ${showResend ? `<button type="button" class="acs-dt-action" data-resend="${row.id}"><i class="fa-solid fa-paper-plane"></i><span>Resend</span></button>` : ""}
+            ${showWithdraw ? `<button type="button" class="acs-dt-action" data-withdraw="${row.id}"><i class="fa-solid fa-money-bill-wave"></i><span>Withdraw</span></button>` : ""}
+            ${row.invoiceUrl ? `<button type="button" class="acs-dt-action" data-invoice="${esc(row.invoiceUrl)}"><i class="fa-solid fa-receipt"></i><span>View</span></button>` : ""}
+            ${row.invoiceUrl ? `<button type="button" class="acs-dt-action acs-dt-action--ghost" data-invoice-download="${esc(row.invoiceUrl)}"><i class="fa-solid fa-file-pdf"></i><span>PDF</span></button>` : ""}
+            <button type="button" class="acs-dt-action acs-dt-action--danger" data-delete-payment="${row.id}" data-delete-ref="${esc(row.reference || row.orderId || row.id)}" title="Delete transaction"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
             </div>
           </td>
         </tr>`;
-    }).join("") : `<tr><td colspan="9">No transactions yet.</td></tr>`;
+    }).join("") : `<tr class="acs-dt-empty"><td colspan="10"><strong>No matching transactions</strong>Try another search or clear filters.</td></tr>`;
     bindCopyButtons();
     body.querySelectorAll("[data-invoice]").forEach((btn) => {
       btn.addEventListener("click", () => openInvoice(btn.getAttribute("data-invoice") || "", false));
@@ -1405,8 +1518,9 @@
         }
       });
     });
-    renderPager("ad-controls-pager", controlsPage, rows.length, (page) => {
-      controlsPage = page;
+    updateTableInfo("ad-controls-info", page.start, page.end, page.total);
+    renderTablePagination("ad-controls-pagination", tableUi.controls.page, page.totalPages, (p) => {
+      tableUi.controls.page = p;
       renderControlsTable();
     });
     syncPortalCards();
@@ -1453,12 +1567,22 @@
   function renderPayoutsTable() {
     const body = document.getElementById("ad-payouts-body");
     if (!body) return;
-    const rows = latestPayoutRows;
-    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    payoutsPage = Math.min(Math.max(1, payoutsPage), totalPages);
-    const slice = rows.slice((payoutsPage - 1) * PAGE_SIZE, payoutsPage * PAGE_SIZE);
-    body.innerHTML = slice.length ? slice.map((row) => `
+    const filtered = filterTableRows(latestPayoutRows, tableUi.payouts.search, (row) =>
+      [
+        row.payoutReference,
+        row.destinationMasked,
+        row.amount,
+        row.fee,
+        row.status,
+        row.provider,
+        row.lastError,
+        row.updatedAt,
+      ].join(" ")
+    );
+    const page = paginateTableRows(filtered, tableUi.payouts);
+    body.innerHTML = page.slice.length ? page.slice.map((row, index) => `
         <tr>
+          <td class="acs-dt-sn">${page.start + index + 1}</td>
           <td>${esc(row.payoutReference)}</td>
           <td>${esc(row.destinationMasked || "—")}</td>
           <td>${money(row.amount)}</td>
@@ -1468,14 +1592,14 @@
           <td>${esc(row.lastError || "—")}</td>
           <td>
             <div class="ad-payout-updated">${fmtDate(row.updatedAt)}</div>
-            <div class="ad-actions ad-actions--payout">
-              <button type="button" class="ad-btn ad-btn--status" data-refresh-payout="${esc(row.payoutReference)}" title="Refresh status"><i class="fa-solid fa-arrows-rotate"></i><span>Status</span></button>
-              ${row.retryable ? `<button type="button" class="ad-btn ad-btn--retry" data-retry-payout="${row.id}" title="Retry payout"><i class="fa-solid fa-rotate-right"></i><span>Retry</span></button>` : ""}
-              <button type="button" class="ad-btn ad-btn--view" data-view-payout="${row.id}" title="View details"><i class="fa-solid fa-eye"></i><span>View</span></button>
-              <button type="button" class="ad-btn ad-btn--delete" data-delete-payout="${row.id}" data-delete-ref="${esc(row.payoutReference)}" title="Delete payout"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+            <div class="acs-dt-actions ad-actions ad-actions--payout">
+              <button type="button" class="acs-dt-action acs-dt-action--ghost" data-refresh-payout="${esc(row.payoutReference)}" title="Refresh status"><i class="fa-solid fa-arrows-rotate"></i><span>Status</span></button>
+              ${row.retryable ? `<button type="button" class="acs-dt-action" data-retry-payout="${row.id}" title="Retry payout"><i class="fa-solid fa-rotate-right"></i><span>Retry</span></button>` : ""}
+              <button type="button" class="acs-dt-action" data-view-payout="${row.id}" title="View details"><i class="fa-solid fa-eye"></i><span>View</span></button>
+              <button type="button" class="acs-dt-action acs-dt-action--danger" data-delete-payout="${row.id}" data-delete-ref="${esc(row.payoutReference)}" title="Delete payout"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
             </div>
           </td>
-        </tr>`).join("") : `<tr><td colspan="8">No automatic payouts have been processed.</td></tr>`;
+        </tr>`).join("") : `<tr class="acs-dt-empty"><td colspan="9"><strong>No matching payouts</strong>Try another search term.</td></tr>`;
     body.querySelectorAll("[data-refresh-payout]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         btn.disabled = true;
@@ -1530,8 +1654,9 @@
         }
       });
     });
-    renderPager("ad-payouts-pager", payoutsPage, rows.length, (page) => {
-      payoutsPage = page;
+    updateTableInfo("ad-payouts-info", page.start, page.end, page.total);
+    renderTablePagination("ad-payouts-pagination", tableUi.payouts.page, page.totalPages, (p) => {
+      tableUi.payouts.page = p;
       renderPayoutsTable();
     });
     syncPortalCards();
@@ -1609,7 +1734,7 @@
         set("ad-payout-refunded", c.refunded);
         set("ad-payout-reversed", c.reversed);
       }
-      payoutsPage = 1;
+      tableUi.payouts.page = 1;
       renderPayoutsTable();
       if (latestSettings?.warning) {
         setBanner("ad-payouts-error", latestSettings.warning, "warning");
@@ -1623,24 +1748,25 @@
   function renderUsersTable() {
     const body = document.getElementById("ad-users-body");
     if (!body) return;
-    const rows = latestUserRows;
-    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    usersPage = Math.min(Math.max(1, usersPage), totalPages);
-    const slice = rows.slice((usersPage - 1) * PAGE_SIZE, usersPage * PAGE_SIZE);
-    body.innerHTML = slice.length ? slice.map((row) => `
+    const filtered = filterTableRows(latestUserRows, tableUi.users.search, (row) =>
+      [row.fullName, row.phone, row.email, row.username, row.paidAmount, row.createdAt].join(" ")
+    );
+    const page = paginateTableRows(filtered, tableUi.users);
+    body.innerHTML = page.slice.length ? page.slice.map((row, index) => `
         <tr>
+          <td class="acs-dt-sn">${page.start + index + 1}</td>
           <td>${esc(row.fullName || "—")}</td>
           <td>${esc(row.phone || row.email || "—")}</td>
           <td>${esc(row.username || "—")}</td>
           <td>${money(row.paidAmount || 0)}</td>
           <td>${fmtDate(row.createdAt)}</td>
           <td>
-            <div class="ad-actions">
-              <button type="button" class="ad-btn ad-btn--view" data-view-user="${esc(row.id || "")}" title="View user"><i class="fa-solid fa-eye"></i><span>View</span></button>
-              <button type="button" class="ad-btn ad-btn--delete" data-delete-user="${esc(row.id || "")}" data-delete-name="${esc(row.fullName || row.username || row.phone || "")}" title="Delete user"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+            <div class="acs-dt-actions ad-actions">
+              <button type="button" class="acs-dt-action" data-view-user="${esc(row.id || "")}" title="View user"><i class="fa-solid fa-eye"></i><span>View</span></button>
+              <button type="button" class="acs-dt-action acs-dt-action--danger" data-delete-user="${esc(row.id || "")}" data-delete-name="${esc(row.fullName || row.username || row.phone || "")}" title="Delete user"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
             </div>
           </td>
-        </tr>`).join("") : `<tr><td colspan="6">No registered users yet.</td></tr>`;
+        </tr>`).join("") : `<tr class="acs-dt-empty"><td colspan="7"><strong>No matching users</strong>Registered users from the signup page will appear here.</td></tr>`;
 
     body.querySelectorAll("[data-view-user]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1696,8 +1822,9 @@
       });
     });
 
-    renderPager("ad-users-pager", usersPage, rows.length, (page) => {
-      usersPage = page;
+    updateTableInfo("ad-users-info", page.start, page.end, page.total);
+    renderTablePagination("ad-users-pagination", tableUi.users.page, page.totalPages, (p) => {
+      tableUi.users.page = p;
       renderUsersTable();
     });
     syncPortalCards();
@@ -1706,7 +1833,7 @@
   async function loadUsers() {
     const body = document.getElementById("ad-users-body");
     if (!body) return;
-    body.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7">Loading...</td></tr>`;
     try {
       const res = await fetch("auth-api.php?action=list-users", {
         credentials: "same-origin",
@@ -1716,13 +1843,13 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.message || "Could not load users.");
       latestUserRows = Array.isArray(data.items) ? data.items : [];
-      usersPage = 1;
+      tableUi.users.page = 1;
       applyUserPaidAmounts();
       renderUsersTable();
       setBanner("ad-users-error", "");
     } catch (error) {
       latestUserRows = [];
-      usersPage = 1;
+      tableUi.users.page = 1;
       renderUsersTable();
       setBanner("ad-users-error", error.message || "Could not load registered users.", "error");
     }
@@ -3404,6 +3531,10 @@
     });
   }
 
+  bindDataTableControls("controls", renderControlsTable);
+  bindDataTableControls("payouts", renderPayoutsTable);
+  bindDataTableControls("users", renderUsersTable);
+  bindDataTableControls("recent", renderRecentCollections);
   bindGeneralAnalysis();
   bindPortalNavigation();
   bindWhatsappSection();
