@@ -3230,9 +3230,73 @@
   document.getElementById("ad-cn-form")?.addEventListener("submit", createControlNumber);
   document.getElementById("ad-payout-form")?.addEventListener("submit", savePayoutDestination);
   document.getElementById("ad-payouts-export")?.addEventListener("click", exportPayoutCsv);
+  function bindAdminProfilePhoto() {
+    const input = document.getElementById("profilePhotoInput");
+    if (!input) return;
+
+    const sidebarImg = document.getElementById("sidebarProfileImage");
+    const sidebarFallback = document.getElementById("sidebarProfileFallback");
+    const headerImg = document.getElementById("headerProfileImage");
+    const headerFallback = document.getElementById("headerProfileFallback");
+
+    function applyPhoto(dataUrl) {
+      const hasPhoto = Boolean(dataUrl);
+      if (sidebarImg) {
+        sidebarImg.hidden = !hasPhoto;
+        if (hasPhoto) sidebarImg.src = dataUrl;
+      }
+      if (headerImg) {
+        headerImg.hidden = !hasPhoto;
+        if (hasPhoto) headerImg.src = dataUrl;
+      }
+      if (sidebarFallback) sidebarFallback.hidden = hasPhoto;
+      if (headerFallback) headerFallback.hidden = hasPhoto;
+    }
+
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      if (!String(file.type || "").startsWith("image/")) {
+        notify("Tafadhali chagua picha tu (JPG/PNG/WEBP).", "error");
+        input.value = "";
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        notify("Picha ni kubwa mno. Tumia picha chini ya 2MB.", "error");
+        input.value = "";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = String(reader.result || "");
+        if (!dataUrl) return;
+        applyPhoto(dataUrl);
+        try {
+          const res = await fetch("auth-api.php?action=update-profile", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ avatar: dataUrl }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) {
+            throw new Error(data.message || "Could not save profile photo.");
+          }
+          notify("Profile photo saved.", "success");
+        } catch (error) {
+          notify(error.message || "Could not save profile photo.", "error");
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   bindGeneralAnalysis();
   bindPortalNavigation();
   bindWhatsappSection();
+  bindAdminProfilePhoto();
   document.body.classList.add("ad-view-home");
   const detailOnLoad = document.getElementById("ad-detail-sections");
   if (detailOnLoad) {

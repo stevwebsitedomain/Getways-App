@@ -19,6 +19,8 @@ try {
 $authUser = $_SESSION['gw_auth_user'] ?? [];
 $authName = htmlspecialchars(trim((string) ($authUser['fullName'] ?? 'Admin')), ENT_QUOTES);
 $authEmail = htmlspecialchars(trim((string) ($authUser['email'] ?? $authUser['username'] ?? '')), ENT_QUOTES);
+$authAvatar = trim((string) ($authUser['avatar'] ?? ''));
+$authAvatarSafe = $authAvatar !== '' ? htmlspecialchars($authAvatar, ENT_QUOTES) : '';
 $authFirst = trim((string) (preg_split('/\s+/', trim((string) ($authUser['fullName'] ?? 'Admin')))[0] ?? 'Admin'));
 $authFirst = htmlspecialchars($authFirst !== '' ? $authFirst : 'Admin', ENT_QUOTES);
 $hour = (int) date('G');
@@ -95,7 +97,15 @@ require __DIR__ . '/acs-gov-banner.php';
           <small><?php echo $authEmail !== '' ? $authEmail : 'Administrator'; ?></small>
           <a class="logout-button" href="logout.php">Logout</a>
         </div>
-        <div class="account-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
+        <div class="account-avatar" id="headerAvatar">
+          <?php if ($authAvatarSafe !== ''): ?>
+            <img id="headerProfileImage" src="<?php echo $authAvatarSafe; ?>" alt="Profile photo" />
+            <span id="headerProfileFallback" hidden><i class="fa-solid fa-user"></i></span>
+          <?php else: ?>
+            <img id="headerProfileImage" alt="Profile photo" hidden />
+            <span id="headerProfileFallback"><i class="fa-solid fa-user"></i></span>
+          <?php endif; ?>
+        </div>
       </div>
     </nav>
 
@@ -103,7 +113,20 @@ require __DIR__ . '/acs-gov-banner.php';
     <aside class="ad-sidebar" id="ad-sidebar">
       <button type="button" class="ad-sidebar-toggle" id="ad-sidebar-close" aria-label="Close menu">×</button>
       <div class="profile-uploader">
-        <div class="profile-photo-box" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
+        <div class="profile-photo-box">
+          <?php if ($authAvatarSafe !== ''): ?>
+            <img id="sidebarProfileImage" src="<?php echo $authAvatarSafe; ?>" alt="Profile photo" />
+            <div class="profile-fallback" id="sidebarProfileFallback" hidden><i class="fa-solid fa-user"></i></div>
+          <?php else: ?>
+            <img id="sidebarProfileImage" alt="Profile photo" hidden />
+            <div class="profile-fallback" id="sidebarProfileFallback"><i class="fa-solid fa-user"></i></div>
+          <?php endif; ?>
+        </div>
+        <label class="profile-upload-btn" for="profilePhotoInput">
+          <i class="fa-solid fa-camera" aria-hidden="true"></i> Upload Photo
+        </label>
+        <input id="profilePhotoInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" hidden />
+        <p class="profile-upload-hint">JPG, PNG au WEBP, chini ya 2MB</p>
         <p class="ad-sidebar-user"><?php echo $authName; ?></p>
       </div>
       <div class="ad-sidebar-head" hidden>
@@ -113,26 +136,66 @@ require __DIR__ . '/acs-gov-banner.php';
         </div>
       </div>
       <button type="button" class="ad-sidebar-catalogue is-active" data-ad-nav="home">
-        <i class="fa-solid fa-folder-open ad-nav-ico ad-nav-ico--catalogue"></i>
+        <i class="fa-solid fa-folder-open ad-nav-ico"></i>
         <span class="ad-sidebar-text">Dashboard</span>
         <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
       </button>
-      <nav class="ad-sidebar-nav" aria-label="Admin modules">
+      <nav class="ad-sidebar-nav sidebar-menu" aria-label="Admin modules">
         <p class="ad-sidebar-label">COLLECTIONS</p>
-        <button type="button" class="ad-sidebar-link" data-ad-target="general-analysis"><span class="ad-sidebar-link-text"><i class="fa-solid fa-circle-nodes ad-nav-ico"></i> <span class="ad-sidebar-text">General Analysis</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="analytics"><span class="ad-sidebar-link-text"><i class="fa-solid fa-chart-line ad-nav-ico ad-nav-ico--chart"></i> <span class="ad-sidebar-text">Payment analysis</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="control-number"><span class="ad-sidebar-link-text"><i class="fa-solid fa-file-invoice-dollar ad-nav-ico ad-nav-ico--invoice"></i> <span class="ad-sidebar-text">Control number</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="transactions"><span class="ad-sidebar-link-text"><i class="fa-solid fa-receipt ad-nav-ico ad-nav-ico--receipt"></i> <span class="ad-sidebar-text">Transactions</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="recent"><span class="ad-sidebar-link-text"><i class="fa-solid fa-clock-rotate-left ad-nav-ico ad-nav-ico--recent"></i> <span class="ad-sidebar-text">Recent collections</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="general-analysis">
+          <i class="fa-solid fa-circle-nodes ad-nav-ico"></i>
+          <span class="ad-sidebar-text">General Analysis</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="analytics">
+          <i class="fa-solid fa-chart-line ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Payment analysis</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="control-number">
+          <i class="fa-solid fa-file-invoice-dollar ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Control number</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="transactions">
+          <i class="fa-solid fa-receipt ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Transactions</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="recent">
+          <i class="fa-solid fa-clock-rotate-left ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Recent collections</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
         <p class="ad-sidebar-label">PAYOUTS</p>
-        <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest"><span class="ad-sidebar-link-text"><i class="fa-solid fa-mobile-screen ad-nav-ico ad-nav-ico--mobile"></i> <span class="ad-sidebar-text">Payout destination</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
-        <button type="button" class="ad-sidebar-link" data-ad-target="users"><span class="ad-sidebar-link-text"><i class="fa-solid fa-users ad-nav-ico ad-nav-ico--users"></i> <span class="ad-sidebar-text">Registered users</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="payout-dest">
+          <i class="fa-solid fa-mobile-screen ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Payout destination</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="users">
+          <i class="fa-solid fa-users ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Registered users</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
         <p class="ad-sidebar-label">MESSAGING</p>
-        <button type="button" class="ad-sidebar-link" data-ad-target="whatsapp"><span class="ad-sidebar-link-text"><i class="fa-brands fa-whatsapp ad-nav-ico" style="color:#25d366"></i> <span class="ad-sidebar-text">Send WhatsApp</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="whatsapp">
+          <i class="fa-brands fa-whatsapp ad-nav-ico" style="color:#25d366"></i>
+          <span class="ad-sidebar-text">Send WhatsApp</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
       </nav>
       <div class="ad-sidebar-foot">
-        <a class="ad-sidebar-link ad-sidebar-link--quiet" href="part-two.php"><i class="fa-solid fa-wallet ad-nav-ico ad-nav-ico--wallet"></i> <span class="ad-sidebar-text">User wallet</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></a>
-        <a class="ad-sidebar-link ad-sidebar-link--danger" href="logout.php"><i class="fa-solid fa-right-from-bracket ad-nav-ico ad-nav-ico--logout"></i> <span class="ad-sidebar-text">Logout</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></a>
+        <a class="ad-sidebar-link ad-sidebar-link--quiet" href="part-two.php">
+          <i class="fa-solid fa-wallet ad-nav-ico"></i>
+          <span class="ad-sidebar-text">User wallet</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </a>
+        <a class="ad-sidebar-link ad-sidebar-link--danger" href="logout.php">
+          <i class="fa-solid fa-right-from-bracket ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Logout</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </a>
       </div>
     </aside>
     <button class="ad-sidebar-backdrop" id="ad-sidebar-backdrop" type="button" hidden aria-label="Close menu"></button>
