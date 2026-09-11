@@ -546,33 +546,35 @@
     }
 
     const useAmount = list.some((d) => Number(d.amount || 0) > 0);
-    const values = list.map((d) => (useAmount ? Number(d.amount || 0) : Number(d.count || 0)));
-    const labels = list.map((d) => String(d.label || ""));
-    const seriesData = labels.map((label, index) => ({
-      x: label,
-      y: values[index] ?? 0,
-    }));
-    const maxVal = Math.max(...values, 1);
-    const yTick = Math.max(1, Math.ceil(maxVal / 5));
-    const yMax = Math.ceil(maxVal / yTick) * yTick;
+    // ApexCharts zoomable timeseries: [timestamp, value] pairs + xaxis datetime
+    const dates = list.map((d) => {
+      const key = String(d.date || "");
+      const ts = key ? new Date(`${key}T12:00:00`).getTime() : NaN;
+      const value = useAmount ? Number(d.amount || 0) : Number(d.count || 0);
+      return [Number.isFinite(ts) ? ts : Date.now(), value];
+    });
 
     el.innerHTML = "";
     const chart = new ApexCharts(el, {
-      series: [{ name: useAmount ? "Amount" : "Transactions", data: seriesData }],
-      chart: {
-        height: 360,
-        type: "area",
-        id: "ad-annotation-trend",
-        fontFamily: "Arial, Helvetica, sans-serif",
-        zoom: {
-          enabled: true,
-          type: "x",
-          autoScaleYaxis: true,
+      series: [
+        {
+          name: useAmount ? "Collections" : "Transactions",
+          data: dates,
         },
-        selection: { enabled: true },
+      ],
+      chart: {
+        type: "area",
+        stacked: false,
+        height: 350,
+        id: "ad-annotation-trend",
+        zoom: {
+          type: "x",
+          enabled: true,
+          autoScaleYaxis: true,
+          allowMouseWheelZoom: false,
+        },
         toolbar: {
-          show: true,
-          offsetY: -4,
+          autoSelected: "zoom",
           tools: {
             download: true,
             selection: true,
@@ -583,79 +585,29 @@
             reset: true,
           },
         },
-        background: "transparent",
-        foreColor: "#475569",
-        parentHeightOffset: 0,
-        animations: { enabled: true, speed: 450 },
       },
-      theme: { mode: "light" },
+      dataLabels: {
+        enabled: false,
+      },
+      markers: {
+        size: 0,
+      },
       title: {
         text: "Payment Movement",
         align: "left",
-        margin: 8,
-        offsetX: 4,
-        offsetY: 0,
-        style: {
-          fontSize: "16px",
-          fontWeight: 700,
-          color: "#1f2937",
-          fontFamily: "Arial, Helvetica, sans-serif",
-        },
-      },
-      dataLabels: { enabled: false },
-      stroke: {
-        curve: "straight",
-        width: 3,
-        colors: ["#008FFB"],
       },
       fill: {
         type: "gradient",
         gradient: {
           shadeIntensity: 1,
-          opacityFrom: 0.45,
-          opacityTo: 0.05,
+          inverseColors: false,
+          opacityFrom: 0.5,
+          opacityTo: 0,
           stops: [0, 90, 100],
-          colorStops: [
-            { offset: 0, color: "#008FFB", opacity: 0.4 },
-            { offset: 100, color: "#008FFB", opacity: 0.02 },
-          ],
         },
-      },
-      colors: ["#008FFB"],
-      markers: {
-        size: 0,
-        hover: { size: 5 },
-      },
-      grid: {
-        borderColor: "#e5e7eb",
-        strokeDashArray: 0,
-        xaxis: { lines: { show: false } },
-        yaxis: { lines: { show: true } },
-        padding: { top: 12, right: 16, bottom: 8, left: 8 },
-      },
-      xaxis: {
-        type: "category",
-        tickAmount: Math.min(list.length, list.length > 16 ? 8 : list.length > 10 ? 7 : list.length),
-        labels: {
-          rotate: 0,
-          hideOverlappingLabels: true,
-          trim: true,
-          style: { colors: "#64748b", fontSize: "12px", fontWeight: 500 },
-        },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
-        tooltip: { enabled: false },
       },
       yaxis: {
-        min: 0,
-        max: yMax,
-        tickAmount: 5,
-        title: {
-          text: useAmount ? "Amount (TZS)" : "Transactions",
-          style: { color: "#64748b", fontSize: "12px", fontWeight: 600 },
-        },
         labels: {
-          style: { colors: "#64748b", fontSize: "12px" },
           formatter(val) {
             const n = Number(val || 0);
             if (!useAmount) return String(Math.round(n));
@@ -664,25 +616,33 @@
             return String(Math.round(n));
           },
         },
+        title: {
+          text: useAmount ? "Amount" : "Transactions",
+        },
+      },
+      xaxis: {
+        type: "datetime",
       },
       tooltip: {
-        theme: "light",
         shared: false,
-        x: { show: true },
         y: {
-          formatter(val, opts) {
-            const day = list[opts?.dataPointIndex] || {};
-            if (useAmount) {
-              return `${money(val)} · ${Number(day.count || 0)} tx`;
-            }
-            return `${val} transaction${Number(val) === 1 ? "" : "s"}`;
+          formatter(val) {
+            const n = Number(val || 0);
+            if (!useAmount) return `${Math.round(n)} tx`;
+            return money(n);
           },
         },
       },
-      legend: { show: false },
     });
     chartStore.trend = chart;
-    chart.render();
+    chart.render().then(() => {
+      // Block wheel/trackpad gestures from zooming or stretching the chart while scrolling the page
+      const blockWheel = (event) => {
+        event.stopPropagation();
+      };
+      el.addEventListener("wheel", blockWheel, { passive: true, capture: true });
+      el.addEventListener("mousewheel", blockWheel, { passive: true, capture: true });
+    });
   }
 
   function updatePeriodLabels(analytics) {
