@@ -287,19 +287,6 @@ body.acs-body textarea {
   background: var(--acs-primary-dark);
 }
 
-/* Login page: red text on the Login button label */
-body.acs-login .auth-card form > .mb-login-btn[type="submit"] {
-  background: var(--acs-primary);
-  color: #ef4444 !important;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-body.acs-login .auth-card form > .mb-login-btn[type="submit"]:hover {
-  background: var(--acs-primary-dark);
-  color: #f87171 !important;
-}
-
 .auth-switch {
   margin: 14px 0 0;
   color: var(--acs-muted);
@@ -504,29 +491,31 @@ body.ad-body.ad-acs .logout-button {
   align-items: center;
   gap: 6px;
   margin-top: 6px;
-  border: none;
+  border: 1px solid #fecaca;
   border-radius: 6px;
   padding: 6px 12px;
-  background: #dc2626;
-  color: #fff;
+  background: #fff;
+  color: #dc2626;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
   width: fit-content;
   align-self: flex-end;
-  box-shadow: 0 1px 2px rgba(185, 28, 28, 0.25);
+  box-shadow: none;
 }
 
 body.ad-body.ad-acs .logout-button:hover,
 body.ad-body.ad-acs .logout-button:focus {
-  background: #b91c1c;
-  color: #fff;
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
   outline: none;
 }
 
 body.ad-body.ad-acs .logout-button i {
   font-size: 12px;
+  color: #dc2626;
 }
 
 body.ad-body.ad-acs .ad-sidebar-link--danger {
