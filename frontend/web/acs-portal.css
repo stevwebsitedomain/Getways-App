@@ -531,13 +531,44 @@ body.ad-body.ad-acs .ad-sidebar-link--danger:hover {
   color: #b91c1c !important;
 }
 
-/* Classic SweetAlert look (error X + navy OK) */
-body.ad-acs .swal2-popup {
-  width: min(32em, calc(100vw - 2rem));
-  padding: 1.35em 1.2em 1.5em;
+/* Classic SweetAlert look (error X + navy OK) — keep compact */
+body.ad-acs .swal2-popup:not(.swal2-toast) {
+  width: 360px !important;
+  max-width: calc(100vw - 2rem);
+  padding: 1.25em 1.1em 1.35em;
   border-radius: 4px;
   box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+body.ad-acs .swal2-popup.swal2-toast {
+  width: auto !important;
+  max-width: 340px !important;
+  padding: 0.7em 0.9em !important;
+  border-radius: 6px !important;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.16) !important;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body.ad-acs .swal2-popup.swal2-toast .swal2-title {
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: #374151 !important;
+  text-align: left !important;
+}
+
+body.ad-acs .swal2-popup.swal2-toast .swal2-icon {
+  margin: 0 0.65em 0 0 !important;
+  width: 1.75em !important;
+  height: 1.75em !important;
+  border-width: 0.2em !important;
+}
+
+body.ad-acs .swal2-popup.swal2-toast .swal2-icon .swal2-icon-content {
+  font-size: 1em !important;
 }
 
 body.ad-acs .swal2-icon {
@@ -554,24 +585,24 @@ body.ad-acs .swal2-icon.swal2-error [class^="swal2-x-mark-line"] {
   background-color: #f27474;
 }
 
-body.ad-acs .swal2-title {
+body.ad-acs .swal2-popup:not(.swal2-toast) .swal2-title {
   color: #3d3d3d;
-  font-size: 1.65rem;
+  font-size: 1.35rem;
   font-weight: 700;
   line-height: 1.3;
-  padding: 0.35em 0.6em 0;
+  padding: 0.35em 0.4em 0;
 }
 
 body.ad-acs .swal2-html-container {
   color: #6b6b6b;
-  font-size: 1.02rem;
+  font-size: 0.95rem;
   font-weight: 400;
   line-height: 1.45;
-  margin: 0.65em 1em 0.2em;
+  margin: 0.65em 0.6em 0.2em;
 }
 
 body.ad-acs .swal2-actions {
-  margin: 1.35em auto 0.15em;
+  margin: 1.2em auto 0.15em;
 }
 
 body.ad-acs .swal2-styled.swal2-confirm {
@@ -580,10 +611,10 @@ body.ad-acs .swal2-styled.swal2-confirm {
   border-radius: 3px !important;
   box-shadow: none !important;
   color: #fff !important;
-  font-size: 1.05rem !important;
+  font-size: 1rem !important;
   font-weight: 600 !important;
-  padding: 0.65em 2.4em !important;
-  min-width: 5.5em;
+  padding: 0.6em 2em !important;
+  min-width: 5em;
 }
 
 body.ad-acs .swal2-styled.swal2-confirm:focus {
@@ -600,7 +631,7 @@ body.ad-acs .swal2-styled.swal2-cancel {
   border-radius: 3px !important;
   box-shadow: none !important;
   font-weight: 600 !important;
-  padding: 0.65em 1.6em !important;
+  padding: 0.6em 1.4em !important;
 }
 
 body.ad-body.ad-acs .account-avatar {

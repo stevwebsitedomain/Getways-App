@@ -79,6 +79,11 @@
         showConfirmButton: false,
         timer: type === "error" ? 6000 : 3500,
         timerProgressBar: true,
+        width: "340px",
+        customClass: {
+          popup: "acs-swal-toast",
+          title: "acs-swal-toast-title",
+        },
       });
       return;
     }
@@ -90,6 +95,7 @@
       confirmButtonText: "OK",
       confirmButtonColor: "#1a3352",
       buttonsStyling: true,
+      width: 360,
     });
   }
 
