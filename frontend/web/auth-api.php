@@ -89,6 +89,49 @@ function writeStore(string $path, array $data): bool
     return $written !== false;
 }
 
+/**
+ * Persist a data-URL avatar to disk and return a cache-busted relative URL.
+ */
+function saveAvatarFromDataUrl(string $userId, string $dataUrl): string
+{
+    if (!preg_match('#^data:image/(jpeg|jpg|png|webp|gif);base64,#i', $dataUrl, $m)) {
+        jsonResponse(422, ['ok' => false, 'message' => 'Invalid image format. Use JPG, PNG, or WEBP.']);
+    }
+    $ext = strtolower($m[1]);
+    if ($ext === 'jpeg') {
+        $ext = 'jpg';
+    }
+    $comma = strpos($dataUrl, ',');
+    if ($comma === false) {
+        jsonResponse(422, ['ok' => false, 'message' => 'Invalid image data.']);
+    }
+    $binary = base64_decode(substr($dataUrl, $comma + 1), true);
+    if ($binary === false || $binary === '') {
+        jsonResponse(422, ['ok' => false, 'message' => 'Could not read image data.']);
+    }
+    if (strlen($binary) > 2_500_000) {
+        jsonResponse(422, ['ok' => false, 'message' => 'Profile picture is too large. Use a smaller photo.']);
+    }
+
+    $dir = gwAuthRuntimeDir() . DIRECTORY_SEPARATOR . 'avatars';
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        jsonResponse(500, ['ok' => false, 'message' => 'Could not create avatar folder. Check runtime permissions.']);
+    }
+
+    $safeId = preg_replace('/[^a-zA-Z0-9_-]/', '', $userId) ?: ('user-' . bin2hex(random_bytes(4)));
+    // Remove previous extensions for this user
+    foreach (glob($dir . DIRECTORY_SEPARATOR . $safeId . '.*') ?: [] as $old) {
+        @unlink($old);
+    }
+    $filename = $safeId . '.' . $ext;
+    $fullPath = $dir . DIRECTORY_SEPARATOR . $filename;
+    if (@file_put_contents($fullPath, $binary) === false) {
+        jsonResponse(500, ['ok' => false, 'message' => 'Could not save profile photo. Check runtime permissions.']);
+    }
+
+    return 'runtime/avatars/' . $filename . '?v=' . time();
+}
+
 function normalizePhone(string $phone): string
 {
     $clean = preg_replace('/\s+/', '', trim($phone)) ?? '';
@@ -734,18 +777,28 @@ if ($method === 'POST' && $action === 'update-profile') {
     $avatar = trim((string) ($input['avatar'] ?? ''));
     $store = ensureStore($storePath);
     $updated = null;
+    $currentId = (string) ($current['id'] ?? '');
+    $currentUsername = strtolower((string) ($current['username'] ?? ''));
+
     foreach ($store['users'] as &$user) {
-        if ((string) ($user['id'] ?? '') !== (string) ($current['id'] ?? '')) {
+        $uid = (string) ($user['id'] ?? '');
+        $uname = strtolower((string) ($user['username'] ?? ''));
+        $isMatch = ($currentId !== '' && $uid === $currentId)
+            || ($currentUsername !== '' && $uname === $currentUsername && isAdminUser($user));
+        if (!$isMatch) {
             continue;
         }
         if ($fullName !== '' && strlen($fullName) >= 2) {
             $user['fullName'] = $fullName;
         }
         if ($avatar !== '') {
-            if (strlen($avatar) > 600000) {
-                jsonResponse(422, ['ok' => false, 'message' => 'Profile picture is too large.']);
+            if (gwStrStartsWith($avatar, 'data:image/')) {
+                $user['avatar'] = saveAvatarFromDataUrl($uid !== '' ? $uid : ($uname !== '' ? $uname : 'admin'), $avatar);
+            } elseif (gwStrStartsWith($avatar, 'runtime/avatars/') || gwStrStartsWith($avatar, 'http://') || gwStrStartsWith($avatar, 'https://')) {
+                $user['avatar'] = $avatar;
+            } else {
+                jsonResponse(422, ['ok' => false, 'message' => 'Invalid profile picture.']);
             }
-            $user['avatar'] = $avatar;
         }
         $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
         $updated = $user;
@@ -753,9 +806,34 @@ if ($method === 'POST' && $action === 'update-profile') {
     }
     unset($user);
     if ($updated === null) {
+        // Create/sync admin row if magic-admin session has no matching store user.
+        if (strtolower((string) ($current['role'] ?? '')) === 'admin') {
+            $adminUser = ensureAdminUser($store, $storePath);
+            if ($adminUser !== null) {
+                foreach ($store['users'] as &$user) {
+                    if (!isAdminUser($user)) {
+                        continue;
+                    }
+                    if ($fullName !== '' && strlen($fullName) >= 2) {
+                        $user['fullName'] = $fullName;
+                    }
+                    if ($avatar !== '' && gwStrStartsWith($avatar, 'data:image/')) {
+                        $user['avatar'] = saveAvatarFromDataUrl((string) ($user['id'] ?? 'admin'), $avatar);
+                    }
+                    $_SESSION['gw_auth_user'] = gwAuthSessionUser($user);
+                    $updated = $user;
+                    break;
+                }
+                unset($user);
+            }
+        }
+    }
+    if ($updated === null) {
         jsonResponse(404, ['ok' => false, 'message' => 'Account not found.']);
     }
-    writeStore($storePath, $store);
+    if (!writeStore($storePath, $store)) {
+        jsonResponse(500, ['ok' => false, 'message' => 'Could not write profile. Check that frontend/web/runtime is writable.']);
+    }
     jsonResponse(200, [
         'ok' => true,
         'message' => 'Profile updated.',

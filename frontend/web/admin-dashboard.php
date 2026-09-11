@@ -149,7 +149,7 @@ require __DIR__ . '/acs-gov-banner.php';
           <i class="fa-solid fa-camera" aria-hidden="true"></i> Upload Photo
         </label>
         <input id="profilePhotoInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" hidden />
-        <p class="profile-upload-hint">JPG, PNG au WEBP, chini ya 2MB</p>
+        <p class="profile-upload-hint">JPG, PNG au WEBP — itabana otomatiki</p>
         <p class="ad-sidebar-user"><?php echo $authName; ?></p>
       </div>
       <div class="ad-sidebar-head" hidden>

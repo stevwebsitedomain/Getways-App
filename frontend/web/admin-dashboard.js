@@ -3308,18 +3308,54 @@
     const headerImg = document.getElementById("headerProfileImage");
     const headerFallback = document.getElementById("headerProfileFallback");
 
-    function applyPhoto(dataUrl) {
-      const hasPhoto = Boolean(dataUrl);
+    function applyPhoto(url) {
+      const hasPhoto = Boolean(url);
       if (sidebarImg) {
         sidebarImg.hidden = !hasPhoto;
-        if (hasPhoto) sidebarImg.src = dataUrl;
+        if (hasPhoto) {
+          sidebarImg.removeAttribute("hidden");
+          sidebarImg.src = url;
+        }
       }
       if (headerImg) {
         headerImg.hidden = !hasPhoto;
-        if (hasPhoto) headerImg.src = dataUrl;
+        if (hasPhoto) {
+          headerImg.removeAttribute("hidden");
+          headerImg.src = url;
+        }
       }
       if (sidebarFallback) sidebarFallback.hidden = hasPhoto;
       if (headerFallback) headerFallback.hidden = hasPhoto;
+    }
+
+    function compressImage(file, maxSize = 512, quality = 0.82) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Could not read image."));
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error("Could not load image."));
+          img.onload = () => {
+            const scale = Math.min(1, maxSize / Math.max(img.width || 1, img.height || 1));
+            const width = Math.max(1, Math.round((img.width || maxSize) * scale));
+            const height = Math.max(1, Math.round((img.height || maxSize) * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve(String(reader.result || ""));
+              return;
+            }
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.src = String(reader.result || "");
+        };
+        reader.readAsDataURL(file);
+      });
     }
 
     input.addEventListener("change", async () => {
@@ -3331,34 +3367,36 @@
         input.value = "";
         return;
       }
-      if (file.size > 2 * 1024 * 1024) {
-        notify("Picha ni kubwa mno. Tumia picha chini ya 2MB.", "error");
+      if (file.size > 8 * 1024 * 1024) {
+        notify("Picha ni kubwa mno. Tumia picha chini ya 8MB.", "error");
         input.value = "";
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = String(reader.result || "");
-        if (!dataUrl) return;
+      try {
+        notify("Inahifadhi picha…", "info", { force: true, modal: true });
+        const dataUrl = await compressImage(file);
+        if (!dataUrl) throw new Error("Could not process image.");
         applyPhoto(dataUrl);
-        try {
-          const res = await fetch("auth-api.php?action=update-profile", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ avatar: dataUrl }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || !data.ok) {
-            throw new Error(data.message || "Could not save profile photo.");
-          }
-          notify("Profile photo saved.", "success");
-        } catch (error) {
-          notify(error.message || "Could not save profile photo.", "error");
+
+        const res = await fetch("auth-api.php?action=update-profile", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ avatar: dataUrl }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message || "Could not save profile photo.");
         }
-      };
-      reader.readAsDataURL(file);
+        const savedUrl = String(data?.user?.avatar || "").trim();
+        if (savedUrl) applyPhoto(savedUrl);
+        notify("Profile photo saved.", "success", { force: true });
+      } catch (error) {
+        notify(error.message || "Could not save profile photo.", "error", { force: true });
+      } finally {
+        input.value = "";
+      }
     });
   }
 
