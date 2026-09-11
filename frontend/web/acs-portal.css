@@ -339,16 +339,18 @@ body.acs-body textarea {
 .auth-pin-row {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
   margin-bottom: 12px;
 }
 
 .auth-pin-row input {
-  width: 42px;
+  width: 38px;
   height: 42px;
   text-align: center;
   border: 1px solid #c6ced7;
-  font-size: 18px;
+  font-size: 17px;
+  flex: 0 0 auto;
 }
 
 .auth-bio {

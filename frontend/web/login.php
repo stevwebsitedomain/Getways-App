@@ -87,6 +87,8 @@ require __DIR__ . '/acs-gov-banner.php';
           <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 2" />
           <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 3" />
           <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 4" />
+          <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 5" />
+          <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 6" />
         </div>
         <button type="button" class="primary-button" id="pin-login-btn">Login with PIN</button>
         <button type="button" class="logout-button" id="pin-cancel-btn" style="display:block;width:100%;margin-top:10px;text-align:center">Cancel</button>
@@ -102,6 +104,6 @@ require __DIR__ . '/acs-gov-banner.php';
   </div>
 
   <script src="mb-login-lang.js?v=3"></script>
-  <script src="auth.js?v=10"></script>
+  <script src="auth.js?v=11"></script>
 </body>
 </html>

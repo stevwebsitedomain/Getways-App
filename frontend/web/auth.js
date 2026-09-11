@@ -117,7 +117,7 @@
       field.addEventListener("input", () => {
         field.value = String(field.value || "").replace(/\D/g, "").slice(0, 1);
         if (field.value && pinDigits[index + 1]) pinDigits[index + 1].focus();
-        if (readPin().length === 4) pinSubmit?.click();
+        if (readPin().length === 6) pinSubmit?.click();
       });
       field.addEventListener("keydown", (event) => {
         if (event.key === "Backspace" && !field.value && pinDigits[index - 1]) {
@@ -145,8 +145,8 @@
     pinSubmit?.addEventListener("click", async () => {
       setMessage(alert, "", false);
       const pin = readPin();
-      if (pin.length !== 4) {
-        setMessage(alert, "Enter a 4-digit PIN.", false);
+      if (pin.length !== 6) {
+        setMessage(alert, "Enter the 6-digit admin PIN.", false);
         return;
       }
       try {

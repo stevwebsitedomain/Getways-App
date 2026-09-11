@@ -342,9 +342,9 @@ function ensureAdminUser(array &$store, string $storePath): ?array
         'username' => 'admin',
         'phone' => '',
         'email' => 'admin@getway.local',
-        // Default admin password: 202526
+        // Default admin password/PIN: 202526
         'passwordHash' => '$2y$10$CpfGnai6jC8vabO3rouFw.6iWHsMKWMZRNC2snBhF6r8LjgRiBDnS',
-        'pinHash' => '$2y$10$3hM48KNMB41sTJ5qi7fXOe3Vu7uQvJKJ0gB3QB376wqn6KMcJesw6',
+        'pinHash' => '$2y$10$zB6beARUjM7urCX83rMEUeJf7/CDYcndvgO9/JAgk9VtxtDZYyPCi',
         'role' => 'admin',
         'provider' => 'password',
         'createdAt' => gmdate('c'),
@@ -743,12 +743,12 @@ if ($action === 'pin-login') {
     if ($wantedRole !== 'admin') {
         $wantedRole = 'user';
     }
-    if (strlen($pin) !== 4) {
-        jsonResponse(422, ['ok' => false, 'message' => 'Enter a 4-digit PIN.']);
+    if (strlen($pin) !== 6) {
+        jsonResponse(422, ['ok' => false, 'message' => 'Enter the 6-digit admin PIN.']);
     }
 
-    // Default PIN 0000 → admin dashboard only when Admin tab is selected
-    if ($pin === '0000') {
+    // Default admin PIN matches admin password: 202526
+    if ($pin === '202526') {
         if ($wantedRole !== 'admin') {
             jsonResponse(403, ['ok' => false, 'message' => 'Admin PIN only works on the Admin tab. Switch to Admin to continue.']);
         }
