@@ -357,58 +357,12 @@
   }
 
   function bindGoogleGis() {
-    const target = document.getElementById("google-gis");
     const fallback = document.getElementById("google-login-fallback");
-    const box = document.getElementById("google-login-box");
-    if (!target && !fallback) return;
-
+    if (!fallback) return;
     const alert = document.getElementById("auth-message");
     const clientId = String(window.GETWAY_GOOGLE_CLIENT_ID || "").trim();
-    let ready = false;
 
-    async function onCredential(response) {
-      const credential = String(response?.credential || "").trim();
-      if (!credential) {
-        setMessage(alert, "Google did not return a sign-in token. Try again.", false);
-        return;
-      }
-      try {
-        await completeGoogleLogin(credential);
-      } catch (error) {
-        setMessage(alert, error.message, false);
-      }
-    }
-
-    function renderOfficialButton() {
-      if (!clientId || !window.google?.accounts?.id || ready) return false;
-      ready = true;
-      target.hidden = false;
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        auto_select: false,
-        cancel_on_tap_outside: true,
-        itp_support: true,
-        use_fedcm_for_prompt: true,
-        callback: onCredential,
-      });
-      const width = Math.max(
-        240,
-        Math.min(360, Math.floor((box?.clientWidth || target.clientWidth || 320)))
-      );
-      window.google.accounts.id.renderButton(target, {
-        type: "standard",
-        theme: "outline",
-        size: "large",
-        text: "continue_with",
-        shape: "pill",
-        logo_alignment: "left",
-        width,
-      });
-      if (box) box.classList.add("is-gis-ready");
-      return true;
-    }
-
-    fallback?.addEventListener("click", () => {
+    fallback.addEventListener("click", () => {
       if (!clientId) {
         setMessage(
           alert,
@@ -417,23 +371,8 @@
         );
         return;
       }
-      if (window.google?.accounts?.id) {
-        if (!ready) renderOfficialButton();
-        window.google.accounts.id.prompt();
-        return;
-      }
-      setMessage(alert, "Google Sign-In is still loading. Please try again.", false);
+      window.location.href = "google-oauth-start.php";
     });
-
-    if (!clientId) return;
-
-    let tries = 0;
-    const timer = window.setInterval(() => {
-      tries += 1;
-      if (renderOfficialButton() || tries >= 50) {
-        window.clearInterval(timer);
-      }
-    }, 100);
   }
 
   bindLogin();

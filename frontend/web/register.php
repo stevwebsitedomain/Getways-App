@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/env-load.php';
 require_once __DIR__ . '/auth-init.php';
+require_once __DIR__ . '/google-oauth-lib.php';
 gwLoadEnv();
 header('Cross-Origin-Opener-Policy: same-origin-allow-popups');
 gwAuthStartSession();
@@ -25,6 +26,7 @@ $jsV = (string) (@filemtime(__DIR__ . '/auth.js') ?: time());
   <link rel="stylesheet" href="acs-portal.css?v=<?= urlencode($cssV) ?>" />
   <script>
     window.GETWAY_GOOGLE_CLIENT_ID = <?= json_encode($googleClientId, JSON_UNESCAPED_SLASHES) ?>;
+    window.GETWAY_GOOGLE_LOGIN_URI = <?= json_encode(gwGoogleCallbackUrl(), JSON_UNESCAPED_SLASHES) ?>;
   </script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
