@@ -545,100 +545,138 @@
       return;
     }
 
-    const values = list.map((d) => {
-      const amount = Number(d.amount || 0);
-      return amount > 0 ? amount : Number(d.count || 0);
-    });
-    const maxVal = Math.max(...values, 1);
-    const colorFor = (value) => {
-      const ratio = Number(value || 0) / maxVal;
-      if (ratio >= 0.66) return "#16a34a";
-      if (ratio >= 0.33) return "#ca8a04";
-      return "#dc2626";
-    };
-    const labels = list.map((d, index) => {
-      const raw = String(d.label || "");
-      if (list.length > 14 && index % 2 !== 0) return "";
-      if (list.length > 28 && index % 3 !== 0) return "";
-      return raw;
-    });
-    const seriesData = list.map((d, index) => ({
-      x: String(d.label || labels[index] || index),
+    const useAmount = list.some((d) => Number(d.amount || 0) > 0);
+    const values = list.map((d) => (useAmount ? Number(d.amount || 0) : Number(d.count || 0)));
+    const labels = list.map((d) => String(d.label || ""));
+    const seriesData = labels.map((label, index) => ({
+      x: label,
       y: values[index] ?? 0,
     }));
+    const maxVal = Math.max(...values, 1);
+    const yTick = Math.max(1, Math.ceil(maxVal / 5));
+    const yMax = Math.ceil(maxVal / yTick) * yTick;
 
     el.innerHTML = "";
     const chart = new ApexCharts(el, {
-      series: [{ name: "Collections", data: seriesData }],
+      series: [{ name: useAmount ? "Amount" : "Transactions", data: seriesData }],
       chart: {
-        height: 300,
-        type: "line",
+        height: 360,
+        type: "area",
         id: "ad-annotation-trend",
-        zoom: { enabled: false },
-        selection: { enabled: false },
-        toolbar: { show: false },
+        fontFamily: "Arial, Helvetica, sans-serif",
+        zoom: {
+          enabled: true,
+          type: "x",
+          autoScaleYaxis: true,
+        },
+        selection: { enabled: true },
+        toolbar: {
+          show: true,
+          offsetY: -4,
+          tools: {
+            download: true,
+            selection: true,
+            zoom: true,
+            zoomin: true,
+            zoomout: true,
+            pan: true,
+            reset: true,
+          },
+        },
         background: "transparent",
-        foreColor: "#334155",
+        foreColor: "#475569",
         parentHeightOffset: 0,
-        sparkline: { enabled: false },
+        animations: { enabled: true, speed: 450 },
       },
       theme: { mode: "light" },
-      annotations: { points: [] },
-      dataLabels: { enabled: false },
-      stroke: { curve: "smooth", width: 3, colors: ["#64748b"] },
-      grid: {
-        padding: { top: 8, right: 12, bottom: 8, left: 4 },
-        borderColor: "#e2e8f0",
-        row: { colors: ["transparent", "transparent"], opacity: 0 },
+      title: {
+        text: "Payment Movement",
+        align: "left",
+        margin: 8,
+        offsetX: 4,
+        offsetY: 0,
+        style: {
+          fontSize: "16px",
+          fontWeight: 700,
+          color: "#1f2937",
+          fontFamily: "Arial, Helvetica, sans-serif",
+        },
       },
-      title: { text: undefined },
-      colors: ["#64748b"],
+      dataLabels: { enabled: false },
+      stroke: {
+        curve: "straight",
+        width: 3,
+        colors: ["#008FFB"],
+      },
+      fill: {
+        type: "gradient",
+        gradient: {
+          shadeIntensity: 1,
+          opacityFrom: 0.45,
+          opacityTo: 0.05,
+          stops: [0, 90, 100],
+          colorStops: [
+            { offset: 0, color: "#008FFB", opacity: 0.4 },
+            { offset: 100, color: "#008FFB", opacity: 0.02 },
+          ],
+        },
+      },
+      colors: ["#008FFB"],
       markers: {
-        size: 5,
-        strokeColors: "#fff",
-        strokeWidth: 2,
-        discrete: values.map((value, index) => ({
-          seriesIndex: 0,
-          dataPointIndex: index,
-          fillColor: colorFor(value),
-          strokeColor: "#fff",
-          size: 6,
-        })),
+        size: 0,
+        hover: { size: 5 },
+      },
+      grid: {
+        borderColor: "#e5e7eb",
+        strokeDashArray: 0,
+        xaxis: { lines: { show: false } },
+        yaxis: { lines: { show: true } },
+        padding: { top: 12, right: 16, bottom: 8, left: 8 },
       },
       xaxis: {
         type: "category",
-        tickAmount: Math.min(list.length, list.length > 20 ? 10 : list.length > 12 ? 8 : list.length),
+        tickAmount: Math.min(list.length, list.length > 16 ? 8 : list.length > 10 ? 7 : list.length),
         labels: {
-          rotate: list.length > 8 ? -35 : 0,
-          rotateAlways: list.length > 8,
+          rotate: 0,
           hideOverlappingLabels: true,
           trim: true,
-          style: { colors: "#64748b", fontSize: "10px" },
-          formatter(value, _opts, opts) {
-            const idx = opts?.i ?? opts?.dataPointIndex;
-            if (typeof idx === "number" && labels[idx] === "") return "";
-            return String(value || "");
-          },
+          style: { colors: "#64748b", fontSize: "12px", fontWeight: 500 },
         },
-        axisBorder: { color: "#e2e8f0" },
-        axisTicks: { color: "#e2e8f0" },
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+        tooltip: { enabled: false },
       },
       yaxis: {
         min: 0,
-        decimalsInFloat: 0,
-        labels: { style: { colors: "#64748b" } },
+        max: yMax,
+        tickAmount: 5,
+        title: {
+          text: useAmount ? "Amount (TZS)" : "Transactions",
+          style: { color: "#64748b", fontSize: "12px", fontWeight: 600 },
+        },
+        labels: {
+          style: { colors: "#64748b", fontSize: "12px" },
+          formatter(val) {
+            const n = Number(val || 0);
+            if (!useAmount) return String(Math.round(n));
+            if (n >= 1000000) return `${(n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1)}M`;
+            if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`;
+            return String(Math.round(n));
+          },
+        },
       },
       tooltip: {
         theme: "light",
-        custom({ series, seriesIndex, dataPointIndex }) {
-          const day = list[dataPointIndex] || {};
-          const value = series[seriesIndex][dataPointIndex];
-          const color = colorFor(value);
-          const amountText = Number(day.amount || 0) > 0 ? money(day.amount) : `${value}`;
-          return `<div style="padding:8px 10px;font-size:12px">
-            <div style="font-weight:700;margin-bottom:4px">${esc(day.label || "")}</div>
-            <div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${esc(amountText)} · ${Number(day.count || 0)} tx</div>
-          </div>`;
+        shared: false,
+        x: { show: true },
+        y: {
+          formatter(val, opts) {
+            const day = list[opts?.dataPointIndex] || {};
+            if (useAmount) {
+              return `${money(val)} · ${Number(day.count || 0)} tx`;
+            }
+            return `${val} transaction${Number(val) === 1 ? "" : "s"}`;
+          },
         },
       },
       legend: { show: false },

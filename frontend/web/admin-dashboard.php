@@ -66,6 +66,14 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     .ad-tx-filters{display:flex;flex-wrap:wrap;gap:6px;margin-right:8px}
     .ad-tx-filters .ad-btn.is-active{background:#145493;color:#fff;border-color:#145493}
     .ad-stats--hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+    body.ad-acs #ad-trend.ad-trend{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:12px 10px 6px;
+      min-height:380px;
+      box-shadow:0 1px 3px rgba(15,23,42,.06);
+    }
     @media(max-width:900px){.ad-charts-row{grid-template-columns:1fr}}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
