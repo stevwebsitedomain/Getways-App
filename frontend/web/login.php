@@ -1,15 +1,19 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/env-load.php';
 require_once __DIR__ . '/auth-init.php';
+gwLoadEnv();
+header('Cross-Origin-Opener-Policy: same-origin-allow-popups');
 gwAuthStartSession();
 if (isset($_SESSION['gw_auth_user']) && is_array($_SESSION['gw_auth_user'])) {
     $role = strtolower((string) ($_SESSION['gw_auth_user']['role'] ?? 'user'));
     header('Location: ' . ($role === 'admin' ? 'admin-dashboard.php' : 'part-two.php'));
     exit;
 }
-$googleClientId = getenv('GOOGLE_CLIENT_ID') ?: '';
+$googleClientId = trim((string) (getenv('GOOGLE_CLIENT_ID') ?: ''));
 $next = trim((string) ($_GET['next'] ?? ''));
 $cssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
+$jsV = (string) (@filemtime(__DIR__ . '/auth.js') ?: time());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -24,6 +28,7 @@ $cssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
     window.GETWAY_GOOGLE_CLIENT_ID = <?= json_encode($googleClientId, JSON_UNESCAPED_SLASHES) ?>;
     window.GETWAY_NEXT = <?= json_encode($next, JSON_UNESCAPED_SLASHES) ?>;
   </script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="acs-body">
 <?php
@@ -94,6 +99,8 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" class="auth-cancel-btn" id="pin-cancel-btn">Cancel</button>
       </section>
 
+      <?php require __DIR__ . '/acs-google-signin.php'; ?>
+
       <p id="auth-message" class="acs-alert" role="status"></p>
 
       <p class="auth-switch">
@@ -104,6 +111,6 @@ require __DIR__ . '/acs-gov-banner.php';
   </div>
 
   <script src="mb-login-lang.js?v=3"></script>
-  <script src="auth.js?v=11"></script>
+  <script src="auth.js?v=<?= urlencode($jsV) ?>"></script>
 </body>
 </html>

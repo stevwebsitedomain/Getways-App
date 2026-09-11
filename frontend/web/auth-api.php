@@ -5,7 +5,9 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
+require_once __DIR__ . '/env-load.php';
 require_once __DIR__ . '/auth-init.php';
+gwLoadEnv();
 gwAuthStartSession();
 gwAuthRuntimeDir();
 
@@ -425,6 +427,86 @@ function loginSession(array $user, string $method = 'password'): array
     ];
 }
 
+function gwHttpGetJson(string $url): array
+{
+    $body = '';
+    $http = 0;
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        if ($ch !== false) {
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 8,
+                CURLOPT_TIMEOUT => 12,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTPHEADER => ['Accept: application/json'],
+                CURLOPT_USERAGENT => 'Getways-App-Auth/1.0',
+            ]);
+            $raw = curl_exec($ch);
+            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if (is_string($raw)) {
+                $body = $raw;
+            }
+        }
+    } else {
+        $raw = @file_get_contents($url);
+        if (is_string($raw)) {
+            $body = $raw;
+            $http = 200;
+        }
+    }
+
+    if ($body === '' || $http >= 400) {
+        return [];
+    }
+    $decoded = json_decode($body, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
+function verifyGoogleCredential(string $credential): array
+{
+    $clientId = trim((string) (getenv('GOOGLE_CLIENT_ID') ?: ''));
+    if ($clientId === '') {
+        jsonResponse(503, ['ok' => false, 'message' => 'Google Sign-In is not configured on this server.']);
+    }
+    if ($credential === '' || substr_count($credential, '.') < 2) {
+        jsonResponse(422, ['ok' => false, 'message' => 'Google sign-in token is missing.']);
+    }
+
+    $info = gwHttpGetJson('https://oauth2.googleapis.com/tokeninfo?id_token=' . rawurlencode($credential));
+    if ($info === []) {
+        jsonResponse(401, ['ok' => false, 'message' => 'Google could not verify this sign-in. Try again.']);
+    }
+
+    $aud = (string) ($info['aud'] ?? '');
+    $iss = (string) ($info['iss'] ?? '');
+    $email = strtolower(trim((string) ($info['email'] ?? '')));
+    $verified = $info['email_verified'] ?? false;
+    $emailVerified = $verified === true || $verified === 'true' || $verified === 1 || $verified === '1';
+    $exp = (int) ($info['exp'] ?? 0);
+
+    if (!hash_equals($clientId, $aud)) {
+        jsonResponse(401, ['ok' => false, 'message' => 'Google sign-in was rejected for this app.']);
+    }
+    if ($iss !== 'accounts.google.com' && $iss !== 'https://accounts.google.com') {
+        jsonResponse(401, ['ok' => false, 'message' => 'Google sign-in issuer is invalid.']);
+    }
+    if ($exp > 0 && $exp < (time() - 30)) {
+        jsonResponse(401, ['ok' => false, 'message' => 'Google sign-in expired. Try again.']);
+    }
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || !$emailVerified) {
+        jsonResponse(401, ['ok' => false, 'message' => 'This Google account email could not be verified.']);
+    }
+
+    return [
+        'email' => $email,
+        'fullName' => trim((string) ($info['name'] ?? 'Google User')),
+        'avatar' => trim((string) ($info['picture'] ?? '')),
+        'sub' => trim((string) ($info['sub'] ?? '')),
+    ];
+}
+
 $input = readInput();
 $store = ensureStore($storePath);
 ensureAdminUser($store, $storePath);
@@ -809,12 +891,10 @@ if ($action === 'forgot-start') {
 }
 
 if ($action === 'google-login') {
-    $email = trim((string) ($input['email'] ?? ''));
-    $fullName = trim((string) ($input['fullName'] ?? 'Google User'));
-    $avatar = trim((string) ($input['avatar'] ?? ''));
-    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        jsonResponse(422, ['ok' => false, 'message' => 'Invalid Google email address.']);
-    }
+    $google = verifyGoogleCredential(trim((string) ($input['credential'] ?? '')));
+    $email = $google['email'];
+    $fullName = $google['fullName'] !== '' ? $google['fullName'] : 'Google User';
+    $avatar = $google['avatar'];
 
     $store = ensureStore($storePath);
     foreach ($store['users'] as &$user) {
@@ -825,6 +905,9 @@ if ($action === 'google-login') {
             if ($avatar !== '') {
                 $user['avatar'] = $avatar;
             }
+            if ($google['sub'] !== '') {
+                $user['googleSub'] = $google['sub'];
+            }
             $user['provider'] = 'google';
             writeStore($storePath, $store);
             jsonResponse(200, loginSession($user, 'google'));
@@ -834,12 +917,14 @@ if ($action === 'google-login') {
 
     $newUser = [
         'id' => bin2hex(random_bytes(8)),
-        'fullName' => $fullName !== '' ? $fullName : 'Google User',
+        'fullName' => $fullName,
         'phone' => '',
         'passwordHash' => '',
         'email' => $email,
         'provider' => 'google',
+        'googleSub' => $google['sub'],
         'avatar' => $avatar,
+        'role' => 'user',
         'createdAt' => gmdate('c'),
     ];
     $store['users'][] = $newUser;

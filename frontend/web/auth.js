@@ -36,32 +36,39 @@
     el.classList.toggle("is-ok", !!ok && !!message);
   }
 
+  function resolveRedirect(defaultPath, role) {
+    const normalizedRole = String(role || "").toLowerCase();
+    if (normalizedRole === "admin") {
+      return "admin-dashboard.php";
+    }
+    const next = String(window.GETWAY_NEXT || "").trim();
+    if (next && /^[a-zA-Z0-9._/?=&-]+$/.test(next) && !next.startsWith("http")) {
+      const decoded = decodeURIComponent(next);
+      if (!/admin-dashboard/i.test(decoded)) {
+        return decoded;
+      }
+    }
+    return defaultPath || "part-two.php";
+  }
+
+  async function completeGoogleLogin(credential) {
+    const alert = $("#auth-message");
+    const out = await api("google-login", { credential: String(credential || "").trim() });
+    window.location.href = resolveRedirect(out.redirect, out.role);
+    return out;
+  }
+
   function bindLogin() {
     const form = $("#login-form");
     if (!form) return;
     const alert = $("#auth-message");
-    const googleBtn = $("#google-login-fallback");
+    const googleSection = $("#google-auth-section");
     const roleInput = $("#login-role");
     const pinPanel = $("#pin-panel");
     const pinOpen = $("#pin-open-btn");
     const pinCancel = $("#pin-cancel-btn");
     const pinSubmit = $("#pin-login-btn");
     const pinDigits = Array.from(document.querySelectorAll("#pin-digits input"));
-
-    function resolveRedirect(defaultPath, role) {
-      const normalizedRole = String(role || "").toLowerCase();
-      if (normalizedRole === "admin") {
-        return "admin-dashboard.php";
-      }
-      const next = String(window.GETWAY_NEXT || "").trim();
-      if (next && /^[a-zA-Z0-9._/?=&-]+$/.test(next) && !next.startsWith("http")) {
-        const decoded = decodeURIComponent(next);
-        if (!/admin-dashboard/i.test(decoded)) {
-          return decoded;
-        }
-      }
-      return defaultPath || "part-two.php";
-    }
 
     document.querySelectorAll("[data-login-mode]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -130,6 +137,7 @@
       if (pinPanel) {
         pinPanel.hidden = false;
         form.hidden = true;
+        if (googleSection) googleSection.hidden = true;
         pinDigits[0]?.focus();
       }
     });
@@ -138,6 +146,7 @@
       if (pinPanel) {
         pinPanel.hidden = true;
         form.hidden = false;
+        if (googleSection) googleSection.hidden = false;
         pinDigits.forEach((d) => { d.value = ""; });
       }
     });
@@ -173,26 +182,6 @@
         setMessage(alert, error.message, false);
       }
     });
-
-    if (googleBtn) {
-      googleBtn.addEventListener("click", async () => {
-        const emailRaw = window.prompt("Enter your Google email to continue:");
-        const email = String(emailRaw || "").trim().toLowerCase();
-        if (!email) return;
-        const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-        if (!emailOk) {
-          setMessage(alert, "Please enter a valid email address.", false);
-          return;
-        }
-        const guessedName = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
-        try {
-          const out = await api("google-login", { email, fullName: guessedName || "Google User" });
-          window.location.href = resolveRedirect(out.redirect, out.role);
-        } catch (error) {
-          setMessage(alert, error.message, false);
-        }
-      });
-    }
   }
 
   function updatePasswordToggleButton(btn, visible) {
@@ -367,61 +356,84 @@
       .catch(() => {});
   }
 
-  function decodeJwtPayload(token) {
-    const parts = String(token || "").split(".");
-    if (parts.length < 2) return null;
-    try {
-      const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-      const json = decodeURIComponent(
-        atob(b64)
-          .split("")
-          .map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
-          .join("")
-      );
-      return JSON.parse(json);
-    } catch (_) {
-      return null;
-    }
-  }
-
   function bindGoogleGis() {
     const target = document.getElementById("google-gis");
     const fallback = document.getElementById("google-login-fallback");
-    if (!target) return;
-    const clientId = window.GETWAY_GOOGLE_CLIENT_ID || "";
-    if (!clientId || !window.google || !window.google.accounts || !window.google.accounts.id) {
-      return;
+    const box = document.getElementById("google-login-box");
+    if (!target && !fallback) return;
+
+    const alert = document.getElementById("auth-message");
+    const clientId = String(window.GETWAY_GOOGLE_CLIENT_ID || "").trim();
+    let ready = false;
+
+    async function onCredential(response) {
+      const credential = String(response?.credential || "").trim();
+      if (!credential) {
+        setMessage(alert, "Google did not return a sign-in token. Try again.", false);
+        return;
+      }
+      try {
+        await completeGoogleLogin(credential);
+      } catch (error) {
+        setMessage(alert, error.message, false);
+      }
     }
-    target.classList.remove("auth-hidden");
-    if (fallback) fallback.classList.add("auth-hidden");
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response) => {
-        const payload = decodeJwtPayload(response.credential);
-        const email = String(payload?.email || "").trim();
-        const name = String(payload?.name || "Google User").trim();
-        const avatar = String(payload?.picture || "").trim();
-        if (!email) return;
-        try {
-          const out = await api("google-login", { email, fullName: name, avatar });
-          const next = String(window.GETWAY_NEXT || "").trim();
-          if (next && /^[a-zA-Z0-9._/?=&-]+$/.test(next) && !next.startsWith("http")) {
-            window.location.href = decodeURIComponent(next);
-          } else {
-            window.location.href = out.redirect || "part-two.php";
-          }
-        } catch (error) {
-          const alert = document.getElementById("auth-message");
-          setMessage(alert, error.message, false);
-        }
-      },
+
+    function renderOfficialButton() {
+      if (!clientId || !window.google?.accounts?.id || ready) return false;
+      ready = true;
+      target.hidden = false;
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        itp_support: true,
+        use_fedcm_for_prompt: true,
+        callback: onCredential,
+      });
+      const width = Math.max(
+        240,
+        Math.min(360, Math.floor((box?.clientWidth || target.clientWidth || 320)))
+      );
+      window.google.accounts.id.renderButton(target, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "pill",
+        logo_alignment: "left",
+        width,
+      });
+      if (box) box.classList.add("is-gis-ready");
+      return true;
+    }
+
+    fallback?.addEventListener("click", () => {
+      if (!clientId) {
+        setMessage(
+          alert,
+          "Google Sign-In is not configured. Add GOOGLE_CLIENT_ID in .env.",
+          false
+        );
+        return;
+      }
+      if (window.google?.accounts?.id) {
+        if (!ready) renderOfficialButton();
+        window.google.accounts.id.prompt();
+        return;
+      }
+      setMessage(alert, "Google Sign-In is still loading. Please try again.", false);
     });
-    window.google.accounts.id.renderButton(target, {
-      theme: "outline",
-      size: "large",
-      width: 260,
-      text: "continue_with",
-    });
+
+    if (!clientId) return;
+
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      if (renderOfficialButton() || tries >= 50) {
+        window.clearInterval(timer);
+      }
+    }, 100);
   }
 
   bindLogin();
@@ -430,5 +442,5 @@
   bindOtp();
   bindPasswordToggles();
   bindPinToggle();
-  window.setTimeout(bindGoogleGis, 50);
+  bindGoogleGis();
 })();

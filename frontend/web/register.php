@@ -1,13 +1,18 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/env-load.php';
 require_once __DIR__ . '/auth-init.php';
+gwLoadEnv();
+header('Cross-Origin-Opener-Policy: same-origin-allow-popups');
 gwAuthStartSession();
 if (isset($_SESSION['gw_auth_user']) && is_array($_SESSION['gw_auth_user'])) {
     $role = strtolower((string) ($_SESSION['gw_auth_user']['role'] ?? 'user'));
     header('Location: ' . ($role === 'admin' ? 'admin-dashboard.php' : 'part-two.php'));
     exit;
 }
+$googleClientId = trim((string) (getenv('GOOGLE_CLIENT_ID') ?: ''));
 $cssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
+$jsV = (string) (@filemtime(__DIR__ . '/auth.js') ?: time());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -18,6 +23,10 @@ $cssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
   <link rel="icon" type="image/png" href="images/favicon.png" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="acs-portal.css?v=<?= urlencode($cssV) ?>" />
+  <script>
+    window.GETWAY_GOOGLE_CLIENT_ID = <?= json_encode($googleClientId, JSON_UNESCAPED_SLASHES) ?>;
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="acs-body">
 <?php
@@ -57,6 +66,8 @@ require __DIR__ . '/acs-gov-banner.php';
         <button class="primary-button mb-login-btn" type="submit">Create Account</button>
       </form>
 
+      <?php require __DIR__ . '/acs-google-signin.php'; ?>
+
       <p id="auth-message" class="acs-alert" role="status"></p>
 
       <p class="auth-switch">
@@ -67,6 +78,6 @@ require __DIR__ . '/acs-gov-banner.php';
   </div>
 
   <script src="mb-login-lang.js?v=2"></script>
-  <script src="auth.js?v=7"></script>
+  <script src="auth.js?v=<?= urlencode($jsV) ?>"></script>
 </body>
 </html>
