@@ -18,6 +18,11 @@ try {
 
 $authUser = $_SESSION['gw_auth_user'] ?? [];
 $authName = htmlspecialchars(trim((string) ($authUser['fullName'] ?? 'Admin')), ENT_QUOTES);
+$authEmail = htmlspecialchars(trim((string) ($authUser['email'] ?? $authUser['username'] ?? '')), ENT_QUOTES);
+$authFirst = trim((string) (preg_split('/\s+/', trim((string) ($authUser['fullName'] ?? 'Admin')))[0] ?? 'Admin'));
+$authFirst = htmlspecialchars($authFirst !== '' ? $authFirst : 'Admin', ENT_QUOTES);
+$hour = (int) date('G');
+$greet = $hour < 12 ? 'Good Morning' : ($hour < 17 ? 'Good Afternoon' : 'Good Evening');
 $gaBgUrl = 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80';
 foreach (['images/payments-bg.jpg', 'login-bg.jpg', 'images/login.jpg', 'images/get2.jpg'] as $gaBgRel) {
     $gaBgPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $gaBgRel);
@@ -28,8 +33,10 @@ foreach (['images/payments-bg.jpg', 'login-bg.jpg', 'images/login.jpg', 'images/
 }
 $gaBgUrl = htmlspecialchars($gaBgUrl, ENT_QUOTES);
 $cssV = (string) (@filemtime(__DIR__ . '/admin-dashboard.css') ?: time());
+$acsCssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
 $jsV = (string) (@filemtime(__DIR__ . '/admin-dashboard.js') ?: time());
 $cssV = htmlspecialchars($cssV, ENT_QUOTES);
+$acsCssV = htmlspecialchars($acsCssV, ENT_QUOTES);
 $jsV = htmlspecialchars($jsV, ENT_QUOTES);
 
 require_once __DIR__ . '/env-load.php';
@@ -45,81 +52,70 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Getway | Admin Dashboard</title>
+  <title>ACS Portal | Admin Dashboard</title>
   <link rel="icon" type="image/png" href="images/favicon.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="admin-dashboard.css?v=<?php echo $cssV; ?>" />
+  <link rel="stylesheet" href="acs-portal.css?v=<?php echo $acsCssV; ?>" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
-  <!-- Portal layout v2 — inline so production cannot show stale dark dashboard -->
   <style id="ad-portal-critical">
-    html,body.ad-body.ad-portal{height:100%}
-    body.ad-body.ad-portal{background:#f0f4f8!important;color:#1a1a2e!important;background-image:none!important;overflow:hidden!important}
-    body.ad-body.ad-portal .ad-top{display:none!important}
-    body.ad-body.ad-portal .ad-stats:not(.ad-stats--hidden){display:none!important}
-    body.ad-body.ad-portal .ad-detail-sections.is-collapsed{display:none!important}
-    body.ad-body.ad-portal.ad-view-detail .ad-portal-home{display:none!important}
-    body.ad-body.ad-portal.ad-view-detail .ad-detail-sections{display:grid!important}
-    body.ad-body.ad-portal.ad-view-detail .ad-page-section{display:none!important}
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="analytics"] #ad-section-analytics,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="control-number"] #ad-section-control-number,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="transactions"] #ad-section-transactions,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="payout-dest"] #ad-section-payout-dest,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="users"] #ad-section-users,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="recent"] #ad-section-recent,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="whatsapp"] #ad-section-whatsapp,
-    body.ad-body.ad-portal.ad-view-detail[data-ad-section="general-analysis"] #ad-section-general-analysis{display:block!important}
-    .ad-charts-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,1fr);gap:16px}
+    .ad-charts-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,1fr);gap:16px}
     .ad-form--narrow{max-width:480px}
-    @media(max-width:900px){.ad-charts-row{grid-template-columns:1fr}}
-    .ad-shell{display:flex;min-height:100svh;height:100svh;overflow:hidden}
-    .ad-sidebar{width:var(--ad-sidebar-w,210px);flex-shrink:0;background:#002d58;color:#fff;display:flex;flex-direction:column;padding:16px 0 12px;position:fixed;top:0;left:0;bottom:0;z-index:300;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;transition:width .2s ease}
-    .ad-sidebar::-webkit-scrollbar{display:none;width:0;height:0}
-    body.ad-sidebar-collapsed{--ad-sidebar-w:72px}
-    .ad-main-wrap{flex:1;margin-left:var(--ad-sidebar-w,210px);min-width:0;min-height:0;height:100svh;display:flex;flex-direction:column;overflow:hidden;transition:margin-left .2s ease}
-    .ad-portal-top{position:relative;top:0;z-index:200;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:8px 16px;background:#f0f4f8;border-bottom:1px solid #d8dee8}
-    .ad-portal-top-text .ad-eyebrow{font-size:.62rem;margin:0;line-height:1.1}
-    .ad-portal-top-text h1{margin:0;font-size:clamp(.98rem,2.2vw,1.15rem);line-height:1.2}
-    .ad-portal .ad-main{max-width:none;margin:0;padding:12px 16px 28px;background:#f0f4f8!important;flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
-    .ad-portal .ad-table-wrap,.ad-portal .ad-recent{max-height:min(65vh,560px);overflow:auto;-webkit-overflow-scrolling:touch}
-    .ad-portal .ad-wa-list{max-height:none;overflow:visible}
-    .ad-portal .ad-detail-sections .ad-cn-page.ad-card{min-height:calc(100svh - 88px);height:auto;display:flex;flex-direction:column;background:#f0f4f8!important;border:none!important;box-shadow:none!important;border-radius:0!important;padding:4px 0 24px!important}
-    .ad-cn-stage{flex:1 1 auto;display:grid;place-items:center;align-content:center;min-height:calc(100svh - 100px);width:100%;background:#f0f4f8;padding:20px 12px 28px;box-sizing:border-box}
-    .ad-portal-home{display:grid!important;gap:28px}
-    .ad-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .ad-service-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;box-shadow:0 1px 4px rgba(15,23,42,.06);cursor:pointer;text-align:left;font:inherit;color:inherit;text-decoration:none;min-height:72px}
-    .ad-service-title{font-size:.88rem;font-weight:700;color:#005691}
-    .ad-service-value{font-size:1.05rem;font-weight:800;color:#0369a1}
-    .ad-service-value--money{color:#15803d!important}
-    .ad-service-value--success{color:#16a34a!important}
-    .ad-service-value--pending{color:#ca8a04!important}
-    .ad-service-value--failed{color:#dc2626!important}
-    .ad-service-value--accent{color:#0369a1!important}
     .ad-tx-filters{display:flex;flex-wrap:wrap;gap:6px;margin-right:8px}
-    .ad-tx-filters .ad-btn.is-active{background:#005691;color:#fff;border-color:#005691}
-    @media(max-width:900px){.ad-sidebar{transform:translateX(-100%)}.ad-sidebar.is-open{transform:translateX(0)}.ad-main-wrap{margin-left:0}.ad-menu-btn{display:grid!important;place-items:center;width:40px;height:40px;border:1px solid #c5cdd8;border-radius:8px;background:#fff;color:#005691;cursor:pointer}.ad-service-grid{grid-template-columns:1fr}}
+    .ad-tx-filters .ad-btn.is-active{background:#145493;color:#fff;border-color:#145493}
+    .ad-stats--hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+    @media(max-width:900px){.ad-charts-row{grid-template-columns:1fr}}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
-<body class="ad-body ad-portal ad-view-home">
-  <div class="ad-shell">
+<body class="ad-body ad-portal ad-acs ad-view-home">
+  <div class="ad-shell ad-gov-wrap">
+<?php
+$acsBrand = 'ACS Portal';
+$acsLine1 = 'NATIONAL AUTOMATIC COLLECTION AUTHORITY';
+$acsLine2 = 'THE AUTOMATIC COLLECTION SYSTEM PORTAL';
+$acsLine3 = 'EFFICIENT, SECURE AND TRANSPARENT SERVICES';
+require __DIR__ . '/acs-gov-banner.php';
+?>
+
+    <nav class="top-navigation" aria-label="Admin top navigation">
+      <button class="mobile-menu-button" type="button" id="ad-menu-open" aria-label="Open menu">☰</button>
+      <div class="nav-spacer" aria-hidden="true"></div>
+      <div class="top-links app-links">
+        <button type="button" class="ad-sidebar-catalogue is-active" data-ad-nav="home"><i class="fa-solid fa-house"></i> Dashboard</button>
+        <button type="button" data-ad-target="transactions"><i class="fa-solid fa-receipt"></i> Transactions</button>
+        <button type="button" data-ad-target="analytics"><i class="fa-solid fa-chart-line"></i> Analysis</button>
+        <button type="button" data-ad-target="whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+        <button type="button" id="ad-refresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        <button type="button" id="ad-ga-open"><i class="fa-solid fa-circle-nodes"></i> General Analysis</button>
+      </div>
+      <div class="account">
+        <div class="account-text">
+          <strong><?php echo $authName; ?></strong>
+          <small><?php echo $authEmail !== '' ? $authEmail : 'Administrator'; ?></small>
+          <a class="logout-button" href="logout.php">Logout</a>
+        </div>
+        <div class="account-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
+      </div>
+    </nav>
+
+    <div class="portal-body">
     <aside class="ad-sidebar" id="ad-sidebar">
-      <div class="ad-sidebar-head">
-        <p class="ad-sidebar-brand">Getway</p>
+      <button type="button" class="ad-sidebar-toggle" id="ad-sidebar-close" aria-label="Close menu">×</button>
+      <div class="profile-uploader">
+        <div class="profile-photo-box" aria-hidden="true"><i class="fa-solid fa-user"></i></div>
+        <p class="ad-sidebar-user"><?php echo $authName; ?></p>
+      </div>
+      <div class="ad-sidebar-head" hidden>
+        <p class="ad-sidebar-brand">ACS</p>
         <div class="ad-sidebar-head-actions">
-          <button type="button" class="ad-sidebar-minimize" id="ad-sidebar-minimize" aria-label="Minimize sidebar" title="Minimize sidebar">
-            <i class="fa-solid fa-angles-left"></i>
-          </button>
-          <button type="button" class="ad-sidebar-toggle" id="ad-sidebar-close" aria-label="Close menu">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          <button type="button" class="ad-sidebar-minimize" id="ad-sidebar-minimize" aria-label="Minimize sidebar" hidden></button>
         </div>
       </div>
       <button type="button" class="ad-sidebar-catalogue is-active" data-ad-nav="home">
         <i class="fa-solid fa-folder-open ad-nav-ico ad-nav-ico--catalogue"></i>
-        <span class="ad-sidebar-text">Service catalogue</span>
+        <span class="ad-sidebar-text">Dashboard</span>
+        <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
       </button>
       <nav class="ad-sidebar-nav" aria-label="Admin modules">
         <p class="ad-sidebar-label">COLLECTIONS</p>
@@ -135,33 +131,21 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
         <button type="button" class="ad-sidebar-link" data-ad-target="whatsapp"><span class="ad-sidebar-link-text"><i class="fa-brands fa-whatsapp ad-nav-ico" style="color:#25d366"></i> <span class="ad-sidebar-text">Send WhatsApp</span></span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></button>
       </nav>
       <div class="ad-sidebar-foot">
-        <span class="ad-sidebar-user ad-sidebar-text"><?php echo $authName; ?></span>
-        <a class="ad-sidebar-link ad-sidebar-link--quiet" href="part-two.php"><i class="fa-solid fa-wallet ad-nav-ico ad-nav-ico--wallet"></i> <span class="ad-sidebar-text">User wallet</span></a>
-        <a class="ad-sidebar-link ad-sidebar-link--danger" href="logout.php"><i class="fa-solid fa-right-from-bracket ad-nav-ico ad-nav-ico--logout"></i> <span class="ad-sidebar-text">Logout</span></a>
+        <a class="ad-sidebar-link ad-sidebar-link--quiet" href="part-two.php"><i class="fa-solid fa-wallet ad-nav-ico ad-nav-ico--wallet"></i> <span class="ad-sidebar-text">User wallet</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></a>
+        <a class="ad-sidebar-link ad-sidebar-link--danger" href="logout.php"><i class="fa-solid fa-right-from-bracket ad-nav-ico ad-nav-ico--logout"></i> <span class="ad-sidebar-text">Logout</span><i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i></a>
       </div>
     </aside>
-    <div class="ad-sidebar-backdrop" id="ad-sidebar-backdrop" hidden></div>
+    <button class="ad-sidebar-backdrop" id="ad-sidebar-backdrop" type="button" hidden aria-label="Close menu"></button>
 
     <div class="ad-main-wrap">
-      <header class="ad-portal-top">
-        <button type="button" class="ad-menu-btn" id="ad-menu-open" aria-label="Open menu">
-          <i class="fa-solid fa-bars"></i>
-        </button>
+      <header class="ad-portal-top" hidden>
         <div class="ad-portal-top-text">
-          <p class="ad-eyebrow">Getway Admin</p>
-          <h1 id="ad-portal-title">Service catalogue</h1>
-        </div>
-        <div class="ad-top-actions">
-          <button type="button" class="ad-ga-open" id="ad-ga-open">
-            <i class="fa-solid fa-circle-nodes" aria-hidden="true"></i>
-            <span>General Analysis</span>
-          </button>
-          <button type="button" class="ad-refresh" id="ad-refresh">Refresh all</button>
-          <a class="ad-logout-top" href="logout.php"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+          <p class="ad-eyebrow">ACS Admin</p>
+          <h1 id="ad-portal-title">Dashboard</h1>
         </div>
       </header>
 
-      <main class="ad-main">
+      <main class="ad-main content">
         <p id="ad-db-banner" class="ad-db-banner" hidden></p>
 
         <!-- Hidden stats — JS updates these; portal cards mirror values -->
@@ -199,13 +183,46 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
           </article>
         </section>
 
-        <!-- Portal home — e-services style cards with live data -->
+        <!-- Portal home — ACS dashboard -->
         <section class="ad-portal-home" id="ad-view-home">
+          <h1 class="welcome-title">
+            <?php echo $greet; ?> <?php echo $authFirst; ?>
+            <span class="sun" aria-hidden="true">☀</span>
+          </h1>
+
+          <div class="statistics" aria-label="Collection statistics">
+            <div class="statistic-card">
+              <span>ClickPesa Balance</span>
+              <strong id="ad-portal-balance">Loading...</strong>
+            </div>
+            <div class="statistic-card">
+              <span>Money in (paid)</span>
+              <strong id="ad-portal-incoming">TZS 0</strong>
+            </div>
+            <div class="statistic-card">
+              <span>Successful</span>
+              <strong id="ad-portal-success">0</strong>
+            </div>
+            <div class="statistic-card">
+              <span>Pending</span>
+              <strong id="ad-portal-pending">0</strong>
+            </div>
+          </div>
+          <p class="ad-period-sub" id="ad-portal-period" style="margin:-12px 0 18px;color:#667085;font-size:12px">All time</p>
+          <span id="ad-portal-failed" hidden>0</span>
+          <span id="ad-portal-recent" hidden>0</span>
+          <span id="ad-portal-recent-sub" hidden></span>
+          <span id="ad-portal-controls" hidden>—</span>
+          <span id="ad-portal-users" hidden>0</span>
+          <span id="ad-portal-dest" hidden>—</span>
+          <span id="ad-portal-balance-updated" hidden></span>
+          <span id="ad-portal-trend" hidden>14 days</span>
+
           <div class="ad-portal-block">
             <div class="ad-portal-block-head">
-              <h2>E-services for collections</h2>
+              <h2>COLLECTION SERVICES</h2>
               <div class="ad-portal-illus" aria-hidden="true">
-                <i class="fa-solid fa-wallet"></i>
+                <i class="fa-solid fa-lightbulb"></i>
               </div>
             </div>
             <div class="ad-service-grid">
@@ -213,15 +230,13 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-chart-pie"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Payment analysis</span>
-                  <strong class="ad-service-value ad-service-value--money" id="ad-portal-incoming">TZS 0</strong>
-                  <small id="ad-portal-period">All time</small>
+                  <small>Charts &amp; paid totals</small>
                 </span>
               </button>
               <button type="button" class="ad-service-card" data-ad-target="control-number">
                 <span class="ad-service-ico"><i class="fa-solid fa-hashtag"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Create control number</span>
-                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-controls">—</strong>
                   <small>BillPay collections</small>
                 </span>
               </button>
@@ -229,7 +244,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-circle-check"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Successful payments</span>
-                  <strong class="ad-service-value ad-service-value--success" id="ad-portal-success">0</strong>
                   <small>Paid transactions</small>
                 </span>
               </button>
@@ -237,7 +251,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-hourglass-half"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Pending payments</span>
-                  <strong class="ad-service-value ad-service-value--pending" id="ad-portal-pending">0</strong>
                   <small>Awaiting payment</small>
                 </span>
               </button>
@@ -245,7 +258,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-circle-xmark"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Failed payments</span>
-                  <strong class="ad-service-value ad-service-value--failed" id="ad-portal-failed">0</strong>
                   <small>Unsuccessful attempts</small>
                 </span>
               </button>
@@ -253,24 +265,21 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-receipt"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Recent collections</span>
-                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-recent">0</strong>
-                  <small id="ad-portal-recent-sub">Latest records</small>
+                  <small>Latest records</small>
                 </span>
               </button>
               <button type="button" class="ad-service-card" data-ad-action="sync">
                 <span class="ad-service-ico"><i class="fa-solid fa-rotate"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Sync ClickPesa</span>
-                  <strong class="ad-service-value ad-service-value--accent">Sync</strong>
                   <small>Update transaction records</small>
                 </span>
               </button>
               <button type="button" class="ad-service-card" data-ad-target="transactions">
                 <span class="ad-service-ico"><i class="fa-solid fa-building-columns"></i></span>
                 <span class="ad-service-body">
-                  <span class="ad-service-title">ClickPesa balance</span>
-                  <strong class="ad-service-value ad-service-value--money" id="ad-portal-balance">Loading...</strong>
-                  <small id="ad-portal-balance-updated">Last updated: --</small>
+                  <span class="ad-service-title">All transactions</span>
+                  <small>Full payment history</small>
                 </span>
               </button>
             </div>
@@ -278,7 +287,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
 
           <div class="ad-portal-block">
             <div class="ad-portal-block-head">
-              <h2>E-services for payouts</h2>
+              <h2>PAYOUT &amp; USERS</h2>
               <div class="ad-portal-illus ad-portal-illus--biz" aria-hidden="true">
                 <i class="fa-solid fa-briefcase"></i>
               </div>
@@ -288,7 +297,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-mobile-screen-button"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Payout destination</span>
-                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-dest">—</strong>
                   <small>Number that receives every successful payment</small>
                 </span>
               </button>
@@ -296,7 +304,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-users"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Registered users</span>
-                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-users">0</strong>
                   <small>Wallet accounts</small>
                 </span>
               </button>
@@ -304,7 +311,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-chart-column"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Transaction trend</span>
-                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-trend">14 days</strong>
                   <small>Charts &amp; breakdown</small>
                 </span>
               </button>
@@ -312,7 +318,6 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
                 <span class="ad-service-ico"><i class="fa-solid fa-wifi"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">AutoPay USSD</span>
-                  <strong class="ad-service-value ad-service-value--accent">Open</strong>
                   <small>POS &amp; mobile push</small>
                 </span>
               </a>
@@ -719,6 +724,7 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     </section>
         </div>
       </main>
+    </div>
     </div>
   </div>
 
