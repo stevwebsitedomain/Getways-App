@@ -69,10 +69,25 @@ $waWebhook = htmlspecialchars((string) ($waConfig['webhookUrl'] ?? 'https://getw
     body.ad-acs #ad-trend.ad-trend{
       background:#fff;
       border:1px solid #e5e7eb;
-      border-radius:10px;
-      padding:12px 10px 6px;
+      border-radius:8px;
+      padding:12px 8px 4px;
       min-height:380px;
       box-shadow:0 1px 3px rgba(15,23,42,.06);
+      overflow:visible;
+      line-height:normal;
+      max-width:100%;
+      margin:0 auto;
+      touch-action:pan-y;
+    }
+    body.ad-acs #ad-trend.ad-trend .apexcharts-canvas{
+      margin:0 auto;
+      background:transparent!important;
+    }
+    body.ad-acs #ad-trend.ad-trend .apexcharts-area-series path.apexcharts-area{
+      opacity:1!important;
+    }
+    body.ad-acs #ad-trend.ad-trend .apexcharts-toolbar{
+      z-index:5;
     }
     @media(max-width:900px){.ad-charts-row{grid-template-columns:1fr}}
   </style>

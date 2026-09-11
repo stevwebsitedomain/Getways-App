@@ -550,19 +550,35 @@
     }
 
     const useAmount = list.some((d) => Number(d.amount || 0) > 0);
-    // ApexCharts zoomable timeseries: [timestamp, value] pairs + xaxis datetime
-    const dates = list.map((d) => {
+
+    // Build continuous datetime series like the ApexCharts zoomable timeseries demo.
+    // Cumulative totals avoid "needle spikes" to zero that hide the area gradient.
+    let running = 0;
+    const dates = [];
+    const dayValues = [];
+    list.forEach((d) => {
       const key = String(d.date || "");
       const ts = key ? new Date(`${key}T12:00:00`).getTime() : NaN;
-      const value = useAmount ? Number(d.amount || 0) : Number(d.count || 0);
-      return [Number.isFinite(ts) ? ts : Date.now(), value];
+      if (!Number.isFinite(ts)) return;
+      const dayVal = useAmount ? Number(d.amount || 0) : Number(d.count || 0);
+      running += dayVal;
+      dates.push([ts, running]);
+      dayValues.push({ ts, dayVal, total: running, label: d.label || key });
     });
 
+    if (!dates.length) {
+      el.innerHTML = '<p class="ad-trend-empty">No payment activity in this date range yet.</p>';
+      return;
+    }
+
     el.innerHTML = "";
-    const chart = new ApexCharts(el, {
+    el.classList.add("ad-trend--apex");
+
+    // Exact structure from ApexCharts "Zoomable Timeseries" demo (adapted for payments)
+    const options = {
       series: [
         {
-          name: useAmount ? "Collections" : "Transactions",
+          name: useAmount ? "Total collections" : "Total transactions",
           data: dates,
         },
       ],
@@ -570,7 +586,8 @@
         type: "area",
         stacked: false,
         height: 350,
-        id: "ad-annotation-trend",
+        id: "ad-payment-movement",
+        fontFamily: "Helvetica, Arial, sans-serif",
         zoom: {
           type: "x",
           enabled: true,
@@ -578,6 +595,7 @@
           allowMouseWheelZoom: false,
         },
         toolbar: {
+          show: true,
           autoSelected: "zoom",
           tools: {
             download: true,
@@ -589,16 +607,41 @@
             reset: true,
           },
         },
+        events: {
+          mounted(chartContext) {
+            const node = chartContext?.el || el;
+            const blockWheelZoom = (event) => {
+              // Keep page scroll; never let wheel/pinch stretch the graph
+              if (event.ctrlKey || event.metaKey) {
+                event.preventDefault();
+              }
+              event.stopPropagation();
+            };
+            node.addEventListener("wheel", blockWheelZoom, { capture: true, passive: false });
+            node.addEventListener("mousewheel", blockWheelZoom, { capture: true, passive: false });
+          },
+        },
       },
+      colors: ["#008FFB"],
       dataLabels: {
         enabled: false,
       },
       markers: {
         size: 0,
       },
+      stroke: {
+        curve: "straight",
+        width: 2,
+        colors: ["#008FFB"],
+      },
       title: {
         text: "Payment Movement",
         align: "left",
+        style: {
+          fontSize: "16px",
+          fontWeight: 700,
+          color: "#373d3f",
+        },
       },
       fill: {
         type: "gradient",
@@ -610,13 +653,19 @@
           stops: [0, 90, 100],
         },
       },
+      grid: {
+        borderColor: "#e7e7e7",
+        strokeDashArray: 0,
+        xaxis: { lines: { show: false } },
+        yaxis: { lines: { show: true } },
+      },
       yaxis: {
         labels: {
           formatter(val) {
             const n = Number(val || 0);
             if (!useAmount) return String(Math.round(n));
-            if (n >= 1000000) return `${(n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1)}M`;
-            if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`;
+            if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(0)}M`;
+            if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`;
             return String(Math.round(n));
           },
         },
@@ -626,27 +675,38 @@
       },
       xaxis: {
         type: "datetime",
+        labels: {
+          datetimeUTC: false,
+          format: "dd MMM",
+          style: { colors: "#64748b", fontSize: "12px" },
+        },
+        tooltip: { enabled: false },
       },
       tooltip: {
         shared: false,
+        x: {
+          format: "dd MMM yyyy",
+        },
         y: {
-          formatter(val) {
-            const n = Number(val || 0);
-            if (!useAmount) return `${Math.round(n)} tx`;
-            return money(n);
+          formatter(val, opts) {
+            const idx = opts?.dataPointIndex ?? -1;
+            const day = dayValues[idx];
+            const total = Number(val || 0);
+            if (!useAmount) {
+              const dayPart = day ? ` · +${Math.round(day.dayVal)} today` : "";
+              return `${Math.round(total)} tx${dayPart}`;
+            }
+            const dayPart = day && day.dayVal > 0 ? ` · +${money(day.dayVal)} today` : "";
+            return `${money(total)}${dayPart}`;
           },
         },
       },
-    });
+      legend: { show: false },
+    };
+
+    const chart = new ApexCharts(el, options);
     chartStore.trend = chart;
-    chart.render().then(() => {
-      // Block wheel/trackpad gestures from zooming or stretching the chart while scrolling the page
-      const blockWheel = (event) => {
-        event.stopPropagation();
-      };
-      el.addEventListener("wheel", blockWheel, { passive: true, capture: true });
-      el.addEventListener("mousewheel", blockWheel, { passive: true, capture: true });
-    });
+    chart.render();
   }
 
   function updatePeriodLabels(analytics) {

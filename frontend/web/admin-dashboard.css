@@ -2170,9 +2170,10 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   border-radius: 8px;
-  padding: 4px 6px 0;
-  overflow: hidden;
-  line-height: 0;
+  padding: 8px 8px 0;
+  overflow: visible;
+  line-height: normal;
+  touch-action: pan-y;
 }
 
 .ad-portal .ad-trend .apexcharts-canvas,
