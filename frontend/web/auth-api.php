@@ -423,6 +423,8 @@ function loginSession(array $user, string $method = 'password'): array
             'fullName' => (string) ($user['fullName'] ?? ''),
             'role' => $role,
             'username' => (string) ($user['username'] ?? ''),
+            'email' => (string) ($user['email'] ?? ''),
+            'avatar' => (string) ($user['avatar'] ?? ''),
         ],
     ];
 }
@@ -499,11 +501,48 @@ function verifyGoogleCredential(string $credential): array
         jsonResponse(401, ['ok' => false, 'message' => 'This Google account email could not be verified.']);
     }
 
+    $fullName = trim((string) ($info['name'] ?? ''));
+    $avatar = trim((string) ($info['picture'] ?? ''));
+    $sub = trim((string) ($info['sub'] ?? ''));
+
+    // tokeninfo sometimes omits picture/name; fall back to JWT payload claims.
+    $parts = explode('.', $credential);
+    if (count($parts) >= 2) {
+        $b64 = strtr($parts[1], '-_', '+/');
+        $pad = strlen($b64) % 4;
+        if ($pad > 0) {
+            $b64 .= str_repeat('=', 4 - $pad);
+        }
+        $payloadJson = base64_decode($b64, true);
+        if (is_string($payloadJson) && $payloadJson !== '') {
+            $payload = json_decode($payloadJson, true);
+            if (is_array($payload)) {
+                if ($fullName === '') {
+                    $fullName = trim((string) ($payload['name'] ?? ''));
+                }
+                if ($avatar === '') {
+                    $avatar = trim((string) ($payload['picture'] ?? ''));
+                }
+                if ($sub === '') {
+                    $sub = trim((string) ($payload['sub'] ?? ''));
+                }
+            }
+        }
+    }
+
+    if ($avatar !== '' && preg_match('#^https://lh3\.googleusercontent\.com/#i', $avatar)) {
+        if (preg_match('/=s\d+(-c)?$/i', $avatar)) {
+            $avatar = (string) preg_replace('/=s\d+(-c)?$/i', '=s200-c', $avatar);
+        } elseif (!str_contains($avatar, '=')) {
+            $avatar .= '=s200-c';
+        }
+    }
+
     return [
         'email' => $email,
-        'fullName' => trim((string) ($info['name'] ?? 'Google User')),
-        'avatar' => trim((string) ($info['picture'] ?? '')),
-        'sub' => trim((string) ($info['sub'] ?? '')),
+        'fullName' => $fullName !== '' ? $fullName : 'Google User',
+        'avatar' => $avatar,
+        'sub' => $sub,
     ];
 }
 
@@ -895,6 +934,11 @@ if ($action === 'google-login') {
     $email = $google['email'];
     $fullName = $google['fullName'] !== '' ? $google['fullName'] : 'Google User';
     $avatar = $google['avatar'];
+    $wantedRole = strtolower(trim((string) ($input['role'] ?? ($_SESSION['gw_google_role'] ?? 'user'))));
+    if ($wantedRole !== 'admin') {
+        $wantedRole = 'user';
+    }
+    unset($_SESSION['gw_google_role'], $_SESSION['gw_google_nonce']);
 
     $store = ensureStore($storePath);
     foreach ($store['users'] as &$user) {
@@ -909,6 +953,7 @@ if ($action === 'google-login') {
                 $user['googleSub'] = $google['sub'];
             }
             $user['provider'] = 'google';
+            $user['role'] = $wantedRole;
             writeStore($storePath, $store);
             jsonResponse(200, loginSession($user, 'google'));
         }
@@ -924,7 +969,7 @@ if ($action === 'google-login') {
         'provider' => 'google',
         'googleSub' => $google['sub'],
         'avatar' => $avatar,
-        'role' => 'user',
+        'role' => $wantedRole,
         'createdAt' => gmdate('c'),
     ];
     $store['users'][] = $newUser;

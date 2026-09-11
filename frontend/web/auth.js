@@ -371,7 +371,14 @@
         );
         return;
       }
-      window.location.href = "google-oauth-start.php";
+      const roleInput = document.getElementById("login-role");
+      const role = String(roleInput?.value || "user").toLowerCase() === "admin" ? "admin" : "user";
+      const next = String(window.GETWAY_NEXT || "").trim();
+      let url = "google-oauth-start.php?role=" + encodeURIComponent(role);
+      if (next) {
+        url += "&next=" + encodeURIComponent(next);
+      }
+      window.location.href = url;
     });
   }
 

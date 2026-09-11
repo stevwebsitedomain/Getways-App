@@ -49,6 +49,7 @@ $phoneTopbarTitle = 'Profile';
               class="bk-profile-avatar-lg<?= $authAvatar === '' ? ' is-hidden' : '' ?>"
               src="<?= $authAvatar !== '' ? htmlspecialchars($authAvatar, ENT_QUOTES) : '' ?>"
               alt="Profile picture"
+              referrerpolicy="no-referrer"
             />
             <div id="profile-avatar-fallback" class="bk-profile-avatar-lg bk-profile-avatar-lg--fallback<?= $authAvatar !== '' ? ' is-hidden' : '' ?>" aria-hidden="<?= $authAvatar !== '' ? 'true' : 'false' ?>">
               <?= htmlspecialchars($authInitial, ENT_QUOTES) ?>

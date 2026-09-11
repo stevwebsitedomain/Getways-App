@@ -17,7 +17,12 @@ if ($clientId === '') {
 }
 
 $nonce = bin2hex(random_bytes(16));
+$wantedRole = strtolower(trim((string) ($_GET['role'] ?? 'user')));
+if ($wantedRole !== 'admin') {
+    $wantedRole = 'user';
+}
 $_SESSION['gw_google_nonce'] = $nonce;
+$_SESSION['gw_google_role'] = $wantedRole;
 $_SESSION['gw_google_next'] = trim((string) ($_GET['next'] ?? ($_SESSION['gw_google_next'] ?? '')));
 
 $auth = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([

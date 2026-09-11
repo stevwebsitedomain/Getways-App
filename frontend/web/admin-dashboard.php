@@ -125,10 +125,10 @@ require __DIR__ . '/acs-gov-banner.php';
         </div>
         <div class="account-avatar" id="headerAvatar">
           <?php if ($authAvatarSafe !== ''): ?>
-            <img id="headerProfileImage" src="<?php echo $authAvatarSafe; ?>" alt="Profile photo" />
+            <img id="headerProfileImage" src="<?php echo $authAvatarSafe; ?>" alt="Profile photo" referrerpolicy="no-referrer" />
             <span id="headerProfileFallback" hidden><i class="fa-solid fa-user"></i></span>
           <?php else: ?>
-            <img id="headerProfileImage" alt="Profile photo" hidden />
+            <img id="headerProfileImage" alt="Profile photo" hidden referrerpolicy="no-referrer" />
             <span id="headerProfileFallback"><i class="fa-solid fa-user"></i></span>
           <?php endif; ?>
         </div>
@@ -141,10 +141,10 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="profile-uploader">
         <div class="profile-photo-box">
           <?php if ($authAvatarSafe !== ''): ?>
-            <img id="sidebarProfileImage" src="<?php echo $authAvatarSafe; ?>" alt="Profile photo" />
+            <img id="sidebarProfileImage" src="<?php echo $authAvatarSafe; ?>" alt="Profile photo" referrerpolicy="no-referrer" />
             <div class="profile-fallback" id="sidebarProfileFallback" hidden><i class="fa-solid fa-user"></i></div>
           <?php else: ?>
-            <img id="sidebarProfileImage" alt="Profile photo" hidden />
+            <img id="sidebarProfileImage" alt="Profile photo" hidden referrerpolicy="no-referrer" />
             <div class="profile-fallback" id="sidebarProfileFallback"><i class="fa-solid fa-user"></i></div>
           <?php endif; ?>
         </div>

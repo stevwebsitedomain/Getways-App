@@ -15,6 +15,10 @@ $googleError = trim((string) ($_GET['error'] ?? $_GET['error_description'] ?? ''
 $origin = gwGoogleOrigin();
 $callbackUrl = gwGoogleCallbackUrl();
 $clientId = trim((string) (getenv('GOOGLE_CLIENT_ID') ?: ''));
+$wantedRole = strtolower(trim((string) ($_SESSION['gw_google_role'] ?? 'user')));
+if ($wantedRole !== 'admin') {
+    $wantedRole = 'user';
+}
 $cssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
 ?>
 <!DOCTYPE html>
@@ -39,6 +43,7 @@ $cssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
     window.GETWAY_GOOGLE_ORIGIN = <?= json_encode($origin, JSON_UNESCAPED_SLASHES) ?>;
     window.GETWAY_GOOGLE_CALLBACK = <?= json_encode($callbackUrl, JSON_UNESCAPED_SLASHES) ?>;
     window.GETWAY_GOOGLE_CLIENT_ID = <?= json_encode($clientId, JSON_UNESCAPED_SLASHES) ?>;
+    window.GETWAY_GOOGLE_ROLE = <?= json_encode($wantedRole, JSON_UNESCAPED_SLASHES) ?>;
   </script>
   <script>
     (function () {
@@ -77,18 +82,19 @@ $cssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
           return;
         }
         try {
+          const roleWanted = String(window.GETWAY_GOOGLE_ROLE || "user").toLowerCase() === "admin" ? "admin" : "user";
           const res = await fetch("auth-api.php?action=google-login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
-            body: JSON.stringify({ credential }),
+            body: JSON.stringify({ credential, role: roleWanted }),
           });
           const raw = await res.text();
           const data = raw ? JSON.parse(raw) : {};
           if (!res.ok || !data.ok) {
             throw new Error(data.message || "Google login failed.");
           }
-          const role = String(data.role || "user").toLowerCase();
+          const role = String(data.role || roleWanted || "user").toLowerCase();
           window.location.href = role === "admin" ? "admin-dashboard.php" : (data.redirect || "part-two.php");
         } catch (error) {
           show(error.message || "Google login failed.");

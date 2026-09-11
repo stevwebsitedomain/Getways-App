@@ -1372,6 +1372,22 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+.ch-hero-icon.has-photo,
+.ch-hero-profile.has-photo {
+  padding: 0;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ch-hero-icon.has-photo img,
+.ch-hero-profile.has-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+
 .ch-hero-greet {
   position: relative;
   z-index: 1;

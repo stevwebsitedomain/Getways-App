@@ -50,8 +50,12 @@ $pageJsVersion = (string) (@filemtime(__DIR__ . '/part-two.js') ?: time());
       <!-- Chase-style blue hero -->
       <header class="ch-hero w-searchable" aria-label="Welcome">
         <div class="ch-hero-top">
-          <a href="settings.php" class="ch-hero-icon" aria-label="Profile">
-            <i class="fa-solid fa-user-gear"></i>
+          <a href="settings.php" class="ch-hero-icon ch-hero-profile<?= $authAvatar !== '' ? ' has-photo' : '' ?>" aria-label="Profile">
+            <?php if ($authAvatar !== ''): ?>
+              <img src="<?= htmlspecialchars($authAvatar, ENT_QUOTES) ?>" alt="" referrerpolicy="no-referrer" />
+            <?php else: ?>
+              <i class="fa-solid fa-user-gear"></i>
+            <?php endif; ?>
           </a>
           <div class="ch-hero-top-right">
             <a href="create-payment.php" class="ch-hero-icon" aria-label="Pay">
