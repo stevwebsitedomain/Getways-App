@@ -201,6 +201,12 @@ function ensureAdminUser(array &$store, string $storePath): ?array
 {
     foreach ($store['users'] as $user) {
         if (isAdminUser($user)) {
+            syncDefaultAdminPassword($store, $storePath);
+            foreach ($store['users'] as $synced) {
+                if (isAdminUser($synced)) {
+                    return $synced;
+                }
+            }
             return $user;
         }
     }
@@ -211,7 +217,8 @@ function ensureAdminUser(array &$store, string $storePath): ?array
         'username' => 'admin',
         'phone' => '',
         'email' => 'admin@getway.local',
-        'passwordHash' => '$2y$10$XqD4SST2R729S9PuhpZj/.6I.gk0cPTwtqCJU4k19gkmV.S4WTc.i',
+        // Default admin password: 202526
+        'passwordHash' => '$2y$10$CpfGnai6jC8vabO3rouFw.6iWHsMKWMZRNC2snBhF6r8LjgRiBDnS',
         'pinHash' => '$2y$10$3hM48KNMB41sTJ5qi7fXOe3Vu7uQvJKJ0gB3QB376wqn6KMcJesw6',
         'role' => 'admin',
         'provider' => 'password',
@@ -225,6 +232,7 @@ function ensureAdminUser(array &$store, string $storePath): ?array
 
 function loginAdminFromStore(array &$store, string $storePath): ?array
 {
+    syncDefaultAdminPassword($store, $storePath);
     foreach ($store['users'] as $user) {
         if (isAdminUser($user)) {
             return $user;
@@ -232,6 +240,33 @@ function loginAdminFromStore(array &$store, string $storePath): ?array
     }
 
     return ensureAdminUser($store, $storePath);
+}
+
+/** Keep default username "admin" on the shared admin password. */
+function syncDefaultAdminPassword(array &$store, string $storePath): void
+{
+    static $adminPasswordHash = '$2y$10$CpfGnai6jC8vabO3rouFw.6iWHsMKWMZRNC2snBhF6r8LjgRiBDnS';
+    $changed = false;
+    foreach ($store['users'] as &$user) {
+        if (!is_array($user)) {
+            continue;
+        }
+        if (strtolower((string) ($user['username'] ?? '')) !== 'admin') {
+            continue;
+        }
+        if (!isAdminUser($user)) {
+            continue;
+        }
+        $hash = (string) ($user['passwordHash'] ?? '');
+        if ($hash === '' || !password_verify('202526', $hash)) {
+            $user['passwordHash'] = $adminPasswordHash;
+            $changed = true;
+        }
+    }
+    unset($user);
+    if ($changed) {
+        writeStore($storePath, $store);
+    }
 }
 
 function redirectForRole(string $role): string
@@ -519,14 +554,14 @@ if ($action === 'login') {
         jsonResponse(422, ['ok' => false, 'message' => 'Please enter your password.']);
     }
 
-    if ($wantedRole === 'user' && $password === '0000') {
+    if ($wantedRole === 'user' && $password === '202526') {
         jsonResponse(403, [
             'ok' => false,
-            'message' => 'Password 0000 is for Admin only. Switch to the Admin tab.',
+            'message' => 'That password is for Admin only. Switch to the Admin tab.',
         ]);
     }
 
-    if ($wantedRole === 'admin' && $password === '0000') {
+    if ($wantedRole === 'admin' && $password === '202526') {
         $adminUser = loginAdminFromStore($store, $storePath);
         if ($adminUser !== null) {
             jsonResponse(200, loginSession($adminUser, 'password'));
@@ -546,7 +581,7 @@ if ($action === 'login') {
             }
             $role = strtolower((string) ($user['role'] ?? 'user'));
             if ($wantedRole === 'admin' && $role !== 'admin') {
-                jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin. Use Admin password 0000 or an admin account.']);
+                jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin. Use the Admin password or an admin account.']);
             }
             if ($wantedRole === 'user' && $role === 'admin') {
                 jsonResponse(403, ['ok' => false, 'message' => 'This is an admin account. Switch to the Admin tab.']);
@@ -572,7 +607,7 @@ if ($action === 'login') {
     }
     $user = $matches[0];
     if ($wantedRole === 'admin' && ($user['role'] ?? '') !== 'admin') {
-        jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin. Use Admin password 0000 or an admin account.']);
+        jsonResponse(403, ['ok' => false, 'message' => 'This account is not an admin. Use the Admin password or an admin account.']);
     }
     if ($wantedRole === 'user' && strtolower((string) ($user['role'] ?? 'user')) === 'admin') {
         jsonResponse(403, ['ok' => false, 'message' => 'This is an admin account. Switch to the Admin tab.']);

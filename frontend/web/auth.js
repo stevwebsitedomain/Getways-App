@@ -84,7 +84,7 @@
             }
           }
           if (pass) {
-            pass.placeholder = "Password (admin: 0000)";
+            pass.placeholder = "Password";
             pass.setAttribute("data-i18n-placeholder", "password_ph_admin");
           }
         } else {

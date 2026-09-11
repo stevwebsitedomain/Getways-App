@@ -61,7 +61,7 @@ require __DIR__ . '/acs-gov-banner.php';
         <label class="form-group" for="password">
           Password
           <div class="pass-wrap">
-            <input id="password" name="password" type="password" placeholder="Password (admin: 0000)" autocomplete="current-password" required />
+            <input id="password" name="password" type="password" placeholder="Password" autocomplete="current-password" required />
             <button type="button" class="eye-btn" data-password-toggle aria-label="Show password">
               <i class="fa-regular fa-eye"></i>
             </button>
@@ -81,7 +81,7 @@ require __DIR__ . '/acs-gov-banner.php';
 
       <section id="pin-panel" class="auth-pin" hidden>
         <p class="auth-pin-title">Enter PIN</p>
-        <p class="auth-subtitle" style="margin-bottom:12px">Admin PIN: <strong>0000</strong></p>
+        <p class="auth-subtitle" style="margin-bottom:12px">Enter your admin PIN</p>
         <div class="auth-pin-row" id="pin-digits">
           <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 1" />
           <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 2" />

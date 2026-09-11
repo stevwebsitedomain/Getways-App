@@ -517,7 +517,7 @@ if ($action === 'payout-settings' && $method === 'POST') {
                 __DIR__ . '/runtime/auth-users.json',
                 dirname(__DIR__) . '/runtime/auth-users.json',
             ];
-            $ok = in_array($password, ['admin123', '1234', '0000'], true);
+            $ok = in_array($password, ['admin123', '1234', '202526'], true);
             foreach ($paths as $path) {
                 if (!is_file($path)) {
                     continue;
