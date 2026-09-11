@@ -25,7 +25,7 @@ $cssV = (string) (@filemtime(__DIR__ . '/acs-portal.css') ?: time());
     window.GETWAY_NEXT = <?= json_encode($next, JSON_UNESCAPED_SLASHES) ?>;
   </script>
 </head>
-<body class="acs-body">
+<body class="acs-body acs-login">
 <?php
 $acsBrand = 'ACS Portal';
 $acsLine1 = 'NATIONAL AUTOMATIC COLLECTION AUTHORITY';

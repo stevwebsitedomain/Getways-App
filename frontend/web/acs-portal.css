@@ -287,6 +287,19 @@ body.acs-body textarea {
   background: var(--acs-primary-dark);
 }
 
+/* Login page: red text on the Login button label */
+body.acs-login .auth-card form > .mb-login-btn[type="submit"] {
+  background: var(--acs-primary);
+  color: #ef4444 !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+body.acs-login .auth-card form > .mb-login-btn[type="submit"]:hover {
+  background: var(--acs-primary-dark);
+  color: #f87171 !important;
+}
+
 .auth-switch {
   margin: 14px 0 0;
   color: var(--acs-muted);
