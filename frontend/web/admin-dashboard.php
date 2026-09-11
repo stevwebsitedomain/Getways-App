@@ -103,7 +103,7 @@ require __DIR__ . '/acs-gov-banner.php';
         <div class="account-text">
           <strong><?php echo $authName; ?></strong>
           <small><?php echo $authEmail !== '' ? $authEmail : 'Administrator'; ?></small>
-          <a class="logout-button" href="logout.php">Logout</a>
+          <a class="logout-button" href="logout.php"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Logout</a>
         </div>
         <div class="account-avatar" id="headerAvatar">
           <?php if ($authAvatarSafe !== ''): ?>

@@ -85,10 +85,11 @@
 
     window.Swal.fire({
       icon,
-      title: type === "error" ? "Error" : type === "warning" ? "Onyo" : "Taarifa",
+      title: type === "error" ? "Application Failed" : type === "warning" ? "Warning" : "Notice",
       text,
-      confirmButtonText: "Sawa",
-      confirmButtonColor: "#16a34a",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#1a3352",
+      buttonsStyling: true,
     });
   }
 
@@ -139,9 +140,10 @@
       input: "password",
       inputPlaceholder: "Admin password",
       showCancelButton: true,
-      confirmButtonText: "Continue",
-      confirmButtonColor: "#16a34a",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#1a3352",
       cancelButtonText: "Cancel",
+      buttonsStyling: true,
     });
     return result.isConfirmed ? String(result.value || "") : "";
   }
@@ -162,8 +164,9 @@
     await window.Swal.fire({
       title: "Payout details",
       html,
-      confirmButtonText: "Close",
-      confirmButtonColor: "#16a34a",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#1a3352",
+      buttonsStyling: true,
     });
   }
 
@@ -208,10 +211,11 @@
     }
     window.Swal.fire({
       icon: "error",
-      title: title || "Haijafanikiwa",
+      title: title || "Application Failed",
       text,
-      confirmButtonText: "Sawa",
-      confirmButtonColor: "#b91c1c",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#1a3352",
+      buttonsStyling: true,
     });
   }
 
@@ -273,8 +277,8 @@
               : "Control number imetoka ClickPesa. Malipo yataonekana hapa mteja akilipa."
           }
         </p>`,
-      confirmButtonText: "Funga",
-      confirmButtonColor: "#16a34a",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#1a3352",
       width: 400,
       didOpen: () => {
         document.getElementById("swal-copy-cn")?.addEventListener("click", async () => {
@@ -1590,8 +1594,9 @@
           window.Swal.fire({
             title: "Registered user",
             html,
-            confirmButtonText: "Close",
-            confirmButtonColor: "#005691",
+            confirmButtonText: "OK",
+            confirmButtonColor: "#1a3352",
+            buttonsStyling: true,
           });
         } else {
           window.alert(`${user.fullName || ""}\n${user.phone || ""}\n${user.username || ""}`);
