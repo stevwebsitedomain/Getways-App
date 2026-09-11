@@ -546,8 +546,7 @@ body.ad-body.ad-acs .ad-sidebar::-webkit-scrollbar { display: none; }
 
 body.ad-body.ad-acs .ad-sidebar-head,
 body.ad-body.ad-acs .ad-sidebar-brand,
-body.ad-body.ad-acs .ad-sidebar-minimize,
-body.ad-body.ad-acs .ad-sidebar-label {
+body.ad-body.ad-acs .ad-sidebar-minimize {
   display: none !important;
 }
 
