@@ -1708,19 +1708,23 @@
     if (!body) return;
     body.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
     try {
-      const res = await fetch("auth-api.php?action=list-users", { credentials: "same-origin" });
-      const data = await res.json();
+      const res = await fetch("auth-api.php?action=list-users", {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.message || "Could not load users.");
-      latestUserRows = data.items || [];
+      latestUserRows = Array.isArray(data.items) ? data.items : [];
       usersPage = 1;
       applyUserPaidAmounts();
-      if (!latestUserRows.length) {
-        renderUsersTable();
-      }
+      renderUsersTable();
       setBanner("ad-users-error", "");
     } catch (error) {
-      body.innerHTML = `<tr><td colspan="6">No registered users yet.</td></tr>`;
-      setBanner("ad-users-error", error.message);
+      latestUserRows = [];
+      usersPage = 1;
+      renderUsersTable();
+      setBanner("ad-users-error", error.message || "Could not load registered users.", "error");
     }
   }
 

@@ -74,6 +74,80 @@ function ensureStore(string $path): array
     return $data;
 }
 
+/**
+ * Merge primary + legacy auth user stores into one list (dedupe by id/phone/email).
+ *
+ * @return list<array<string, mixed>>
+ */
+function mergeAuthUserStores(string $primaryPath, string $legacyPath): array
+{
+    $primary = ensureStore($primaryPath);
+    $legacy = is_file($legacyPath) ? ensureStore($legacyPath) : ['users' => []];
+    $merged = [];
+    $seenIds = [];
+    $seenPhones = [];
+    $seenEmails = [];
+
+    $push = static function (array $user) use (&$merged, &$seenIds, &$seenPhones, &$seenEmails): void {
+        $id = trim((string) ($user['id'] ?? ''));
+        if ($id === '') {
+            $id = bin2hex(random_bytes(8));
+            $user['id'] = $id;
+        }
+        if (isset($seenIds[$id])) {
+            // Prefer the record that has more profile fields filled.
+            $existingIndex = $seenIds[$id];
+            $existing = $merged[$existingIndex];
+            foreach (['fullName', 'phone', 'email', 'username', 'passwordHash', 'avatar', 'createdAt', 'role'] as $key) {
+                $cur = trim((string) ($existing[$key] ?? ''));
+                $next = trim((string) ($user[$key] ?? ''));
+                if ($cur === '' && $next !== '') {
+                    $existing[$key] = $user[$key];
+                }
+            }
+            $merged[$existingIndex] = $existing;
+            return;
+        }
+
+        $phone = normalizePhone((string) ($user['phone'] ?? $user['username'] ?? ''));
+        $email = strtolower(trim((string) ($user['email'] ?? '')));
+        if ($phone !== '' && isset($seenPhones[$phone])) {
+            return;
+        }
+        if ($email !== '' && isset($seenEmails[$email])) {
+            return;
+        }
+
+        if (!isset($user['role']) || trim((string) $user['role']) === '') {
+            $user['role'] = 'user';
+        }
+        if (!isset($user['fullName']) || trim((string) $user['fullName']) === '') {
+            $user['fullName'] = (string) ($user['username'] ?? $user['phone'] ?? $user['email'] ?? 'User');
+        }
+        if (!isset($user['username']) || trim((string) $user['username']) === '') {
+            $user['username'] = (string) ($user['phone'] ?? $user['email'] ?? $id);
+        }
+
+        $idx = count($merged);
+        $merged[] = $user;
+        $seenIds[$id] = $idx;
+        if ($phone !== '') {
+            $seenPhones[$phone] = $idx;
+        }
+        if ($email !== '') {
+            $seenEmails[$email] = $idx;
+        }
+    };
+
+    foreach (array_merge($legacy['users'] ?? [], $primary['users'] ?? []) as $user) {
+        if (is_array($user)) {
+            $push($user);
+        }
+    }
+
+    return $merged;
+}
+
 function writeStore(string $path, array $data): bool
 {
     $dir = dirname($path);
@@ -87,6 +161,14 @@ function writeStore(string $path, array $data): bool
     );
 
     return $written !== false;
+}
+
+function syncMergedAuthUsers(string $primaryPath, string $legacyPath): array
+{
+    $users = mergeAuthUserStores($primaryPath, $legacyPath);
+    $store = ['users' => $users];
+    writeStore($primaryPath, $store);
+    return $users;
 }
 
 /**
@@ -379,36 +461,29 @@ if ($method === 'GET' && $action === 'list-users') {
     if ($current === null || strtolower((string) ($current['role'] ?? '')) !== 'admin') {
         jsonResponse(403, ['ok' => false, 'message' => 'Admin login required.']);
     }
-    $store = ensureStore($storePath);
-    if (is_file($legacyStorePath)) {
-        $legacy = ensureStore($legacyStorePath);
-        $byId = [];
-        foreach (array_merge($legacy['users'] ?? [], $store['users'] ?? []) as $user) {
-            if (!is_array($user)) {
-                continue;
-            }
-            $id = (string) ($user['id'] ?? '');
-            if ($id === '') {
-                continue;
-            }
-            $byId[$id] = $user;
-        }
-        $store['users'] = array_values($byId);
-    }
+    $allUsers = syncMergedAuthUsers($storePath, $legacyStorePath);
     $items = [];
-    foreach ($store['users'] as $user) {
+    foreach ($allUsers as $user) {
         if (!is_array($user)) {
             continue;
         }
         if (strtolower((string) ($user['role'] ?? 'user')) === 'admin') {
             continue;
         }
+        // Skip empty shell records
+        $name = trim((string) ($user['fullName'] ?? ''));
+        $phone = trim((string) ($user['phone'] ?? ''));
+        $username = trim((string) ($user['username'] ?? ''));
+        $email = trim((string) ($user['email'] ?? ''));
+        if ($name === '' && $phone === '' && $username === '' && $email === '') {
+            continue;
+        }
         $items[] = [
             'id' => (string) ($user['id'] ?? ''),
-            'fullName' => (string) ($user['fullName'] ?? ''),
-            'phone' => (string) ($user['phone'] ?? ''),
-            'email' => (string) ($user['email'] ?? ''),
-            'username' => (string) ($user['username'] ?? ''),
+            'fullName' => $name !== '' ? $name : ($username !== '' ? $username : ($email !== '' ? $email : 'User')),
+            'phone' => $phone,
+            'email' => $email,
+            'username' => $username !== '' ? $username : ($phone !== '' ? $phone : $email),
             'role' => (string) ($user['role'] ?? 'user'),
             'createdAt' => (string) ($user['createdAt'] ?? ''),
             'avatar' => (string) ($user['avatar'] ?? ''),
@@ -466,8 +541,11 @@ if ($action === 'register-start') {
         jsonResponse(422, ['ok' => false, 'message' => 'Password must be at least 4 characters.']);
     }
 
-    foreach ($users as $user) {
-        if (($user['phone'] ?? '') === $phone) {
+    $existingUsers = mergeAuthUserStores($storePath, $legacyStorePath);
+    foreach ($existingUsers as $user) {
+        $existingPhone = normalizePhone((string) ($user['phone'] ?? ''));
+        $existingUser = normalizePhone((string) ($user['username'] ?? ''));
+        if (($existingPhone !== '' && $existingPhone === $phone) || ($existingUser !== '' && $existingUser === $phone)) {
             jsonResponse(409, ['ok' => false, 'message' => 'This phone number is already registered. Please log in.']);
         }
     }
@@ -483,9 +561,10 @@ if ($action === 'register-start') {
         'provider' => 'password',
         'createdAt' => gmdate('c'),
     ];
-    $store = ensureStore($storePath);
-    $store['users'][] = $newUser;
-    writeStore($storePath, $store);
+    $store = ['users' => array_merge($existingUsers, [$newUser])];
+    if (!writeStore($storePath, $store)) {
+        jsonResponse(500, ['ok' => false, 'message' => 'Could not save account. Check runtime permissions.']);
+    }
     session_regenerate_id(true);
     $_SESSION['gw_auth_user'] = gwAuthSessionUser($newUser);
     unset($_SESSION['gw_pending']);
