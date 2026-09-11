@@ -353,6 +353,37 @@ body.acs-body textarea {
   flex: 0 0 auto;
 }
 
+.auth-cancel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  padding: 0 16px;
+  border: 1px solid #d0d5dd;
+  border-radius: 0;
+  background: #f8fafc;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.auth-cancel-btn:hover,
+.auth-cancel-btn:focus {
+  background: #eef2f6;
+  border-color: #98a2b3;
+  color: #1d2939;
+  outline: none;
+}
+
+.auth-cancel-btn:active {
+  background: #e4e7ec;
+}
+
 .auth-bio {
   display: grid;
   place-items: center;

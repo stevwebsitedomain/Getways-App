@@ -91,7 +91,7 @@ require __DIR__ . '/acs-gov-banner.php';
           <input type="password" inputmode="numeric" maxlength="1" aria-label="PIN digit 6" />
         </div>
         <button type="button" class="primary-button" id="pin-login-btn">Login with PIN</button>
-        <button type="button" class="logout-button" id="pin-cancel-btn" style="display:block;width:100%;margin-top:10px;text-align:center">Cancel</button>
+        <button type="button" class="auth-cancel-btn" id="pin-cancel-btn">Cancel</button>
       </section>
 
       <p id="auth-message" class="acs-alert" role="status"></p>
