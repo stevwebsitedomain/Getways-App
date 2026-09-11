@@ -246,7 +246,7 @@ function userFilterPaymentsForAccount(array $payments, array $user): array
     $name = strtolower(trim((string) ($user['fullName'] ?? '')));
     $tag = $uid !== '' ? '[gw:' . $uid . ']' : '';
 
-    $filtered = array_values(array_filter($payments, static function (array $payment) use ($uid, $phone, $name, $tag): bool {
+    return array_values(array_filter($payments, static function (array $payment) use ($uid, $phone, $name, $tag): bool {
         $collector = trim((string) ($payment['collectorUserId'] ?? ''));
         $desc = (string) ($payment['description'] ?? '');
         if ($uid !== '' && ($collector === $uid || ($tag !== '' && str_contains($desc, $tag)))) {
@@ -254,6 +254,11 @@ function userFilterPaymentsForAccount(array $payments, array $user): array
         }
         $payPhone = normalizePhone((string) ($payment['phone'] ?? ''));
         $payName = strtolower(trim((string) ($payment['customerName'] ?? '')));
+        // Only match phone/name when the payment is not already tagged to someone else.
+        $taggedToOther = $collector !== '' && $uid !== '' && $collector !== $uid;
+        if ($taggedToOther) {
+            return false;
+        }
         if ($phone !== '' && $payPhone !== '' && $payPhone === $phone) {
             return true;
         }
@@ -263,24 +268,6 @@ function userFilterPaymentsForAccount(array $payments, array $user): array
 
         return false;
     }));
-
-    // Legacy shared wallet: if nothing is attributed yet, keep showing all so totals are not blanked.
-    if ($filtered === [] && $payments !== []) {
-        $anyTagged = false;
-        foreach ($payments as $payment) {
-            $collector = trim((string) ($payment['collectorUserId'] ?? ''));
-            $desc = (string) ($payment['description'] ?? '');
-            if ($collector !== '' || str_contains($desc, '[gw:')) {
-                $anyTagged = true;
-                break;
-            }
-        }
-        if (!$anyTagged) {
-            return $payments;
-        }
-    }
-
-    return $filtered;
 }
 
 /**

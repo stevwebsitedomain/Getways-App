@@ -903,7 +903,16 @@ async function getPayments(req, res, next) {
 async function getPaymentDetails(req, res, next) {
   try {
     const type = String(req.query.type || "").toLowerCase();
-    const payments = await listRecentPayments();
+    let payments = await listRecentPayments();
+    const collectorFilter = normalizeCollectorUserId(req.query?.collectorUserId || req.query?.userId || "");
+    if (collectorFilter) {
+      const tag = `[gw:${collectorFilter}]`;
+      payments = payments.filter((payment) => {
+        const collector = normalizeCollectorUserId(payment.collectorUserId);
+        const desc = String(payment.description || "");
+        return collector === collectorFilter || desc.includes(tag);
+      });
+    }
 
     if (type === "success" || type === "failed") {
       const wanted = type === "success" ? "SUCCESS" : "FAILED";

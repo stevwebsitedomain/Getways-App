@@ -547,7 +547,9 @@ function verifyGoogleCredential(string $credential): array
 }
 
 $input = readInput();
-$store = ensureStore($storePath);
+// Always merge primary + legacy stores first so registered users are never lost.
+$mergedUsers = syncMergedAuthUsers($storePath, $legacyStorePath);
+$store = ['users' => $mergedUsers];
 ensureAdminUser($store, $storePath);
 $users = $store['users'];
 
@@ -588,7 +590,7 @@ if ($method === 'GET' && $action === 'list-users') {
         if (!is_array($user)) {
             continue;
         }
-        if (strtolower((string) ($user['role'] ?? 'user')) === 'admin') {
+        if (isAdminUser($user) || strtolower((string) ($user['role'] ?? 'user')) === 'admin') {
             continue;
         }
         // Skip empty shell records
@@ -599,20 +601,38 @@ if ($method === 'GET' && $action === 'list-users') {
         if ($name === '' && $phone === '' && $username === '' && $email === '') {
             continue;
         }
+        if ($username === '' && $phone !== '') {
+            $username = $phone;
+        }
+        if ($username === '' && $email !== '') {
+            $username = $email;
+        }
+        if ($name === '') {
+            $name = $username !== '' ? $username : ($email !== '' ? $email : 'User');
+        }
         $items[] = [
             'id' => (string) ($user['id'] ?? ''),
-            'fullName' => $name !== '' ? $name : ($username !== '' ? $username : ($email !== '' ? $email : 'User')),
+            'fullName' => $name,
             'phone' => $phone,
             'email' => $email,
-            'username' => $username !== '' ? $username : ($phone !== '' ? $phone : $email),
+            'username' => $username,
             'role' => (string) ($user['role'] ?? 'user'),
+            'provider' => (string) ($user['provider'] ?? 'password'),
             'createdAt' => (string) ($user['createdAt'] ?? ''),
             'avatar' => (string) ($user['avatar'] ?? ''),
             'paidAmount' => 0,
         ];
     }
     usort($items, static fn($a, $b) => strcmp((string) ($b['createdAt'] ?? ''), (string) ($a['createdAt'] ?? '')));
-    jsonResponse(200, ['ok' => true, 'items' => $items, 'count' => count($items)]);
+    jsonResponse(200, [
+        'ok' => true,
+        'items' => $items,
+        'count' => count($items),
+        'store' => [
+            'primary' => $storePath,
+            'legacy' => $legacyStorePath,
+        ],
+    ]);
 }
 
 if ($method === 'POST' && $action === 'delete-user') {

@@ -112,33 +112,61 @@
     return `${String(base).replace(/\/$/, "")}/user-api.php`;
   }
 
+  function currentCollectorUserId() {
+    const id = String(global.GW_AUTH_USER?.id || "").trim();
+    return id;
+  }
+
+  function filterPaymentsForCurrentUser(payments) {
+    const uid = currentCollectorUserId();
+    if (!uid) return Array.isArray(payments) ? payments : [];
+    const tag = `[gw:${uid}]`;
+    const phone = String(global.GW_AUTH_USER?.phone || "").replace(/\D/g, "");
+    const name = String(global.GW_AUTH_USER?.fullName || "")
+      .trim()
+      .toLowerCase();
+    return (payments || []).filter((payment) => {
+      const collector = String(payment.collectorUserId || "").trim();
+      const desc = String(payment.description || "");
+      if (collector === uid || desc.includes(tag)) return true;
+      if (collector && collector !== uid) return false;
+      const payPhone = String(payment.phone || "").replace(/\D/g, "");
+      const payName = String(payment.customerName || "")
+        .trim()
+        .toLowerCase();
+      if (phone && payPhone && phone === payPhone) return true;
+      if (name && payName && name === payName) return true;
+      return false;
+    });
+  }
+
   /**
    * Load payments from Yii + Node and merge.
    */
   async function loadMergedPayments(apiBase, clickpesaBase, headers) {
     const RENDER_API = "https://getways-app.onrender.com";
     const hdrs = headers || { "Content-Type": "application/json" };
+    const collectorId = currentCollectorUserId();
+    const collectorQuery = collectorId
+      ? `?collectorUserId=${encodeURIComponent(collectorId)}&userId=${encodeURIComponent(collectorId)}`
+      : "";
 
     const proxy = await fetchJsonSafe(`${walletUserApiBase()}?action=wallet-payments`, hdrs);
     if (proxy && proxy.ok !== false && Array.isArray(proxy.payments)) {
-      return {
-        totalSales: Number(proxy.totalSales || 0),
-        failedSales: Number(proxy.failedSales || 0),
-        pendingTransactions: Number(proxy.pendingTransactions || 0),
-        count: Number(proxy.count || proxy.payments.length || 0),
-        payments: proxy.payments,
-      };
+      const payments = filterPaymentsForCurrentUser(proxy.payments);
+      return summarizePayments(payments);
     }
 
     const yiiBase = clickpesaBase || global.CLICKPESA_API_BASE || `${global.location.origin}/api/clickpesa`;
     const nodeBase = apiBase || global.BASE_API_URL || global.TIS_API_BASE || RENDER_API;
 
     const [yii, node] = await Promise.all([
-      fetchJsonSafe(`${yiiBase}/payments`, hdrs),
-      fetchJsonSafe(`${nodeBase}/payments`, hdrs),
+      fetchJsonSafe(`${yiiBase}/payments${collectorQuery}`, hdrs),
+      fetchJsonSafe(`${nodeBase}/payments${collectorQuery}`, hdrs),
     ]);
 
-    const payments = mergePaymentLists(yii && yii.payments, node && node.payments);
+    let payments = mergePaymentLists(yii && yii.payments, node && node.payments);
+    payments = filterPaymentsForCurrentUser(payments);
     if (!payments.length && !yii && !node) {
       throw new Error("Unable to load payments from server.");
     }

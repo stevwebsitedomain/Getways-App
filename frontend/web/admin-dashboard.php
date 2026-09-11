@@ -302,7 +302,6 @@ require __DIR__ . '/acs-gov-banner.php';
           <span id="ad-portal-recent" hidden>0</span>
           <span id="ad-portal-recent-sub" hidden></span>
           <span id="ad-portal-controls" hidden>—</span>
-          <span id="ad-portal-users" hidden>0</span>
           <span id="ad-portal-dest" hidden>—</span>
           <span id="ad-portal-balance-updated" hidden></span>
           <span id="ad-portal-trend" hidden>14 days</span>
@@ -393,6 +392,7 @@ require __DIR__ . '/acs-gov-banner.php';
                 <span class="ad-service-ico"><i class="fa-solid fa-users"></i></span>
                 <span class="ad-service-body">
                   <span class="ad-service-title">Registered users</span>
+                  <strong class="ad-service-value ad-service-value--accent" id="ad-portal-users">0</strong>
                   <small>Wallet accounts</small>
                 </span>
               </button>

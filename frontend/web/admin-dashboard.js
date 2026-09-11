@@ -1846,11 +1846,21 @@
       tableUi.users.page = 1;
       applyUserPaidAmounts();
       renderUsersTable();
-      setBanner("ad-users-error", "");
+      syncPortalCards();
+      if (!latestUserRows.length) {
+        setBanner(
+          "ad-users-error",
+          "No registered users found yet. New signups from register/login will appear here.",
+          "warning"
+        );
+      } else {
+        setBanner("ad-users-error", "");
+      }
     } catch (error) {
       latestUserRows = [];
       tableUi.users.page = 1;
       renderUsersTable();
+      syncPortalCards();
       setBanner("ad-users-error", error.message || "Could not load registered users.", "error");
     }
   }
@@ -2086,6 +2096,9 @@
         if (key === "analytics") {
           redrawChartsIfVisible();
           loadStatement().catch(() => {});
+        }
+        if (key === "users") {
+          loadUsers().catch(() => {});
         }
         if (key === "whatsapp") {
           loadWhatsappMessages(waCurrentStatus);
