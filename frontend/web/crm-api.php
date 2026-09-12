@@ -527,7 +527,6 @@ function crmEmailImageUrl(string $pathOrUrl): string
  */
 function crmBuildEmailEventsSection(string $font): array
 {
-    $base = crmEmailPublicBaseUrl();
     $portraitPath = crmDeveloperPortraitPath();
     $portraitCid = 'crm_developer_portrait';
     $attachments = [];
@@ -558,7 +557,7 @@ function crmBuildEmailEventsSection(string $font): array
         ],
         [
             'img' => $schoolImg,
-            'title' => 'SCHOOL SYSTEMS DELIVERY BRIEFING',
+            'title' => 'SCHOOL SYSTEMS DELIVERY SYSTEM',
             'when' => 'Oct 05, 2026 10:00 - 14:00',
             'where' => 'Dar es Salaam, Tanzania',
             'desc' => 'Student records, academic operations and administration tools.',
@@ -631,7 +630,9 @@ function crmBuildEmailEventsSection(string $font): array
 
     $html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;border-top:1px solid #e2e8f0;">'
         . '<tr><td style="padding:18px 0 8px;">'
-        . '<div style="' . $font . 'font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#4F378B;margin:0 0 12px;">Highlights</div>'
+        . '<div class="crm-anim-pulse" style="' . $font . 'font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#4F378B;margin:0 0 12px;">'
+        . '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4F378B;margin-right:8px;vertical-align:middle;"></span>'
+        . 'Highlights</div>'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
         // Events column
         . '<td width="54%" valign="top" style="padding-right:12px;">'
@@ -644,7 +645,6 @@ function crmBuildEmailEventsSection(string $font): array
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $newsRows . '</table>'
         . '</td>'
         . '</tr></table>'
-        . '<div style="margin-top:6px;' . $font . 'font-size:10px;color:#94a3b8;">More at <a href="' . crmEmailEscape($base) . '" style="color:#4F378B;text-decoration:none;">' . crmEmailEscape(preg_replace('#^https?://#i', '', $base) ?: $base) . '</a></div>'
         . '</td></tr></table>';
 
     return [$html, $attachments];
@@ -652,15 +652,14 @@ function crmBuildEmailEventsSection(string $font): array
 
 /**
  * Convert template body text into HTML paragraphs + bullet lists.
+ * Uses colored ● markers in tables so dots survive Gmail/Outlook.
  */
 function crmEmailFormatBodyHtml(string $bodyRaw): string
 {
     $paragraphs = preg_split("/\n{2,}/", trim($bodyRaw)) ?: [];
     $bodyHtml = '';
     $pStyle = 'margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;font-family:Georgia,\'Times New Roman\',serif;';
-    $ulStyle = 'margin:4px 0 18px;padding:0 0 0 4px;list-style:none;';
-    $liStyle = 'margin:0 0 10px;padding:0 0 0 18px;position:relative;font-size:15px;line-height:1.65;color:#334155;font-family:Georgia,\'Times New Roman\',serif;';
-    $dotStyle = 'position:absolute;left:0;top:0.55em;width:7px;height:7px;border-radius:50%;background:#4F378B;';
+    $dotColors = ['#4F378B', '#0284c7', '#16a34a', '#ea580c', '#db2777', '#0f766e'];
 
     foreach ($paragraphs as $para) {
         $para = trim((string) $para);
@@ -676,20 +675,24 @@ function crmEmailFormatBodyHtml(string $bodyRaw): string
 
         $bulletCount = 0;
         foreach ($lines as $line) {
-            if (preg_match('/^(?:•|\-|\*)\s+/u', $line)) {
+            if (preg_match('/^(?:•|\-|\*|●)\s+/u', $line) || preg_match('/^\*\*[^*]+\*\*\s*[—–-]/u', $line)) {
                 $bulletCount++;
             }
         }
 
-        if ($bulletCount > 0 && $bulletCount === count($lines)) {
-            $bodyHtml .= '<ul style="' . $ulStyle . '">';
-            foreach ($lines as $line) {
-                $item = (string) preg_replace('/^(?:•|\-|\*)\s+/u', '', $line);
-                $bodyHtml .= '<li style="' . $liStyle . '"><span style="' . $dotStyle . '"></span>'
+        // Treat project summary lines as a list even if bullet prefix was dropped.
+        if ($bulletCount >= 2 && $bulletCount === count($lines)) {
+            $bodyHtml .= '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;">';
+            foreach ($lines as $i => $line) {
+                $item = (string) preg_replace('/^(?:•|\-|\*|●)\s+/u', '', $line);
+                $color = $dotColors[$i % count($dotColors)];
+                $bodyHtml .= '<tr>'
+                    . '<td width="18" valign="top" style="padding:3px 0 8px 0;font-size:15px;line-height:1.65;color:' . $color . ';">&#9679;</td>'
+                    . '<td valign="top" style="padding:0 0 8px 4px;font-size:15px;line-height:1.65;color:#334155;font-family:Georgia,\'Times New Roman\',serif;">'
                     . crmEmailInlineFormat($item)
-                    . '</li>';
+                    . '</td></tr>';
             }
-            $bodyHtml .= '</ul>';
+            $bodyHtml .= '</table>';
             continue;
         }
 
@@ -741,17 +744,22 @@ function crmBuildEmailHtml(array $template, array $lead): array
     [$eventsHtml, $attachments] = crmBuildEmailEventsSection($font);
 
     $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-        . '<title>' . $bodyTitle . '</title></head>'
+        . '<title>' . $bodyTitle . '</title>'
+        . '<style type="text/css">'
+        . '@keyframes crmPulse{0%,100%{opacity:1}50%{opacity:.7}}'
+        . '.crm-anim-pulse{-webkit-animation:crmPulse 2.4s ease-in-out infinite;animation:crmPulse 2.4s ease-in-out infinite}'
+        . '</style></head>'
         . '<body style="margin:0;padding:0;background:#eef2f7;">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px;">'
         . '<tr><td align="center">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:0;overflow:hidden;box-shadow:0 12px 32px rgba(15,23,42,0.10);border:1px solid #e2e8f0;">'
 
-        // Header — solid color edge to edge (no fade)
+        // Header — solid purple (animation only on brand label where clients allow)
         . '<tr><td style="background:#4F378B;padding:0;">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
         . '<tr><td style="padding:30px 28px 26px;text-align:center;background:#4F378B;">'
-        . '<div style="' . $font . 'font-size:11px;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.85);text-transform:uppercase;margin:0 0 10px;">Digital Matrix Technology</div>'
+        . '<div class="crm-anim-pulse" style="' . $font . 'font-size:11px;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.85);text-transform:uppercase;margin:0 0 10px;">'
+        . '✦ Digital Matrix Technology</div>'
         . '<div style="' . $font . 'font-size:20px;font-weight:800;letter-spacing:0.03em;color:#ffffff;text-transform:uppercase;line-height:1.3;">'
         . $headerTitle . '</div>'
         . '<div style="margin-top:10px;' . $font . 'font-size:14px;font-weight:500;color:rgba(255,255,255,0.92);">'
