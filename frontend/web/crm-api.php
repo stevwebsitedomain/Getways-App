@@ -235,17 +235,22 @@ function crmAppendEmailLog(array $entry): void
 function crmDefaultEmailTemplate(): array
 {
     return [
-        'subject' => 'Job application | opportunities at {{name}}',
+        'subject' => 'Career Opportunity | Full-Stack Developer | System Delivery',
         'headerTitle' => 'WELCOME TO CAREER OPPORTUNITIES:',
         'headerSubtitle' => 'Everything You Need to Get Started.',
         'bodyTitle' => 'JOB APPLICATION',
         'greeting' => 'Hello {{name}},',
-        'body' => "I hope this email finds you well. My name is **Steven Makarious**, and I am writing to express my strong interest in available job opportunities within your organization.\n\n"
-            . "I am hardworking, reliable, and eager to contribute my skills while growing with a professional team. I would be grateful for the chance to discuss how I can support your goals.\n\n"
-            . "Please feel free to contact me if there is a suitable role, or if you would like to schedule a short conversation.",
+        'body' => "I hope this message finds you well. My name is **Steven Makarious**, a full-stack developer specializing in designing and delivering reliable digital systems for organizations that need clarity, speed, and long-term stability.\n\n"
+            . "I build and support production systems across government, education, and private enterprise. Below is a brief summary of selected work:\n\n"
+            . "• **TRA / revenue data systems** — platforms for collecting, processing, and pulling operational data with accuracy and secure workflows\n"
+            . "• **School management systems** — student records, academic operations, and administration tools for education institutions\n"
+            . "• **CRM platforms** — lead tracking, client communication, and organized follow-up workflows\n"
+            . "• **Product management systems** — catalogs, operations, and tools that help teams manage products and business processes end to end\n\n"
+            . "My delivery style covers the full cycle: requirements, architecture, secure backend services, modern interfaces, integrations, and continuous improvement. I focus on systems that are practical to run, easy for teams to adopt, and strong enough for real operational load.\n\n"
+            . "If your organization is hiring — or exploring a developer who can own system delivery end to end — I would welcome a short conversation.",
         'signOff' => 'Best regards,',
         'signName' => 'Steven Makarious',
-        'signRole' => 'Full Stack Developer · Job Applicant',
+        'signRole' => 'Software Developer',
         'footerLine' => 'A practical partnership to grow your team with the right talent.',
         'ctaText' => 'Get in touch',
         'ctaUrl' => 'https://makarious.legitconsult.co.tz/',
@@ -295,6 +300,20 @@ function crmLoadEmailTemplate(): array
     $out['signName'] = str_replace('Steven Abalwambo', 'Steven Makarious', (string) $out['signName']);
     if (trim((string) $out['signName']) === '' || strcasecmp(trim((string) $out['signName']), 'Steven Abalwambo') === 0) {
         $out['signName'] = 'Steven Makarious';
+    }
+    // Replace legacy generic application body with expert developer profile
+    $legacyMarkers = [
+        'I am hardworking, reliable, and eager to contribute my skills',
+        'express my strong interest in available job opportunities within your organization',
+    ];
+    foreach ($legacyMarkers as $marker) {
+        if (stripos((string) $out['body'], $marker) !== false) {
+            $out['subject'] = (string) $defaults['subject'];
+            $out['body'] = (string) $defaults['body'];
+            $out['signRole'] = (string) $defaults['signRole'];
+            $out['signName'] = (string) $defaults['signName'];
+            break;
+        }
     }
     $out['updatedAt'] = $data['updatedAt'] ?? null;
     return $out;
@@ -384,6 +403,57 @@ function crmEmailInlineFormat(string $text): string
 }
 
 /**
+ * Convert template body text into HTML paragraphs + bullet lists.
+ */
+function crmEmailFormatBodyHtml(string $bodyRaw): string
+{
+    $paragraphs = preg_split("/\n{2,}/", trim($bodyRaw)) ?: [];
+    $bodyHtml = '';
+    $pStyle = 'margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;font-family:Georgia,\'Times New Roman\',serif;';
+    $ulStyle = 'margin:4px 0 18px;padding:0 0 0 4px;list-style:none;';
+    $liStyle = 'margin:0 0 10px;padding:0 0 0 18px;position:relative;font-size:15px;line-height:1.65;color:#334155;font-family:Georgia,\'Times New Roman\',serif;';
+    $dotStyle = 'position:absolute;left:0;top:0.55em;width:7px;height:7px;border-radius:50%;background:#4F378B;';
+
+    foreach ($paragraphs as $para) {
+        $para = trim((string) $para);
+        if ($para === '') {
+            continue;
+        }
+        $lines = array_values(array_filter(array_map('trim', explode("\n", $para)), static function ($line) {
+            return $line !== '';
+        }));
+        if ($lines === []) {
+            continue;
+        }
+
+        $bulletCount = 0;
+        foreach ($lines as $line) {
+            if (preg_match('/^(?:•|\-|\*)\s+/u', $line)) {
+                $bulletCount++;
+            }
+        }
+
+        if ($bulletCount > 0 && $bulletCount === count($lines)) {
+            $bodyHtml .= '<ul style="' . $ulStyle . '">';
+            foreach ($lines as $line) {
+                $item = (string) preg_replace('/^(?:•|\-|\*)\s+/u', '', $line);
+                $bodyHtml .= '<li style="' . $liStyle . '"><span style="' . $dotStyle . '"></span>'
+                    . crmEmailInlineFormat($item)
+                    . '</li>';
+            }
+            $bodyHtml .= '</ul>';
+            continue;
+        }
+
+        $bodyHtml .= '<p style="' . $pStyle . '">'
+            . crmEmailInlineFormat(implode('<br>', $lines))
+            . '</p>';
+    }
+
+    return $bodyHtml;
+}
+
+/**
  * Build HTML email card matching the branded template design.
  *
  * @param array<string, mixed> $template
@@ -417,18 +487,7 @@ function crmBuildEmailHtml(array $template, array $lead): string
     $focus = crmEmailEscape(crmRenderEmailPlaceholders('{{platform}}', $lead));
     $location = crmEmailEscape(crmRenderEmailPlaceholders('{{location}}', $lead));
 
-    $paragraphs = preg_split("/\n{2,}/", trim($bodyRaw)) ?: [];
-    $bodyHtml = '';
-    foreach ($paragraphs as $para) {
-        $para = trim((string) $para);
-        if ($para === '') {
-            continue;
-        }
-        $lines = array_map('trim', explode("\n", $para));
-        $bodyHtml .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;font-family:Georgia,\'Times New Roman\',serif;">'
-            . crmEmailInlineFormat(implode('<br>', $lines))
-            . '</p>';
-    }
+    $bodyHtml = crmEmailFormatBodyHtml($bodyRaw);
 
     $font = "font-family:Arial,Helvetica,sans-serif;";
 
