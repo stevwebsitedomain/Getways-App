@@ -8,11 +8,11 @@ $acsLine3 = htmlspecialchars((string) ($acsLine3 ?? 'EFFICIENT, SECURE AND TRANS
 <header class="government-banner">
   <div class="brand">
     <img
-      class="crest crest-logo"
-      src="images/acs-portal-logo.png"
+      class="crest-logo"
+      src="images/acs-analysis-logo.png?v=2"
       width="64"
       height="64"
-      alt="ACS Portal"
+      alt="ACS Portal Analysis"
     />
     <div class="brand-name"><?php echo $acsBrand; ?></div>
   </div>
