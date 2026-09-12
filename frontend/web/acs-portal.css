@@ -325,6 +325,7 @@ body.acs-body textarea {
 
 .auth-google-section {
   margin-top: 6px;
+  width: 100%;
 }
 
 .auth-or {
@@ -359,77 +360,70 @@ body.acs-body textarea {
 }
 
 .auth-google {
-  display: flex;
-  justify-content: center;
-  min-height: 52px;
-}
-
-.auth-google-gis {
+  display: block;
   width: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-.auth-google-gis iframe {
-  max-width: 100%;
 }
 
 .auth-google-btn {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 8px 14px 8px 16px;
+  justify-content: center;
+  gap: 12px;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 16px;
   border: 1px solid #dadce0;
-  border-radius: 28px;
+  border-radius: 0;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.18), 0 1px 3px 1px rgba(60, 64, 67, 0.08);
+  box-shadow: none;
   cursor: pointer;
   text-align: left;
-  color: #202124;
-  font-family: "Roboto", Arial, sans-serif;
+  color: #3c4043;
+  font-family: Arial, Helvetica, sans-serif;
+  transform: none;
 }
 
 .auth-google-btn:hover {
   background: #f8f9fa;
-  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.24);
+  border-color: #c6c6c6;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.12);
+}
+
+.auth-google-logo {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  line-height: 0;
+}
+
+.auth-google-logo svg {
+  display: block;
 }
 
 .auth-google-copy {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
 }
 
 .auth-google-copy strong {
   font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
-  white-space: nowrap;
+  color: #202124;
 }
 
 .auth-google-copy small {
   color: #5f6368;
   font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.auth-google-mark {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  color: #80868b;
-  font-size: 11px;
-}
-
-.auth-google.is-gis-ready #google-login-fallback {
-  display: none;
+  line-height: 1.2;
 }
 
 .auth-pin {
