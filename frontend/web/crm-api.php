@@ -1408,6 +1408,7 @@ if ($method === 'POST' && $action === 'send-emails') {
 
     $data = crmLoadLeads();
     $targets = [];
+    $seenEmails = [];
     foreach ($data['leads'] as $lead) {
         if (!is_array($lead)) {
             continue;
@@ -1422,11 +1423,47 @@ if ($method === 'POST' && $action === 'send-emails') {
         if ($emails === []) {
             continue;
         }
-        $targets[] = ['lead' => $lead, 'emails' => $emails];
+        $unique = [];
+        foreach ($emails as $email) {
+            if (isset($seenEmails[$email])) {
+                continue;
+            }
+            $seenEmails[$email] = true;
+            $unique[] = $email;
+        }
+        if ($unique === []) {
+            continue;
+        }
+        $targets[] = ['lead' => $lead, 'emails' => $unique, 'source' => 'lead'];
+    }
+
+    // Extra emails from Edit email popup — merged with online lead emails.
+    $extraEmails = crmLoadTestEmails();
+    $extraOnly = [];
+    foreach ($extraEmails as $email) {
+        if (isset($seenEmails[$email])) {
+            continue;
+        }
+        $seenEmails[$email] = true;
+        $extraOnly[] = $email;
+    }
+    if ($extraOnly !== []) {
+        $targets[] = [
+            'lead' => [
+                'name' => 'Extra contact',
+                'title' => 'Extra contact',
+                'username' => '',
+                'platform' => 'extra',
+                'email' => $extraOnly[0],
+                'address' => 'Tanzania',
+            ],
+            'emails' => $extraOnly,
+            'source' => 'extra',
+        ];
     }
 
     if ($targets === []) {
-        crmJson(422, ['ok' => false, 'message' => 'No saved leads with email addresses matched your filter.']);
+        crmJson(422, ['ok' => false, 'message' => 'No emails to send. Save leads with emails or add emails via Edit email.']);
     }
 
     $sent = 0;
@@ -1435,6 +1472,7 @@ if ($method === 'POST' && $action === 'send-emails') {
     $results = [];
     foreach ($targets as $row) {
         $lead = $row['lead'];
+        $source = (string) ($row['source'] ?? 'lead');
         $leadName = trim((string) ($lead['name'] ?? $lead['title'] ?? $lead['username'] ?? 'Lead'));
         $subject = crmRenderEmailPlaceholders((string) $template['subject'], $lead);
         $bodyText = crmRenderEmailPlaceholders(
@@ -1451,8 +1489,8 @@ if ($method === 'POST' && $action === 'send-emails') {
                 'at' => gmdate('c'),
                 'to' => $email,
                 'subject' => $subject,
-                'source' => 'lead',
-                'leadName' => $leadName,
+                'source' => $source,
+                'leadName' => $source === 'extra' ? 'Extra email' : $leadName,
                 'platform' => (string) ($lead['platform'] ?? ''),
                 'status' => 'sent',
                 'error' => '',
@@ -1473,7 +1511,7 @@ if ($method === 'POST' && $action === 'send-emails') {
                 'to' => $email,
                 'status' => $entry['status'],
                 'error' => $entry['error'],
-                'leadName' => $leadName,
+                'leadName' => $entry['leadName'],
             ];
         }
     }
@@ -1488,6 +1526,7 @@ if ($method === 'POST' && $action === 'send-emails') {
         'errors' => $errors,
         'results' => $results,
         'fromEmail' => crmMailConfig()['fromEmail'],
+        'extraCount' => count($extraOnly),
     ]);
 }
 
@@ -1504,19 +1543,22 @@ if ($action === 'test-emails' && $method === 'GET') {
 
 if ($method === 'POST' && $action === 'test-emails') {
     $input = crmReadJsonBody();
+    $clear = !empty($input['clear']);
     $emails = crmParseEmailList($input['emails'] ?? $input['text'] ?? '');
-    if ($emails === []) {
+    if ($emails === [] && !$clear) {
         crmJson(422, ['ok' => false, 'message' => 'Paste at least one valid email address.']);
     }
     if (count($emails) > 100) {
-        crmJson(422, ['ok' => false, 'message' => 'Import up to 100 test emails at a time.']);
+        crmJson(422, ['ok' => false, 'message' => 'Import up to 100 emails at a time.']);
     }
     if (!crmSaveTestEmails($emails)) {
-        crmJson(500, ['ok' => false, 'message' => 'Could not save imported emails.']);
+        crmJson(500, ['ok' => false, 'message' => 'Could not save emails.']);
     }
     crmJson(200, [
         'ok' => true,
-        'message' => 'Imported ' . count($emails) . ' test email(s).',
+        'message' => $emails === []
+            ? 'Extra email list cleared.'
+            : 'Saved ' . count($emails) . ' extra email(s).',
         'emails' => $emails,
         'count' => count($emails),
     ]);

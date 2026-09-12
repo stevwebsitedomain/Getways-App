@@ -917,6 +917,9 @@ require __DIR__ . '/acs-gov-banner.php';
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-email-set">
             <i class="fa-solid fa-pen-to-square"></i><span>Set message</span>
           </button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-edit-emails">
+            <i class="fa-solid fa-at"></i><span>Edit email</span>
+          </button>
           <button type="button" class="ad-btn ad-btn--primary" id="ad-crm-email-send">
             <i class="fa-solid fa-paper-plane"></i><span>Send emails</span>
           </button>
@@ -932,28 +935,9 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" class="ad-crm-tab" data-crm-db-platform="linkedin"><i class="fa-brands fa-linkedin" style="color:#0a66c2"></i> LinkedIn</button>
       </div>
       <p id="ad-crm-db-msg" class="ad-msg" hidden></p>
+      <p class="ad-crm-extra-email-hint" id="ad-crm-extra-email-hint" hidden></p>
       <div class="ad-crm-mail-tools">
-        <div class="ad-crm-mail-import">
-          <div class="ad-crm-mail-import-head">
-            <h3><i class="fa-solid fa-file-import"></i> Import test emails</h3>
-            <p>Weka email zako (Gmail n.k.) ili ujaribu kutuma na uone kama zinafika. Andika moja kwa mstari au separete kwa comma.</p>
-          </div>
-          <textarea id="ad-crm-import-emails" rows="4" placeholder="you@gmail.com&#10;friend@yahoo.com&#10;test@example.com"></textarea>
-          <div class="ad-crm-mail-import-actions">
-            <label class="ad-btn ad-btn--ghost ad-crm-file-btn">
-              <i class="fa-solid fa-upload"></i><span>Upload .txt / .csv</span>
-              <input type="file" id="ad-crm-import-file" accept=".txt,.csv,text/plain,text/csv" hidden />
-            </label>
-            <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-import-save">
-              <i class="fa-solid fa-floppy-disk"></i><span>Save list</span>
-            </button>
-            <button type="button" class="ad-btn ad-btn--primary" id="ad-crm-send-test">
-              <i class="fa-solid fa-flask"></i><span>Send test emails</span>
-            </button>
-          </div>
-          <p class="ad-crm-mail-import-meta" id="ad-crm-import-meta">No test emails imported yet.</p>
-        </div>
-        <div class="ad-crm-mail-log">
+        <div class="ad-crm-mail-log ad-crm-mail-log--full">
           <div class="ad-crm-mail-import-head">
             <h3><i class="fa-solid fa-envelope-circle-check"></i> Delivery log</h3>
             <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-email-log-refresh" title="Refresh log">
