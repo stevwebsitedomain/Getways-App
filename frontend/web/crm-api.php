@@ -235,7 +235,7 @@ function crmAppendEmailLog(array $entry): void
 function crmDefaultEmailTemplate(): array
 {
     return [
-        'subject' => 'Job application — opportunities at {{name}}',
+        'subject' => 'Job application | opportunities at {{name}}',
         'headerTitle' => 'WELCOME TO CAREER OPPORTUNITIES:',
         'headerSubtitle' => 'Everything You Need to Get Started.',
         'bodyTitle' => 'JOB APPLICATION',
@@ -245,10 +245,14 @@ function crmDefaultEmailTemplate(): array
             . "Please feel free to contact me if there is a suitable role, or if you would like to schedule a short conversation.",
         'signOff' => 'Best regards,',
         'signName' => 'Steven Abalwambo',
-        'signRole' => 'Job Applicant',
+        'signRole' => 'Full Stack Developer · Job Applicant',
         'footerLine' => 'A practical partnership to grow your team with the right talent.',
         'ctaText' => 'Get in touch',
-        'ctaUrl' => 'mailto:stevenabalwambo@gmail.com',
+        'ctaUrl' => 'https://makarious.legitconsult.co.tz/',
+        'contactPhones' => '+255 715 296 092 | +255 622 045 972',
+        'contactEmail' => 'stevenabalwambo@gmail.com',
+        'contactWebsite' => 'https://makarious.legitconsult.co.tz/',
+        'contactOrg' => 'Digital Matrix Technology · Tanzania',
         'fromEmail' => 'stevenabalwambo@gmail.com',
         'fromName' => 'Steven Abalwambo',
         'updatedAt' => null,
@@ -279,6 +283,13 @@ function crmLoadEmailTemplate(): array
         }
     }
     $out['fromEmail'] = 'stevenabalwambo@gmail.com';
+    // Prefer portfolio CTA over legacy mailto when saved template still has old link
+    $cta = strtolower(trim((string) ($out['ctaUrl'] ?? '')));
+    if ($cta === '' || str_starts_with($cta, 'mailto:')) {
+        $out['ctaUrl'] = (string) $defaults['ctaUrl'];
+    }
+    // Prefer pipe separator in subject instead of em/en dashes
+    $out['subject'] = str_replace(['—', '–', '---', ' -- '], [' | ', ' | ', ' | ', ' | '], (string) $out['subject']);
     $out['updatedAt'] = $data['updatedAt'] ?? null;
     return $out;
 }
@@ -300,10 +311,18 @@ function crmSaveEmailTemplate(array $template): bool
         'footerLine' => trim((string) ($template['footerLine'] ?? $defaults['footerLine'])),
         'ctaText' => trim((string) ($template['ctaText'] ?? $defaults['ctaText'])),
         'ctaUrl' => trim((string) ($template['ctaUrl'] ?? $defaults['ctaUrl'])),
+        'contactPhones' => trim((string) ($template['contactPhones'] ?? $defaults['contactPhones'])),
+        'contactEmail' => trim((string) ($template['contactEmail'] ?? $defaults['contactEmail'])),
+        'contactWebsite' => trim((string) ($template['contactWebsite'] ?? $defaults['contactWebsite'])),
+        'contactOrg' => trim((string) ($template['contactOrg'] ?? $defaults['contactOrg'])),
         'fromEmail' => 'stevenabalwambo@gmail.com',
         'fromName' => trim((string) ($template['fromName'] ?? $defaults['fromName'])) ?: 'Steven Abalwambo',
         'updatedAt' => gmdate('c'),
     ];
+    if ($payload['ctaUrl'] === '' || str_starts_with(strtolower($payload['ctaUrl']), 'mailto:')) {
+        $payload['ctaUrl'] = (string) $defaults['ctaUrl'];
+    }
+    $payload['subject'] = str_replace(['—', '–', '---'], [' | ', ' | ', ' | '], $payload['subject']);
     if ($payload['subject'] === '' || $payload['body'] === '') {
         return false;
     }
@@ -361,6 +380,7 @@ function crmEmailInlineFormat(string $text): string
  */
 function crmBuildEmailHtml(array $template, array $lead): string
 {
+    $defaults = crmDefaultEmailTemplate();
     $headerTitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['headerTitle'] ?? ''), $lead));
     $headerSubtitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['headerSubtitle'] ?? ''), $lead));
     $bodyTitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['bodyTitle'] ?? ''), $lead));
@@ -371,11 +391,17 @@ function crmBuildEmailHtml(array $template, array $lead): string
     $signRole = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['signRole'] ?? ''), $lead));
     $footerLine = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['footerLine'] ?? ''), $lead));
     $ctaText = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['ctaText'] ?? 'Get in touch'), $lead));
-    $ctaUrl = trim(crmRenderEmailPlaceholders((string) ($template['ctaUrl'] ?? 'mailto:stevenabalwambo@gmail.com'), $lead));
-    if ($ctaUrl === '') {
-        $ctaUrl = 'mailto:stevenabalwambo@gmail.com';
+    $ctaUrl = trim(crmRenderEmailPlaceholders((string) ($template['ctaUrl'] ?? $defaults['ctaUrl']), $lead));
+    if ($ctaUrl === '' || str_starts_with(strtolower($ctaUrl), 'mailto:')) {
+        $ctaUrl = (string) $defaults['ctaUrl'];
     }
     $ctaUrlEsc = crmEmailEscape($ctaUrl);
+
+    $contactPhones = crmEmailEscape(trim((string) ($template['contactPhones'] ?? $defaults['contactPhones'])));
+    $contactEmail = crmEmailEscape(trim((string) ($template['contactEmail'] ?? $defaults['contactEmail'])));
+    $contactWebsite = trim((string) ($template['contactWebsite'] ?? $defaults['contactWebsite']));
+    $contactWebsiteEsc = crmEmailEscape($contactWebsite);
+    $contactOrg = crmEmailEscape(trim((string) ($template['contactOrg'] ?? $defaults['contactOrg'])));
 
     $focus = crmEmailEscape(crmRenderEmailPlaceholders('{{platform}}', $lead));
     $location = crmEmailEscape(crmRenderEmailPlaceholders('{{location}}', $lead));
@@ -388,48 +414,81 @@ function crmBuildEmailHtml(array $template, array $lead): string
             continue;
         }
         $lines = array_map('trim', explode("\n", $para));
-        $bodyHtml .= '<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#1f2937;font-family:Arial,Helvetica,sans-serif;">'
+        $bodyHtml .= '<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;font-family:Georgia,\'Times New Roman\',serif;">'
             . crmEmailInlineFormat(implode('<br>', $lines))
             . '</p>';
     }
 
-    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
-        . '<body style="margin:0;padding:0;background:#f3f4f6;">'
-        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 12px;">'
+    $font = "font-family:Arial,Helvetica,sans-serif;";
+
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        . '<title>' . $bodyTitle . '</title></head>'
+        . '<body style="margin:0;padding:0;background:#eef2f7;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px;">'
         . '<tr><td align="center">'
-        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,0.08);">'
-        . '<tr><td style="background:#EADDFF;padding:28px 24px;text-align:center;">'
-        . '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;letter-spacing:0.04em;color:#4F378B;text-transform:uppercase;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 12px 32px rgba(15,23,42,0.10);border:1px solid #e2e8f0;">'
+
+        // Header
+        . '<tr><td style="background:linear-gradient(135deg,#4F378B 0%,#7C5CBF 55%,#EADDFF 100%);padding:0;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+        . '<tr><td style="padding:30px 28px 26px;text-align:center;">'
+        . '<div style="' . $font . 'font-size:11px;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.85);text-transform:uppercase;margin:0 0 10px;">Digital Matrix Technology</div>'
+        . '<div style="' . $font . 'font-size:20px;font-weight:800;letter-spacing:0.03em;color:#ffffff;text-transform:uppercase;line-height:1.3;">'
         . $headerTitle . '</div>'
-        . '<div style="margin-top:8px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:600;color:#5B4B8A;">'
+        . '<div style="margin-top:10px;' . $font . 'font-size:14px;font-weight:500;color:rgba(255,255,255,0.92);">'
         . $headerSubtitle . '</div>'
-        . '</td></tr>'
-        . '<tr><td style="padding:28px 28px 8px;background:#ffffff;">'
-        . '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;color:#111827;text-transform:uppercase;margin:0 0 16px;">'
-        . $bodyTitle . '</div>'
-        . '<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#1f2937;font-family:Arial,Helvetica,sans-serif;">'
+        . '</td></tr></table></td></tr>'
+
+        // Body
+        . '<tr><td style="padding:30px 30px 10px;background:#ffffff;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;">'
+        . '<tr><td style="width:4px;background:#7C5CBF;border-radius:4px;"></td>'
+        . '<td style="padding-left:12px;' . $font . 'font-size:17px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;">'
+        . $bodyTitle . '</td></tr></table>'
+        . '<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#0f172a;' . $font . '">'
         . $greeting . '</p>'
         . $bodyHtml
-        . '<p style="margin:18px 0 4px;font-size:15px;line-height:1.55;color:#1f2937;font-family:Arial,Helvetica,sans-serif;">'
+
+        // Signature
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 8px;">'
+        . '<tr><td style="border-top:1px solid #e2e8f0;padding-top:18px;' . $font . 'font-size:15px;line-height:1.55;color:#334155;">'
         . $signOff . '<br>'
-        . '<strong>' . $signName . '</strong><br>'
-        . '<span style="color:#4b5563;">' . $signRole . '</span></p>'
+        . '<strong style="color:#0f172a;font-size:16px;">' . $signName . '</strong><br>'
+        . '<span style="color:#64748b;font-size:13px;">' . $signRole . '</span>'
+        . '</td></tr></table>'
+
+        // Contact card
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">'
+        . '<tr><td style="padding:14px 16px;' . $font . '">'
+        . '<div style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#7C5CBF;margin:0 0 8px;">Contact information</div>'
+        . '<div style="font-size:14px;line-height:1.7;color:#0f172a;">'
+        . '<strong>Phone:</strong> ' . $contactPhones . '<br>'
+        . '<strong>Email:</strong> <a href="mailto:' . $contactEmail . '" style="color:#4F378B;text-decoration:none;">' . $contactEmail . '</a><br>'
+        . '<strong>Website:</strong> <a href="' . $contactWebsiteEsc . '" style="color:#4F378B;text-decoration:none;">' . $contactWebsiteEsc . '</a><br>'
+        . '<span style="color:#64748b;font-size:13px;">' . $contactOrg . '</span>'
+        . '</div></td></tr></table>'
         . '</td></tr>'
-        . '<tr><td style="padding:8px 28px 18px;background:#ffffff;">'
-        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F2F2F2;border-radius:12px;">'
-        . '<tr>'
-        . '<td style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;">'
-        . '<strong>Focus:</strong> ' . $focus
-        . ' <span style="color:#9ca3af;padding:0 8px;">|</span> '
-        . '<strong>Location:</strong> ' . $location . '</td>'
-        . '</tr></table>'
-        . '</td></tr>'
-        . '<tr><td style="padding:4px 28px 28px;background:#ffffff;text-align:center;">'
-        . '<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#4b5563;">'
+
+        // Focus | Location
+        . '<tr><td style="padding:8px 30px 16px;background:#ffffff;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:10px;border:1px solid #e2e8f0;">'
+        . '<tr><td style="padding:12px 16px;' . $font . 'font-size:13px;color:#334155;">'
+        . '<strong style="color:#0f172a;">Focus:</strong> ' . $focus
+        . ' <span style="color:#94a3b8;padding:0 8px;">|</span> '
+        . '<strong style="color:#0f172a;">Location:</strong> ' . $location
+        . '</td></tr></table></td></tr>'
+
+        // CTA
+        . '<tr><td style="padding:6px 30px 30px;background:#ffffff;text-align:center;">'
+        . '<p style="margin:0 0 18px;' . $font . 'font-size:13px;line-height:1.55;color:#64748b;">'
         . $footerLine . '</p>'
-        . '<a href="' . $ctaUrlEsc . '" style="display:inline-block;background:#D0BCFF;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;padding:12px 28px;border-radius:999px;">'
+        . '<a href="' . $ctaUrlEsc . '" style="display:inline-block;background:#4F378B;color:#ffffff;text-decoration:none;' . $font . 'font-size:14px;font-weight:700;padding:13px 32px;border-radius:999px;box-shadow:0 8px 18px rgba(79,55,139,0.28);">'
         . $ctaText . '</a>'
+        . '<div style="margin-top:14px;' . $font . 'font-size:11px;color:#94a3b8;">'
+        . crmEmailEscape(str_replace(['https://', 'http://'], '', $ctaUrl))
+        . '</div>'
         . '</td></tr>'
+
         . '</table>'
         . '</td></tr></table>'
         . '</body></html>';

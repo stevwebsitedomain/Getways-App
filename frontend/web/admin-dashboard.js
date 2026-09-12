@@ -3655,12 +3655,26 @@
           </label>
           <div class="ad-crm-email-grid">
             <label><span>Button text</span>
-              <input id="ad-crm-email-cta-text" type="text" value="${esc(t.ctaText || "")}" />
+              <input id="ad-crm-email-cta-text" type="text" value="${esc(t.ctaText || "Get in touch")}" />
             </label>
             <label><span>Button link</span>
-              <input id="ad-crm-email-cta-url" type="text" value="${esc(t.ctaUrl || "")}" />
+              <input id="ad-crm-email-cta-url" type="text" value="${esc(t.ctaUrl || "https://makarious.legitconsult.co.tz/")}" />
             </label>
           </div>
+          <label><span>Contact phones (use | between numbers)</span>
+            <input id="ad-crm-email-phones" type="text" value="${esc(t.contactPhones || "+255 715 296 092 | +255 622 045 972")}" />
+          </label>
+          <div class="ad-crm-email-grid">
+            <label><span>Contact email</span>
+              <input id="ad-crm-email-contact-email" type="text" value="${esc(t.contactEmail || "stevenabalwambo@gmail.com")}" />
+            </label>
+            <label><span>Contact website</span>
+              <input id="ad-crm-email-contact-web" type="text" value="${esc(t.contactWebsite || "https://makarious.legitconsult.co.tz/")}" />
+            </label>
+          </div>
+          <label><span>Organization line</span>
+            <input id="ad-crm-email-contact-org" type="text" value="${esc(t.contactOrg || "Digital Matrix Technology · Tanzania")}" />
+          </label>
         </div>`,
         preConfirm: () => {
           const subject = String(document.getElementById("ad-crm-email-subject")?.value || "").trim();
@@ -3686,6 +3700,10 @@
             footerLine: String(document.getElementById("ad-crm-email-footer")?.value || "").trim(),
             ctaText: String(document.getElementById("ad-crm-email-cta-text")?.value || "").trim(),
             ctaUrl: String(document.getElementById("ad-crm-email-cta-url")?.value || "").trim(),
+            contactPhones: String(document.getElementById("ad-crm-email-phones")?.value || "").trim(),
+            contactEmail: String(document.getElementById("ad-crm-email-contact-email")?.value || "").trim(),
+            contactWebsite: String(document.getElementById("ad-crm-email-contact-web")?.value || "").trim(),
+            contactOrg: String(document.getElementById("ad-crm-email-contact-org")?.value || "").trim(),
           };
         },
       });
