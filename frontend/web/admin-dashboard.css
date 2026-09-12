@@ -3599,6 +3599,141 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   gap: 8px;
   align-items: center;
 }
+
+.ad-crm-mail-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin: 0 0 16px;
+}
+
+@media (max-width: 980px) {
+  .ad-crm-mail-tools {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ad-crm-mail-import,
+.ad-crm-mail-log {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.ad-crm-mail-import-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ad-crm-mail-import-head h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.ad-crm-mail-import-head p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+#ad-crm-import-emails {
+  width: 100%;
+  min-height: 96px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.86rem;
+  resize: vertical;
+  background: #fff;
+}
+
+.ad-crm-mail-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ad-crm-file-btn {
+  cursor: pointer;
+}
+
+.ad-crm-mail-import-meta {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.ad-crm-mail-log-table-wrap {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ad-crm-mail-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.ad-crm-mail-log-table th,
+.ad-crm-mail-log-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: top;
+}
+
+.ad-crm-mail-log-table th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.ad-crm-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.ad-crm-status--sent {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ad-crm-status--failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.ad-crm-send-results {
+  text-align: left;
+  max-height: 280px;
+  overflow: auto;
+  font-size: 0.86rem;
+}
+
+.ad-crm-send-results li {
+  margin: 0 0 6px;
+}
 .ad-crm-email-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -12,6 +12,10 @@ declare(strict_types=1);
  * GET  ?action=email-template
  * POST ?action=email-template JSON { subject, body }
  * POST ?action=send-emails JSON { platform?, ids? }
+ * GET  ?action=test-emails
+ * POST ?action=test-emails JSON { emails: string[]|string }  (import / replace test list)
+ * POST ?action=send-test-emails JSON { emails?: string[] }   (send to imported or provided)
+ * GET  ?action=email-log
  */
 
 require_once __DIR__ . '/auth-init.php';
@@ -94,6 +98,138 @@ function crmEmailTemplatePath(): string
         @mkdir($dir, 0775, true);
     }
     return $dir . DIRECTORY_SEPARATOR . 'crm-email-template.json';
+}
+
+function crmTestEmailsPath(): string
+{
+    $dir = __DIR__ . DIRECTORY_SEPARATOR . 'runtime';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    return $dir . DIRECTORY_SEPARATOR . 'crm-test-emails.json';
+}
+
+function crmEmailLogPath(): string
+{
+    $dir = __DIR__ . DIRECTORY_SEPARATOR . 'runtime';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    return $dir . DIRECTORY_SEPARATOR . 'crm-email-log.json';
+}
+
+/**
+ * @return list<string>
+ */
+function crmParseEmailList(mixed $raw): array
+{
+    $chunks = [];
+    if (is_array($raw)) {
+        foreach ($raw as $item) {
+            $chunks[] = (string) $item;
+        }
+    } else {
+        $chunks[] = (string) $raw;
+    }
+    $text = implode("\n", $chunks);
+    $text = str_replace([';', "\r", "\t", '|'], [',', "\n", ' ', ','], $text);
+    $parts = preg_split('/[\s,;]+/', $text) ?: [];
+    $emails = [];
+    foreach ($parts as $part) {
+        $email = strtolower(trim((string) $part));
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $emails[$email] = true;
+        }
+    }
+    return array_keys($emails);
+}
+
+/**
+ * @return list<string>
+ */
+function crmLoadTestEmails(): array
+{
+    $path = crmTestEmailsPath();
+    if (!is_file($path)) {
+        return [];
+    }
+    $raw = file_get_contents($path);
+    if (!is_string($raw) || $raw === '') {
+        return [];
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        return [];
+    }
+    return crmParseEmailList($data['emails'] ?? $data);
+}
+
+/**
+ * @param list<string> $emails
+ */
+function crmSaveTestEmails(array $emails): bool
+{
+    $clean = crmParseEmailList($emails);
+    $payload = [
+        'emails' => $clean,
+        'updatedAt' => gmdate('c'),
+        'count' => count($clean),
+    ];
+    $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if (!is_string($json)) {
+        return false;
+    }
+    return @file_put_contents(crmTestEmailsPath(), $json, LOCK_EX) !== false;
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function crmLoadEmailLog(int $limit = 80): array
+{
+    $path = crmEmailLogPath();
+    if (!is_file($path)) {
+        return [];
+    }
+    $raw = file_get_contents($path);
+    if (!is_string($raw) || $raw === '') {
+        return [];
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data) || !isset($data['entries']) || !is_array($data['entries'])) {
+        return [];
+    }
+    $entries = array_values($data['entries']);
+    usort($entries, static function ($a, $b) {
+        return strcmp((string) ($b['at'] ?? ''), (string) ($a['at'] ?? ''));
+    });
+    return array_slice($entries, 0, max(1, $limit));
+}
+
+/**
+ * @param array<string, mixed> $entry
+ */
+function crmAppendEmailLog(array $entry): void
+{
+    $path = crmEmailLogPath();
+    $data = ['entries' => []];
+    if (is_file($path)) {
+        $raw = file_get_contents($path);
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded) && isset($decoded['entries']) && is_array($decoded['entries'])) {
+                $data['entries'] = $decoded['entries'];
+            }
+        }
+    }
+    $data['entries'][] = $entry;
+    if (count($data['entries']) > 300) {
+        $data['entries'] = array_slice($data['entries'], -300);
+    }
+    $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if (is_string($json)) {
+        @file_put_contents($path, $json, LOCK_EX);
+    }
 }
 
 function crmDefaultEmailTemplate(): array
@@ -1296,8 +1432,10 @@ if ($method === 'POST' && $action === 'send-emails') {
     $sent = 0;
     $failed = 0;
     $errors = [];
+    $results = [];
     foreach ($targets as $row) {
         $lead = $row['lead'];
+        $leadName = trim((string) ($lead['name'] ?? $lead['title'] ?? $lead['username'] ?? 'Lead'));
         $subject = crmRenderEmailPlaceholders((string) $template['subject'], $lead);
         $bodyText = crmRenderEmailPlaceholders(
             trim((string) ($template['greeting'] ?? '')) . "\n\n" . (string) $template['body'] . "\n\n"
@@ -1308,15 +1446,35 @@ if ($method === 'POST' && $action === 'send-emails') {
         );
         $bodyHtml = crmBuildEmailHtml($template, $lead);
         foreach ($row['emails'] as $email) {
+            $entry = [
+                'id' => 'elog_' . bin2hex(random_bytes(6)),
+                'at' => gmdate('c'),
+                'to' => $email,
+                'subject' => $subject,
+                'source' => 'lead',
+                'leadName' => $leadName,
+                'platform' => (string) ($lead['platform'] ?? ''),
+                'status' => 'sent',
+                'error' => '',
+            ];
             try {
                 crmSendSmtpMail($email, $subject, $bodyText, $bodyHtml);
                 $sent++;
             } catch (Throwable $e) {
                 $failed++;
+                $entry['status'] = 'failed';
+                $entry['error'] = $e->getMessage();
                 if (count($errors) < 8) {
                     $errors[] = $email . ': ' . $e->getMessage();
                 }
             }
+            crmAppendEmailLog($entry);
+            $results[] = [
+                'to' => $email,
+                'status' => $entry['status'],
+                'error' => $entry['error'],
+                'leadName' => $leadName,
+            ];
         }
     }
 
@@ -1328,6 +1486,130 @@ if ($method === 'POST' && $action === 'send-emails') {
         'sent' => $sent,
         'failed' => $failed,
         'errors' => $errors,
+        'results' => $results,
+        'fromEmail' => crmMailConfig()['fromEmail'],
+    ]);
+}
+
+if ($action === 'test-emails' && $method === 'GET') {
+    $emails = crmLoadTestEmails();
+    crmJson(200, [
+        'ok' => true,
+        'emails' => $emails,
+        'count' => count($emails),
+        'mailReady' => crmMailConfig()['pass'] !== '',
+        'fromEmail' => crmMailConfig()['fromEmail'],
+    ]);
+}
+
+if ($method === 'POST' && $action === 'test-emails') {
+    $input = crmReadJsonBody();
+    $emails = crmParseEmailList($input['emails'] ?? $input['text'] ?? '');
+    if ($emails === []) {
+        crmJson(422, ['ok' => false, 'message' => 'Paste at least one valid email address.']);
+    }
+    if (count($emails) > 100) {
+        crmJson(422, ['ok' => false, 'message' => 'Import up to 100 test emails at a time.']);
+    }
+    if (!crmSaveTestEmails($emails)) {
+        crmJson(500, ['ok' => false, 'message' => 'Could not save imported emails.']);
+    }
+    crmJson(200, [
+        'ok' => true,
+        'message' => 'Imported ' . count($emails) . ' test email(s).',
+        'emails' => $emails,
+        'count' => count($emails),
+    ]);
+}
+
+if ($method === 'POST' && $action === 'send-test-emails') {
+    $input = crmReadJsonBody();
+    $emails = crmParseEmailList($input['emails'] ?? []);
+    if ($emails === []) {
+        $emails = crmLoadTestEmails();
+    }
+    if ($emails === []) {
+        crmJson(422, ['ok' => false, 'message' => 'Import test emails first, then send.']);
+    }
+    if (count($emails) > 30) {
+        crmJson(422, ['ok' => false, 'message' => 'Send test to at most 30 emails at once.']);
+    }
+
+    $template = crmLoadEmailTemplate();
+    $fakeLead = [
+        'name' => 'Test Company',
+        'title' => 'Test Company',
+        'username' => 'test',
+        'platform' => 'crm-test',
+        'email' => $emails[0],
+        'address' => 'Dar es Salaam, Tanzania',
+    ];
+    $subject = crmRenderEmailPlaceholders((string) $template['subject'], $fakeLead);
+    $bodyText = crmRenderEmailPlaceholders(
+        trim((string) ($template['greeting'] ?? '')) . "\n\n" . (string) $template['body'] . "\n\n"
+        . trim((string) ($template['signOff'] ?? 'Best regards,')) . "\n"
+        . trim((string) ($template['signName'] ?? 'Steven Abalwambo')) . "\n"
+        . trim((string) ($template['signRole'] ?? '')),
+        $fakeLead
+    );
+    $bodyHtml = crmBuildEmailHtml($template, $fakeLead);
+
+    $sent = 0;
+    $failed = 0;
+    $errors = [];
+    $results = [];
+    foreach ($emails as $email) {
+        $entry = [
+            'id' => 'elog_' . bin2hex(random_bytes(6)),
+            'at' => gmdate('c'),
+            'to' => $email,
+            'subject' => $subject,
+            'source' => 'test',
+            'leadName' => 'Test import',
+            'platform' => 'test',
+            'status' => 'sent',
+            'error' => '',
+        ];
+        try {
+            crmSendSmtpMail($email, $subject, $bodyText, $bodyHtml);
+            $sent++;
+        } catch (Throwable $e) {
+            $failed++;
+            $entry['status'] = 'failed';
+            $entry['error'] = $e->getMessage();
+            if (count($errors) < 8) {
+                $errors[] = $email . ': ' . $e->getMessage();
+            }
+        }
+        crmAppendEmailLog($entry);
+        $results[] = [
+            'to' => $email,
+            'status' => $entry['status'],
+            'error' => $entry['error'],
+            'leadName' => 'Test import',
+        ];
+    }
+
+    crmJson($sent > 0 ? 200 : 502, [
+        'ok' => $sent > 0,
+        'message' => $sent > 0
+            ? "Test sent {$sent} email(s)" . ($failed > 0 ? ", {$failed} failed." : '. Check inboxes (and spam).')
+            : 'Could not send test emails.',
+        'sent' => $sent,
+        'failed' => $failed,
+        'errors' => $errors,
+        'results' => $results,
+        'fromEmail' => crmMailConfig()['fromEmail'],
+    ]);
+}
+
+if ($action === 'email-log' && $method === 'GET') {
+    $entries = crmLoadEmailLog(100);
+    crmJson(200, [
+        'ok' => true,
+        'count' => count($entries),
+        'items' => $entries,
+        'mailReady' => crmMailConfig()['pass'] !== '',
         'fromEmail' => crmMailConfig()['fromEmail'],
     ]);
 }

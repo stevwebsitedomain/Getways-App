@@ -3583,6 +3583,8 @@
     });
     document.addEventListener("crm:load-database", () => {
       loadSavedLeads();
+      void loadTestEmails();
+      void loadEmailLog();
     });
 
     async function fetchEmailTemplate() {
@@ -3749,9 +3751,157 @@
         }
         notify(data.message || "Emails sent.", "success", { force: true });
         setCrmMsg(data.message || "Emails sent.", "success", dbMsgEl);
+        await showEmailSendReport(data);
+        await loadEmailLog();
       } catch (error) {
         dismissWaitSwal();
         notify(error.message || "Could not send emails.", "error", { force: true });
+        await loadEmailLog();
+      }
+    }
+
+    function formatEmailLogTime(iso) {
+      const d = new Date(iso || "");
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleString();
+    }
+
+    async function showEmailSendReport(data) {
+      if (!window.Swal || typeof window.Swal.fire !== "function") return;
+      const results = Array.isArray(data.results) ? data.results : [];
+      const rows = results
+        .map((row) => {
+          const ok = String(row.status || "") === "sent";
+          return `<li><strong class="${ok ? "ad-crm-status ad-crm-status--sent" : "ad-crm-status ad-crm-status--failed"}">${ok ? "SENT" : "FAILED"}</strong> ${esc(row.to || "")}${row.error ? ` — ${esc(row.error)}` : ""}</li>`;
+        })
+        .join("");
+      await window.Swal.fire({
+        title: data.ok ? "Email delivery status" : "Email send failed",
+        icon: data.ok ? "success" : "error",
+        width: 560,
+        html: `<div class="ad-crm-send-results">
+          <p><strong>${esc(String(data.sent || 0))}</strong> sent · <strong>${esc(String(data.failed || 0))}</strong> failed<br/>
+          From: ${esc(data.fromEmail || "stevenabalwambo@gmail.com")}</p>
+          <p style="margin:8px 0 4px;color:#64748b;font-size:0.82rem">Angalia inbox (na spam) kwa email zilizotumwa. Status pia inaonekana kwenye Delivery log.</p>
+          <ul style="padding-left:1.1rem;margin:0">${rows || "<li>No detail rows.</li>"}</ul>
+        </div>`,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#1a3352",
+        customClass: { popup: "ad-crm-swal-popup" },
+      });
+    }
+
+    async function loadTestEmails() {
+      const meta = document.getElementById("ad-crm-import-meta");
+      const ta = document.getElementById("ad-crm-import-emails");
+      try {
+        const res = await fetch("crm-api.php?action=test-emails", { credentials: "same-origin" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.message || "Could not load test emails.");
+        const emails = Array.isArray(data.emails) ? data.emails : [];
+        if (ta && !String(ta.value || "").trim()) {
+          ta.value = emails.join("\n");
+        }
+        if (meta) {
+          meta.textContent = emails.length
+            ? `${emails.length} test email(s) ready · From ${data.fromEmail || "stevenabalwambo@gmail.com"}${data.mailReady ? "" : " · SMTP password missing in .env"}`
+            : "No test emails imported yet.";
+        }
+        return emails;
+      } catch (error) {
+        if (meta) meta.textContent = error.message || "Could not load test emails.";
+        return [];
+      }
+    }
+
+    async function saveImportedTestEmails() {
+      const ta = document.getElementById("ad-crm-import-emails");
+      const text = String(ta?.value || "");
+      try {
+        const res = await fetch("crm-api.php?action=test-emails", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emails: text }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.message || "Could not import emails.");
+        if (ta) ta.value = (data.emails || []).join("\n");
+        notify(data.message || "Test emails saved.", "success", { toast: true, force: true });
+        await loadTestEmails();
+      } catch (error) {
+        notify(error.message || "Could not import emails.", "error", { force: true });
+      }
+    }
+
+    async function sendTestEmails() {
+      const ta = document.getElementById("ad-crm-import-emails");
+      const text = String(ta?.value || "").trim();
+      if (text) {
+        await saveImportedTestEmails();
+      }
+      const ok = await confirmAction({
+        title: "Send test emails?",
+        text: "Tutuma message ya CRM kwa email zilizohifadhiwa kwenye list ya majaribio. Angalia inbox na spam baada ya kutuma.",
+        confirmButtonText: "Send test",
+        confirmButtonColor: "#1a3352",
+        icon: "question",
+      });
+      if (!ok) return;
+      showWaitSwal(
+        "Sending test emails…",
+        '<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Please wait…</p>'
+      );
+      try {
+        const res = await fetch("crm-api.php?action=send-test-emails", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json().catch(() => ({}));
+        dismissWaitSwal();
+        if (!res.ok || !data.ok) {
+          const detail = Array.isArray(data.errors) && data.errors.length ? ` ${data.errors[0]}` : "";
+          throw new Error((data.message || "Could not send test emails.") + detail);
+        }
+        notify(data.message || "Test emails sent.", "success", { force: true });
+        setCrmMsg(data.message || "Test emails sent.", "success", dbMsgEl);
+        await showEmailSendReport(data);
+        await loadEmailLog();
+      } catch (error) {
+        dismissWaitSwal();
+        notify(error.message || "Could not send test emails.", "error", { force: true });
+        await loadEmailLog();
+      }
+    }
+
+    async function loadEmailLog() {
+      const body = document.getElementById("ad-crm-email-log-body");
+      if (!body) return;
+      try {
+        const res = await fetch("crm-api.php?action=email-log", { credentials: "same-origin" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.message || "Could not load email log.");
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+          body.innerHTML = `<tr><td colspan="5" class="ad-crm-empty">No sends yet.</td></tr>`;
+          return;
+        }
+        body.innerHTML = items
+          .map((row) => {
+            const ok = String(row.status || "") === "sent";
+            return `<tr>
+              <td>${esc(formatEmailLogTime(row.at))}</td>
+              <td>${esc(row.to || "—")}</td>
+              <td>${esc(row.source === "test" ? "Test" : row.leadName || "Lead")}</td>
+              <td><span class="ad-crm-status ${ok ? "ad-crm-status--sent" : "ad-crm-status--failed"}">${ok ? "Sent" : "Failed"}</span></td>
+              <td>${esc(row.error || row.subject || "—")}</td>
+            </tr>`;
+          })
+          .join("");
+      } catch (error) {
+        body.innerHTML = `<tr><td colspan="5" class="ad-crm-empty">${esc(error.message || "Could not load log.")}</td></tr>`;
       }
     }
 
@@ -3761,6 +3911,33 @@
     document.getElementById("ad-crm-email-send")?.addEventListener("click", () => {
       void sendDatabaseEmails();
     });
+    document.getElementById("ad-crm-import-save")?.addEventListener("click", () => {
+      void saveImportedTestEmails();
+    });
+    document.getElementById("ad-crm-send-test")?.addEventListener("click", () => {
+      void sendTestEmails();
+    });
+    document.getElementById("ad-crm-email-log-refresh")?.addEventListener("click", () => {
+      void loadEmailLog();
+    });
+    document.getElementById("ad-crm-import-file")?.addEventListener("change", async (event) => {
+      const file = event.target?.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const ta = document.getElementById("ad-crm-import-emails");
+        if (ta) ta.value = text;
+        await saveImportedTestEmails();
+      } catch (error) {
+        notify(error.message || "Could not read file.", "error", { force: true });
+      } finally {
+        event.target.value = "";
+      }
+    });
+
+    // Prefetch mail tools
+    void loadTestEmails();
+    void loadEmailLog();
 
     async function saveLead(idx) {
       const item = crmItems[idx];
