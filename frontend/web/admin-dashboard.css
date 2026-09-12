@@ -3588,10 +3588,37 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   font-size: 0.78rem;
   border-radius: 8px;
 }
+.ad-crm-avatar--lg {
+  width: 88px;
+  height: 88px;
+  border-radius: 16px;
+}
+.ad-crm-swal-popup {
+  width: min(860px, 96vw) !important;
+}
+.ad-crm-swal-chart {
+  padding-bottom: 8px;
+}
+.ad-crm-chart-wrap {
+  text-align: left;
+}
+.ad-crm-chart-sub {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+#ad-crm-search-chart {
+  min-height: 280px;
+}
+#ad-crm-save-all {
+  white-space: nowrap;
+}
 .ad-crm-popup {
   text-align: left;
   max-height: min(70vh, 560px);
   overflow: auto;
+  min-width: min(720px, 88vw);
 }
 .ad-crm-popup-hero {
   display: flex;

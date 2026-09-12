@@ -2111,6 +2111,7 @@
     recent: "Recent collections",
     whatsapp: "WhatsApp",
     crm: "CRM",
+    "crm-database": "Database",
   };
 
   function scrollToPortalSection(key, options = {}) {
@@ -2124,6 +2125,7 @@
       recent: "ad-section-recent",
       whatsapp: "ad-section-whatsapp",
       crm: "ad-section-crm",
+      "crm-database": "ad-section-crm-database",
     };
     if (key === "payouts") key = "payout-dest";
     if (!idMap[key]) return;
@@ -2165,6 +2167,9 @@
         }
         if (key === "whatsapp") {
           loadWhatsappMessages(waCurrentStatus);
+        }
+        if (key === "crm-database") {
+          document.dispatchEvent(new CustomEvent("crm:load-database"));
         }
       }, 80);
     }
@@ -3137,25 +3142,59 @@
     const resultsEl = document.getElementById("ad-crm-results");
     const savedEl = document.getElementById("ad-crm-saved");
     const msgEl = document.getElementById("ad-crm-msg");
+    const dbResultsEl = document.getElementById("ad-crm-db-results");
+    const dbMsgEl = document.getElementById("ad-crm-db-msg");
+    const saveAllBtn = document.getElementById("ad-crm-save-all");
     if (!form || !resultsEl) return;
 
     let crmItems = [];
     let crmSavedItems = [];
+    let crmDbItems = [];
     let crmTab = "results";
+    let crmDbPlatform = "all";
     const savedIds = new Set();
+    let crmChart = null;
 
-    function setCrmMsg(text, type = "") {
-      if (!msgEl) return;
+    if (!window.crmAvatarFallback) {
+      window.crmAvatarFallback = function crmAvatarFallback(img) {
+        if (!img) return;
+        let list = [];
+        try {
+          list = JSON.parse(img.getAttribute("data-fallbacks") || "[]");
+        } catch (_) {
+          list = [];
+        }
+        if (!Array.isArray(list)) list = [];
+        while (list.length) {
+          const next = String(list.shift() || "").trim();
+          if (!next || next === img.getAttribute("src")) continue;
+          img.setAttribute("data-fallbacks", JSON.stringify(list));
+          img.onerror = function () {
+            window.crmAvatarFallback(img);
+          };
+          img.src = next;
+          return;
+        }
+        const ph = document.createElement("div");
+        ph.className = `${img.className} ad-crm-avatar--ph`.replace(/\s+/g, " ").trim();
+        ph.setAttribute("aria-hidden", "true");
+        ph.innerHTML = '<i class="fa-solid fa-user"></i>';
+        img.replaceWith(ph);
+      };
+    }
+
+    function setCrmMsg(text, type = "", el = msgEl) {
+      if (!el) return;
       const t = String(text || "").trim();
       if (!t) {
-        msgEl.hidden = true;
-        msgEl.textContent = "";
-        msgEl.className = "ad-msg";
+        el.hidden = true;
+        el.textContent = "";
+        el.className = "ad-msg";
         return;
       }
-      msgEl.hidden = false;
-      msgEl.textContent = t;
-      msgEl.className = "ad-msg" + (type ? ` ad-msg--${type}` : "");
+      el.hidden = false;
+      el.textContent = t;
+      el.className = "ad-msg" + (type ? ` ad-msg--${type}` : "");
     }
 
     function formatList(list) {
@@ -3172,6 +3211,7 @@
     function platformLabel(platform) {
       if (platform === "instagram") return "Instagram";
       if (platform === "linkedin") return "LinkedIn";
+      if (platform === "all") return "All";
       return "Facebook";
     }
 
@@ -3190,11 +3230,10 @@
       });
       const queryEl = document.getElementById("ad-crm-query");
       if (queryEl) {
-        if (value === "linkedin") {
-          queryEl.placeholder = "e.g. software engineer, accountant, hotel manager…";
-        } else {
-          queryEl.placeholder = "e.g. hotel, restaurant, salon…";
-        }
+        queryEl.placeholder =
+          value === "linkedin"
+            ? "e.g. software engineer, accountant, hotel manager…"
+            : "e.g. hotel, restaurant, salon…";
       }
     }
 
@@ -3213,12 +3252,33 @@
       return src;
     }
 
+    function initialsAvatar(item) {
+      const label = String(item.name || item.username || item.title || "Lead").trim() || "Lead";
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=1a3352&color=fff&size=128&bold=true`;
+    }
+
+    function imageCandidateList(item) {
+      const out = [];
+      const push = (u) => {
+        const src = crmImgSrc(u);
+        if (src && !out.includes(src)) out.push(src);
+      };
+      if (Array.isArray(item.imageCandidates)) item.imageCandidates.forEach(push);
+      push(item.profilePicture);
+      push(item.profilePictureRaw);
+      if (Array.isArray(item.thumbnails)) item.thumbnails.forEach(push);
+      push(initialsAvatar(item));
+      return out;
+    }
+
     function avatarHtml(item, sizeClass = "ad-crm-avatar") {
-      const src = crmImgSrc(item.profilePicture || item.profilePictureRaw || "");
-      if (src) {
-        return `<img class="${sizeClass}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'${sizeClass} ad-crm-avatar--ph',innerHTML:'<i class=&quot;fa-solid fa-user&quot;></i>'}))" />`;
+      const candidates = imageCandidateList(item);
+      if (!candidates.length) {
+        return `<div class="${sizeClass} ad-crm-avatar--ph" aria-hidden="true"><i class="fa-solid fa-user"></i></div>`;
       }
-      return `<div class="${sizeClass} ad-crm-avatar--ph" aria-hidden="true"><i class="fa-solid fa-user"></i></div>`;
+      const first = candidates[0];
+      const rest = candidates.slice(1);
+      return `<img class="${sizeClass}" src="${esc(first)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallbacks="${esc(JSON.stringify(rest))}" onerror="window.crmAvatarFallback && window.crmAvatarFallback(this)" />`;
     }
 
     function thumbsHtml(item, limit = 4, cls = "ad-crm-thumbs") {
@@ -3238,6 +3298,11 @@
       return item.pageUrl || item.linkedinUrl || item.instagramUrl || item.facebookUrl || item.companyUrl || "";
     }
 
+    function updateSaveAllState() {
+      if (!saveAllBtn) return;
+      saveAllBtn.disabled = !crmItems.length;
+    }
+
     function cardHtml(item, idx, mode) {
       const phone = item.phone || (Array.isArray(item.phones) && item.phones[0]) || "";
       const email = item.email || (Array.isArray(item.emails) && item.emails[0]) || "";
@@ -3246,9 +3311,14 @@
       const platform = String(item.platform || "facebook");
       const alreadySaved = savedIds.has(String(item.id || ""));
       const link = openUrl(item);
-      const viewAttr = mode === "saved" ? `data-crm-saved-view="${idx}"` : `data-crm-view="${idx}"`;
-      const saveBtn =
+      const viewAttr =
         mode === "saved"
+          ? `data-crm-saved-view="${idx}"`
+          : mode === "database"
+            ? `data-crm-db-view="${idx}"`
+            : `data-crm-view="${idx}"`;
+      const actionBtn =
+        mode === "saved" || mode === "database"
           ? `<button type="button" class="ad-btn ad-btn--ghost ad-btn--delete" data-crm-delete="${esc(item.id || "")}"><i class="fa-solid fa-trash"></i> Delete</button>`
           : `<button type="button" class="ad-btn ad-btn--ghost" data-crm-save="${idx}" ${alreadySaved ? "disabled" : ""}><i class="fa-solid fa-bookmark"></i> ${alreadySaved ? "Saved" : "Save"}</button>`;
 
@@ -3257,7 +3327,7 @@
           ${avatarHtml(item)}
           <div class="ad-crm-card-meta">
             <h3>${esc(item.name || item.title || "Lead")}</h3>
-            <p><i class="${platformIcon(platform)}"></i> ${esc(cats || item.username || item.address || platform)}</p>
+            <p><i class="${platformIcon(platform)}"></i> ${esc(cats || item.username || item.address || platformLabel(platform))}</p>
           </div>
         </div>
         ${thumbsHtml(item)}
@@ -3272,7 +3342,7 @@
           <button type="button" class="ad-btn ad-btn--ghost ad-btn--view" ${viewAttr}>
             <i class="fa-solid fa-eye"></i> View
           </button>
-          ${saveBtn}
+          ${actionBtn}
           ${link
             ? `<a class="ad-btn ad-btn--ghost" href="${esc(link)}" target="_blank" rel="noopener noreferrer"><i class="${platformIcon(platform)}"></i> Open</a>`
             : ""}
@@ -3282,11 +3352,32 @@
 
     function renderCrmResults(items) {
       crmItems = Array.isArray(items) ? items : [];
+      updateSaveAllState();
       if (!crmItems.length) {
-        resultsEl.innerHTML = `<div class="ad-crm-empty">Hakuna matokeo. Jaribu search nyingine.</div>`;
+        resultsEl.innerHTML = `<div class="ad-crm-empty">No results found. Try another search.</div>`;
         return;
       }
       resultsEl.innerHTML = crmItems.map((item, idx) => cardHtml(item, idx, "results")).join("");
+    }
+
+    function renderDatabaseResults(items) {
+      crmDbItems = Array.isArray(items) ? items : [];
+      if (!dbResultsEl) return;
+      const filtered =
+        crmDbPlatform === "all"
+          ? crmDbItems
+          : crmDbItems.filter((item) => String(item.platform || "") === crmDbPlatform);
+      if (!filtered.length) {
+        dbResultsEl.innerHTML = `<div class="ad-crm-empty">No saved ${crmDbPlatform === "all" ? "" : platformLabel(crmDbPlatform) + " "}leads in the database yet.</div>`;
+        setCrmMsg(crmDbItems.length ? `${filtered.length} shown · ${crmDbItems.length} total saved` : "Database is empty.", "", dbMsgEl);
+        return;
+      }
+      dbResultsEl.innerHTML = filtered.map((item, idx) => cardHtml(item, idx, "database")).join("");
+      if (crmDbPlatform === "all") {
+        setCrmMsg(`${filtered.length} saved lead${filtered.length === 1 ? "" : "s"}`, "success", dbMsgEl);
+      } else {
+        setCrmMsg(`${filtered.length} ${platformLabel(crmDbPlatform)} lead${filtered.length === 1 ? "" : "s"}`, "success", dbMsgEl);
+      }
     }
 
     function renderSavedResults(items) {
@@ -3295,15 +3386,17 @@
       crmSavedItems.forEach((item) => {
         if (item && item.id) savedIds.add(String(item.id));
       });
-      if (!savedEl) return;
-      if (!crmSavedItems.length) {
-        savedEl.innerHTML = `<div class="ad-crm-empty">Hakuna leads zilizohifadhiwa bado.</div>`;
-        return;
+      if (savedEl) {
+        if (!crmSavedItems.length) {
+          savedEl.innerHTML = `<div class="ad-crm-empty">No saved leads yet.</div>`;
+        } else {
+          savedEl.innerHTML = crmSavedItems.map((item, idx) => cardHtml(item, idx, "saved")).join("");
+        }
       }
-      savedEl.innerHTML = crmSavedItems.map((item, idx) => cardHtml(item, idx, "saved")).join("");
       if (crmTab === "results") {
         renderCrmResults(crmItems);
       }
+      renderDatabaseResults(crmSavedItems);
     }
 
     async function openCrmPopup(item) {
@@ -3314,11 +3407,11 @@
       const platform = String(item.platform || "facebook");
       const html = `<div class="ad-crm-popup">
         <div class="ad-crm-popup-hero">
-          ${avatarHtml(item)}
+          ${avatarHtml(item, "ad-crm-avatar ad-crm-avatar--lg")}
           <div>
             <h3>${esc(item.name || item.title || "Lead")}</h3>
             <p><i class="${platformIcon(platform)}"></i> ${esc(
-              (Array.isArray(item.categories) ? item.categories.join(" · ") : "") || item.username || platform
+              (Array.isArray(item.categories) ? item.categories.join(" · ") : "") || item.username || platformLabel(platform)
             )}</p>
           </div>
         </div>
@@ -3367,28 +3460,103 @@
       await window.Swal.fire({
         title: "Lead details",
         html,
-        width: 640,
+        width: 820,
         confirmButtonText: "Close",
         confirmButtonColor: "#1a3352",
         buttonsStyling: true,
+        customClass: { popup: "ad-crm-swal-popup" },
+      });
+    }
+
+    async function showSearchChart(items, platform, query, location) {
+      if (!window.Swal || typeof window.Swal.fire !== "function") return;
+      const list = Array.isArray(items) ? items : [];
+      const labels = list.map((item, i) => {
+        const name = String(item.name || item.title || `Lead ${i + 1}`);
+        return name.length > 16 ? `${name.slice(0, 14)}…` : name;
+      });
+      const followers = list.map((item) => Number(item.followers || 0));
+      const likes = list.map((item) => Number(item.likes || 0));
+      const withContact = list.map((item) => (item.phone || item.email ? 1 : 0));
+
+      await window.Swal.fire({
+        title: "Search insights",
+        html: `<div class="ad-crm-chart-wrap">
+          <p class="ad-crm-chart-sub">${esc(platformLabel(platform))} · ${esc(String(list.length))} results${location ? ` · ${esc(location)}` : ""}${query ? ` · “${esc(query)}”` : ""}</p>
+          <div id="ad-crm-search-chart"></div>
+        </div>`,
+        width: 860,
+        confirmButtonText: "Close",
+        confirmButtonColor: "#1a3352",
+        buttonsStyling: true,
+        customClass: { popup: "ad-crm-swal-popup ad-crm-swal-chart" },
+        didOpen: () => {
+          const el = document.getElementById("ad-crm-search-chart");
+          if (!el || typeof ApexCharts === "undefined") return;
+          if (crmChart) {
+            try { crmChart.destroy(); } catch (_) { /* ignore */ }
+            crmChart = null;
+          }
+          crmChart = new ApexCharts(el, {
+            chart: {
+              type: "line",
+              height: 280,
+              toolbar: { show: false },
+              zoom: { enabled: false },
+              fontFamily: "inherit",
+            },
+            stroke: { curve: "smooth", width: 3 },
+            colors: ["#1a3352", "#0a66c2", "#16a34a"],
+            series: [
+              { name: "Followers", data: followers },
+              { name: "Likes", data: likes },
+              { name: "Has contact", data: withContact },
+            ],
+            xaxis: {
+              categories: labels,
+              labels: { rotate: -35, style: { fontSize: "11px" } },
+            },
+            yaxis: {
+              labels: { formatter: (v) => String(Math.round(Number(v) || 0)) },
+            },
+            legend: { position: "top" },
+            grid: { borderColor: "#e2e8f0" },
+            markers: { size: 4 },
+            tooltip: { shared: true },
+          });
+          crmChart.render();
+        },
+        willClose: () => {
+          if (crmChart) {
+            try { crmChart.destroy(); } catch (_) { /* ignore */ }
+            crmChart = null;
+          }
+        },
       });
     }
 
     async function loadSavedLeads() {
-      if (!savedEl) return;
       try {
         const res = await fetch("crm-api.php?action=saved", { credentials: "same-origin" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.message || "Could not load saved leads.");
-        renderSavedResults(Array.isArray(data.items) ? data.items : []);
+        const items = Array.isArray(data.items) ? data.items : [];
+        renderSavedResults(items);
+        return items;
       } catch (error) {
-        savedEl.innerHTML = `<div class="ad-crm-empty">${esc(error.message || "Could not load saved leads.")}</div>`;
+        if (savedEl) {
+          savedEl.innerHTML = `<div class="ad-crm-empty">${esc(error.message || "Could not load saved leads.")}</div>`;
+        }
+        if (dbResultsEl) {
+          dbResultsEl.innerHTML = `<div class="ad-crm-empty">${esc(error.message || "Could not load database.")}</div>`;
+        }
+        return [];
       }
     }
 
     function setCrmTab(tab) {
       crmTab = tab === "saved" ? "saved" : "results";
-      document.querySelectorAll(".ad-crm-tab").forEach((btn) => {
+      document.querySelectorAll("#ad-section-crm .ad-crm-tab").forEach((btn) => {
         btn.classList.toggle("is-active", btn.dataset.crmTab === crmTab);
       });
       resultsEl.hidden = crmTab !== "results";
@@ -3396,8 +3564,25 @@
       if (crmTab === "saved") loadSavedLeads();
     }
 
-    document.querySelectorAll(".ad-crm-tab").forEach((btn) => {
+    document.querySelectorAll("#ad-section-crm .ad-crm-tab").forEach((btn) => {
       btn.addEventListener("click", () => setCrmTab(btn.dataset.crmTab || "results"));
+    });
+
+    document.querySelectorAll("[data-crm-db-platform]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        crmDbPlatform = btn.dataset.crmDbPlatform || "all";
+        document.querySelectorAll("[data-crm-db-platform]").forEach((b) => {
+          b.classList.toggle("is-active", b.dataset.crmDbPlatform === crmDbPlatform);
+        });
+        renderDatabaseResults(crmDbItems);
+      });
+    });
+
+    document.getElementById("ad-crm-db-refresh")?.addEventListener("click", () => {
+      loadSavedLeads();
+    });
+    document.addEventListener("crm:load-database", () => {
+      loadSavedLeads();
     });
 
     async function saveLead(idx) {
@@ -3413,18 +3598,46 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.message || "Could not save lead.");
         if (item.id) savedIds.add(String(item.id));
-        notify("Lead imehifadhiwa.", "success", { toast: true, force: true });
+        notify("Lead saved.", "success", { toast: true, force: true });
         renderCrmResults(crmItems);
-        if (crmTab === "saved") loadSavedLeads();
+        await loadSavedLeads();
       } catch (error) {
         notify(error.message || "Could not save lead.", "error", { force: true });
+      }
+    }
+
+    async function saveAllLeads() {
+      if (!crmItems.length) {
+        notify("No search results to save.", "warning", { force: true });
+        return;
+      }
+      if (saveAllBtn) saveAllBtn.disabled = true;
+      try {
+        const res = await fetch("crm-api.php?action=save-many", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: crmItems }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.message || "Could not save leads.");
+        crmItems.forEach((item) => {
+          if (item && item.id) savedIds.add(String(item.id));
+        });
+        notify(data.message || "All leads saved.", "success", { toast: true, force: true });
+        renderCrmResults(crmItems);
+        await loadSavedLeads();
+      } catch (error) {
+        notify(error.message || "Could not save leads.", "error", { force: true });
+      } finally {
+        updateSaveAllState();
       }
     }
 
     async function deleteLead(id) {
       const ok = await confirmAction({
         title: "Delete lead?",
-        text: "Lead hii itaondolewa kwenye saved list.",
+        text: "This lead will be removed from the database.",
         confirmButtonText: "Delete",
       });
       if (!ok) return;
@@ -3446,6 +3659,10 @@
       }
     }
 
+    saveAllBtn?.addEventListener("click", () => {
+      void saveAllLeads();
+    });
+
     resultsEl.addEventListener("click", (event) => {
       const viewBtn = event.target.closest("[data-crm-view]");
       if (viewBtn) {
@@ -3453,9 +3670,9 @@
         if (Number.isFinite(idx)) openCrmPopup(crmItems[idx]);
         return;
       }
-      const saveBtn = event.target.closest("[data-crm-save]");
-      if (saveBtn) {
-        const idx = Number(saveBtn.getAttribute("data-crm-save"));
+      const oneSaveBtn = event.target.closest("[data-crm-save]");
+      if (oneSaveBtn) {
+        const idx = Number(oneSaveBtn.getAttribute("data-crm-save"));
         if (Number.isFinite(idx)) saveLead(idx);
       }
     });
@@ -3474,6 +3691,24 @@
       }
     });
 
+    dbResultsEl?.addEventListener("click", (event) => {
+      const viewBtn = event.target.closest("[data-crm-db-view]");
+      if (viewBtn) {
+        const idx = Number(viewBtn.getAttribute("data-crm-db-view"));
+        const filtered =
+          crmDbPlatform === "all"
+            ? crmDbItems
+            : crmDbItems.filter((item) => String(item.platform || "") === crmDbPlatform);
+        if (Number.isFinite(idx)) openCrmPopup(filtered[idx]);
+        return;
+      }
+      const delBtn = event.target.closest("[data-crm-delete]");
+      if (delBtn) {
+        const id = delBtn.getAttribute("data-crm-delete");
+        if (id) deleteLead(id);
+      }
+    });
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const query = String(document.getElementById("ad-crm-query")?.value || "").trim();
@@ -3481,7 +3716,7 @@
       const platform = getSelectedPlatform();
       const limit = Number(document.getElementById("ad-crm-limit")?.value || 12);
       if (query.length < 2) {
-        setCrmMsg("Andika search term (angalau herufi 2).", "error");
+        setCrmMsg("Enter a search term (at least 2 characters).", "error");
         return;
       }
 
@@ -3489,9 +3724,12 @@
       const btn = document.getElementById("ad-crm-search-btn");
       if (btn) btn.disabled = true;
       const label = platformLabel(platform);
-      setCrmMsg(`Inatafuta ${label}…`);
+      setCrmMsg(`Searching ${label}…`);
       resultsEl.innerHTML = `<div class="ad-crm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Searching ${esc(label)}…</div>`;
-      showWaitSwal("CRM search", `<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Tunatafuta ${esc(label)} kupitia Apify…</p>`);
+      showWaitSwal(
+        "Searching…",
+        `<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Fetching ${esc(label)} results via Apify. Please wait…</p>`
+      );
 
       try {
         const res = await fetch("crm-api.php?action=search", {
@@ -3510,12 +3748,14 @@
         renderCrmResults(items);
         if (items.length) {
           notify(`Found ${items.length} ${label} results.`, "success", { toast: true, force: true });
+          await showSearchChart(items, platform, query, location);
         }
       } catch (error) {
         dismissWaitSwal();
         resultsEl.innerHTML = `<div class="ad-crm-empty">${esc(error.message || "CRM search failed.")}</div>`;
         setCrmMsg(error.message || "CRM search failed.", "error");
         notify(error.message || "CRM search failed.", "error", { force: true });
+        updateSaveAllState();
       } finally {
         if (btn) btn.disabled = false;
       }

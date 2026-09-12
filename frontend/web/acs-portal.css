@@ -1446,6 +1446,7 @@ body.ad-body.ad-acs.ad-view-detail[data-ad-section="users"] #ad-section-users,
 body.ad-body.ad-acs.ad-view-detail[data-ad-section="recent"] #ad-section-recent,
 body.ad-body.ad-acs.ad-view-detail[data-ad-section="whatsapp"] #ad-section-whatsapp,
 body.ad-body.ad-acs.ad-view-detail[data-ad-section="crm"] #ad-section-crm,
+body.ad-body.ad-acs.ad-view-detail[data-ad-section="crm-database"] #ad-section-crm-database,
 body.ad-body.ad-acs.ad-view-detail[data-ad-section="general-analysis"] #ad-section-general-analysis {
   display: block !important;
 }

@@ -185,18 +185,39 @@ function crmProxyImageUrl(string $url): string
 
 function crmFacebookPictureCandidates(array $item): array
 {
-    $pageId = trim((string) ($item['pageId'] ?? $item['facebookId'] ?? $item['id'] ?? ''));
-    $pageName = trim((string) ($item['pageName'] ?? ''));
+    $pageId = trim((string) ($item['pageId'] ?? $item['facebookId'] ?? ''));
+    $pageName = trim((string) ($item['pageName'] ?? $item['username'] ?? ''));
+    if ($pageName === '' && !empty($item['pageUrl'])) {
+        if (preg_match('#facebook\.com/([^/?#]+)#i', (string) $item['pageUrl'], $m)) {
+            $pageName = rawurldecode($m[1]);
+        }
+    }
+    if ($pageName !== '' && in_array(strtolower($pageName), ['profile.php', 'pages', 'people'], true)) {
+        $pageName = '';
+    }
+
     $urls = [];
+    // Prefer vanity page name — numeric IDs often resolve to Facebook's blank silhouette.
+    if ($pageName !== '') {
+        $urls[] = 'https://graph.facebook.com/' . rawurlencode($pageName) . '/picture?type=large';
+        $urls[] = 'https://graph.facebook.com/' . rawurlencode($pageName) . '/picture?width=320&height=320';
+        $urls[] = 'https://www.facebook.com/' . rawurlencode($pageName) . '/picture?type=large';
+    }
     if ($pageId !== '' && preg_match('/^\d+$/', $pageId)) {
         $urls[] = 'https://graph.facebook.com/' . rawurlencode($pageId) . '/picture?type=large';
         $urls[] = 'https://graph.facebook.com/' . rawurlencode($pageId) . '/picture?width=320&height=320';
     }
-    if ($pageName !== '') {
-        $urls[] = 'https://graph.facebook.com/' . rawurlencode($pageName) . '/picture?type=large';
-        $urls[] = 'https://unavatar.io/facebook/' . rawurlencode($pageName);
+    $website = trim((string) ($item['website'] ?? ''));
+    if ($website !== '') {
+        $host = preg_replace('#^https?://#i', '', $website);
+        $host = preg_replace('#^www\.#i', '', (string) $host);
+        $host = trim(explode('/', (string) $host)[0] ?? '');
+        if ($host !== '' && str_contains($host, '.')) {
+            $urls[] = 'https://logo.clearbit.com/' . rawurlencode($host);
+            $urls[] = 'https://www.google.com/s2/favicons?sz=128&domain_url=' . rawurlencode('https://' . $host);
+        }
     }
-    return $urls;
+    return array_values(array_unique($urls));
 }
 
 function crmPickImage(array $item, string $platform = 'facebook'): string
@@ -342,6 +363,11 @@ function crmNormalizeFacebookItem(array $item): array
 
     $profilePicture = crmPickImage($item, 'facebook');
     $thumbnails = crmPickThumbnails($item, 'facebook');
+    $imageCandidates = array_values(array_unique(array_filter(array_merge(
+        $profilePicture !== '' ? [$profilePicture] : [],
+        crmFacebookPictureCandidates($item),
+        $thumbnails
+    ))));
 
     return [
         'id' => $pageId !== '' ? 'fb_' . $pageId : 'fb_' . md5($pageUrl !== '' ? $pageUrl : $title),
@@ -370,8 +396,9 @@ function crmNormalizeFacebookItem(array $item): array
         'adStatus' => trim((string) ($item['ad_status'] ?? $item['adStatus'] ?? '')),
         'messenger' => trim((string) ($item['messenger'] ?? '')),
         'priceRange' => trim((string) ($item['priceRange'] ?? '')),
-        'profilePicture' => crmProxyImageUrl($profilePicture),
-        'profilePictureRaw' => $profilePicture,
+        'profilePicture' => crmProxyImageUrl($profilePicture !== '' ? $profilePicture : ($imageCandidates[0] ?? '')),
+        'profilePictureRaw' => $profilePicture !== '' ? $profilePicture : ($imageCandidates[0] ?? ''),
+        'imageCandidates' => crmWrapImageList($imageCandidates),
         'thumbnails' => crmWrapImageList($thumbnails),
     ];
 }
@@ -451,6 +478,10 @@ function crmNormalizeInstagramItem(array $item): array
         'verified' => !empty($item['verified']) || !empty($item['isVerified']),
         'profilePicture' => crmProxyImageUrl($profilePicture),
         'profilePictureRaw' => $profilePicture,
+        'imageCandidates' => crmWrapImageList(array_values(array_filter(array_merge(
+            $profilePicture !== '' ? [$profilePicture] : [],
+            $thumbnails
+        )))),
         'thumbnails' => crmWrapImageList($thumbnails),
     ];
 }
@@ -675,6 +706,7 @@ function crmNormalizeLinkedinItem(array $item): array
         'companyDescription' => trim((string) ($item['companyDescription'] ?? '')),
         'profilePicture' => crmProxyImageUrl($profilePicture),
         'profilePictureRaw' => $profilePicture,
+        'imageCandidates' => crmWrapImageList($thumbs),
         'thumbnails' => crmWrapImageList($thumbs),
     ];
 }
@@ -731,8 +763,12 @@ function crmProxyImage(): never
         'cdninstagram.com',
         'linkedin.com',
         'licdn.com',
+        'clearbit.com',
+        'gstatic.com',
+        'google.com',
         'unavatar.io',
         'googleusercontent.com',
+        'ui-avatars.com',
     ];
     foreach ($needles as $needle) {
         if ($host === $needle || str_ends_with($host, '.' . $needle)) {
@@ -769,10 +805,18 @@ function crmProxyImage(): never
     curl_close($ch);
 
     if ($body === false || $body === '' || $http >= 400) {
-        // 1x1 transparent PNG fallback
-        header('Content-Type: image/png');
-        header('Cache-Control: public, max-age=300');
-        echo base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5W2XQAAAAASUVORK5CYII=');
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=UTF-8');
+        header('Cache-Control: no-store');
+        echo 'Image unavailable';
+        exit;
+    }
+
+    // Tiny broken/empty payloads should fail so the UI can try the next candidate.
+    if (strlen($body) < 80) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo 'Image unavailable';
         exit;
     }
 
@@ -835,6 +879,55 @@ if ($method === 'POST' && $action === 'save') {
         crmJson(500, ['ok' => false, 'message' => 'Could not save lead.']);
     }
     crmJson(200, ['ok' => true, 'message' => $found ? 'Lead updated.' : 'Lead saved.', 'item' => $item]);
+}
+
+if ($method === 'POST' && $action === 'save-many') {
+    $input = crmReadJsonBody();
+    $items = $input['items'] ?? [];
+    if (!is_array($items) || $items === []) {
+        crmJson(422, ['ok' => false, 'message' => 'No leads to save.']);
+    }
+    $data = crmLoadLeads();
+    $saved = 0;
+    $updated = 0;
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $id = trim((string) ($item['id'] ?? ''));
+        if ($id === '') {
+            $id = 'lead_' . md5(json_encode($item) ?: uniqid('crm', true));
+            $item['id'] = $id;
+        }
+        $item['savedAt'] = gmdate('c');
+        $item['savedBy'] = (string) ($user['id'] ?? $user['email'] ?? 'admin');
+        $found = false;
+        foreach ($data['leads'] as $i => $lead) {
+            if (!is_array($lead)) {
+                continue;
+            }
+            if ((string) ($lead['id'] ?? '') === $id) {
+                $data['leads'][$i] = $item;
+                $found = true;
+                $updated++;
+                break;
+            }
+        }
+        if (!$found) {
+            $data['leads'][] = $item;
+            $saved++;
+        }
+    }
+    if (!crmSaveLeads($data)) {
+        crmJson(500, ['ok' => false, 'message' => 'Could not save leads.']);
+    }
+    crmJson(200, [
+        'ok' => true,
+        'message' => 'Saved ' . ($saved + $updated) . ' lead(s).',
+        'saved' => $saved,
+        'updated' => $updated,
+        'count' => count($data['leads']),
+    ]);
 }
 
 if ($method === 'POST' && $action === 'delete') {

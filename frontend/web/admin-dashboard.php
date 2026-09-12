@@ -115,6 +115,7 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" data-ad-target="analytics"><i class="fa-solid fa-chart-line"></i> Analysis</button>
         <button type="button" data-ad-target="whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
         <button type="button" data-ad-target="crm"><i class="fa-solid fa-address-book"></i> CRM</button>
+        <button type="button" data-ad-target="crm-database"><i class="fa-solid fa-database"></i> Database</button>
         <button type="button" id="ad-refresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
         <button type="button" id="ad-ga-open"><i class="fa-solid fa-circle-nodes"></i> General Analysis</button>
       </div>
@@ -215,6 +216,11 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" class="ad-sidebar-link" data-ad-target="crm">
           <i class="fa-solid fa-address-book ad-nav-ico"></i>
           <span class="ad-sidebar-text">CRM</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="crm-database">
+          <i class="fa-solid fa-database ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Database</span>
           <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
         </button>
       </nav>
@@ -885,6 +891,9 @@ require __DIR__ . '/acs-gov-banner.php';
           <button type="submit" class="ad-btn ad-btn--primary" id="ad-crm-search-btn">
             <i class="fa-solid fa-magnifying-glass"></i><span>Search</span>
           </button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-save-all" disabled title="Save all current results">
+            <i class="fa-solid fa-floppy-disk"></i><span>Save all</span>
+          </button>
         </div>
       </form>
       <div class="ad-crm-tabs" role="tablist">
@@ -894,6 +903,26 @@ require __DIR__ . '/acs-gov-banner.php';
       <p id="ad-crm-msg" class="ad-msg" hidden></p>
       <div id="ad-crm-results" class="ad-crm-results" aria-live="polite"></div>
       <div id="ad-crm-saved" class="ad-crm-results" hidden aria-live="polite"></div>
+    </section>
+
+    <section class="ad-card ad-page-section" id="ad-section-crm-database" data-ad-page="crm-database">
+      <div class="ad-card-head">
+        <div>
+          <h2><i class="fa-solid fa-database"></i> Database</h2>
+          <p class="ad-period-sub">All leads you saved from CRM searches, grouped by platform</p>
+        </div>
+        <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-db-refresh">
+          <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+        </button>
+      </div>
+      <div class="ad-crm-tabs" role="tablist" aria-label="Saved platforms">
+        <button type="button" class="ad-crm-tab is-active" data-crm-db-platform="all">All</button>
+        <button type="button" class="ad-crm-tab" data-crm-db-platform="facebook"><i class="fa-brands fa-facebook" style="color:#1877f2"></i> Facebook</button>
+        <button type="button" class="ad-crm-tab" data-crm-db-platform="instagram"><i class="fa-brands fa-instagram" style="color:#e4405f"></i> Instagram</button>
+        <button type="button" class="ad-crm-tab" data-crm-db-platform="linkedin"><i class="fa-brands fa-linkedin" style="color:#0a66c2"></i> LinkedIn</button>
+      </div>
+      <p id="ad-crm-db-msg" class="ad-msg" hidden></p>
+      <div id="ad-crm-db-results" class="ad-crm-results" aria-live="polite"></div>
     </section>
 
     <section class="ad-page-section ad-ga-page" id="ad-section-general-analysis" data-ad-page="general-analysis">
