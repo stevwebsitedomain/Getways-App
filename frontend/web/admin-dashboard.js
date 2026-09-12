@@ -195,6 +195,37 @@
     });
   }
 
+  async function confirmAction(options = {}) {
+    const title = String(options.title || "Are you sure?");
+    const text = String(options.text || "");
+    const html = options.html ? String(options.html) : "";
+    const confirmButtonText = String(options.confirmButtonText || "OK");
+    const cancelButtonText = String(options.cancelButtonText || "Cancel");
+    const icon = options.icon || "warning";
+    const confirmButtonColor = options.confirmButtonColor || "#dc2626";
+
+    if (!window.Swal || typeof window.Swal.fire !== "function") {
+      return window.confirm(text || title);
+    }
+
+    const result = await window.Swal.fire({
+      icon,
+      title,
+      text: html ? undefined : text,
+      html: html || undefined,
+      showCancelButton: true,
+      focusCancel: true,
+      confirmButtonText,
+      cancelButtonText,
+      confirmButtonColor,
+      cancelButtonColor: "#64748b",
+      buttonsStyling: true,
+      reverseButtons: true,
+      width: 420,
+    });
+    return Boolean(result.isConfirmed);
+  }
+
   function renderPager(pagerId, page, totalItems, onPage, pageSize = 10) {
     const pager = document.getElementById(pagerId);
     if (!pager) return;
@@ -962,7 +993,11 @@
             notify("Cannot delete this item (missing id).", "error");
             return;
           }
-          if (!window.confirm(`Delete collection ${ref}?`)) return;
+          if (!(await confirmAction({
+            title: "Delete collection?",
+            text: `Delete collection ${ref}?`,
+            confirmButtonText: "Delete",
+          }))) return;
           btn.disabled = true;
           try {
             const result = await requestJson("delete-payment", { method: "POST", body: { id } });
@@ -1505,7 +1540,11 @@
         const paymentId = Number(btn.getAttribute("data-delete-payment"));
         const ref = btn.getAttribute("data-delete-ref") || String(paymentId);
         if (!paymentId) return;
-        if (!window.confirm(`Delete transaction ${ref}? This removes it from the dashboard only.`)) return;
+        if (!(await confirmAction({
+          title: "Delete transaction?",
+          text: `Delete transaction ${ref}? This removes it from the dashboard only.`,
+          confirmButtonText: "Delete",
+        }))) return;
         btn.disabled = true;
         try {
           const result = await requestJson("delete-payment", { method: "POST", body: { id: paymentId } });
@@ -1640,7 +1679,11 @@
         const id = Number(btn.getAttribute("data-delete-payout"));
         const ref = btn.getAttribute("data-delete-ref") || String(id);
         if (!id) return;
-        if (!window.confirm(`Delete payout ${ref}? This removes it from the dashboard only.`)) return;
+        if (!(await confirmAction({
+          title: "Delete payout?",
+          text: `Delete payout ${ref}? This removes it from the dashboard only.`,
+          confirmButtonText: "Delete",
+        }))) return;
         btn.disabled = true;
         try {
           const result = await requestJson("delete-payout", { method: "POST", body: { id } });
@@ -1706,7 +1749,13 @@
         "",
         "Confirm payout?",
       ].filter(Boolean).join("\n");
-      if (!window.confirm(confirmMsg)) return;
+      if (!(await confirmAction({
+        title: "Confirm payout?",
+        html: confirmMsg.replace(/\n/g, "<br>"),
+        confirmButtonText: "Confirm payout",
+        confirmButtonColor: "#145493",
+        icon: "question",
+      }))) return;
       await requestJson("confirm-payout", {
         method: "POST",
         body: { orderReference: preview.orderReference, previewToken: preview.previewToken },
@@ -1801,7 +1850,11 @@
         const id = btn.getAttribute("data-delete-user") || "";
         const name = btn.getAttribute("data-delete-name") || id;
         if (!id) return;
-        if (!window.confirm(`Delete registered user ${name}?`)) return;
+        if (!(await confirmAction({
+          title: "Delete user?",
+          text: `Delete registered user ${name}?`,
+          confirmButtonText: "Delete",
+        }))) return;
         btn.disabled = true;
         try {
           const res = await fetch("auth-api.php?action=delete-user", {
