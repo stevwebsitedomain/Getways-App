@@ -49,6 +49,7 @@ $gwAuthJson = json_encode([
 
               <div class="bk-form-field">
                 <label for="autopayPhone"><i class="fa-solid fa-phone"></i> Phone</label>
+                <?php require __DIR__ . '/wallet-network-icons.php'; ?>
                 <input
                   type="tel"
                   id="autopayPhone"

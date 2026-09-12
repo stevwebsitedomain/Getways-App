@@ -47,7 +47,7 @@ if ($authInitial === '') {
         <a href="create-payment.php"><i class="fa-solid fa-money-bill-transfer"></i> Pay &amp; Transfer</a>
         <a href="control-number.php"><i class="fa-solid fa-store"></i> Deposit</a>
         <a href="payment-details.php?type=success"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
-        <a href="autopay.php"><i class="fa-solid fa-award"></i> Rewards</a>
+        <a href="autopay.php"><i class="fa-solid fa-bolt"></i> AutoPay</a>
         <a href="settings.php"><i class="fa-solid fa-user"></i> Profile</a>
         <a href="logout.php" class="w-phone-menu-logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
       </section>

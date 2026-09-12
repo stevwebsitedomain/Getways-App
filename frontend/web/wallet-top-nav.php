@@ -51,7 +51,7 @@ $isActive = static function (string $key) use ($activeTopNav): string {
       <div class="nav-links">
         <a class="<?= trim($isActive('home')) ?>" href="part-two.php">Accounts</a>
         <a class="<?= trim($isActive('pay')) ?>" href="create-payment.php">Pay &amp; Transfer</a>
-        <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">Rewards</a>
+        <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">AutoPay</a>
         <a class="<?= trim($isActive('history')) ?>" href="payment-details.php?type=success">History</a>
         <a class="<?= trim($isActive('settings')) ?>" href="settings.php">More</a>
         <a href="logout.php">Logout</a>
@@ -71,7 +71,7 @@ $isActive = static function (string $key) use ($activeTopNav): string {
     <div class="nav-mobile-menu" data-nav-mobile-menu>
       <a class="<?= trim($isActive('home')) ?>" href="part-two.php">Accounts</a>
       <a class="<?= trim($isActive('pay')) ?>" href="create-payment.php">Pay &amp; Transfer</a>
-      <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">Rewards</a>
+      <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">AutoPay</a>
       <a class="<?= trim($isActive('history')) ?>" href="payment-details.php?type=success">History</a>
       <a class="<?= trim($isActive('settings')) ?>" href="settings.php">More</a>
       <a href="logout.php">Logout</a>

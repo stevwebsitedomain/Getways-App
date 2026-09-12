@@ -13,8 +13,8 @@ $isMore = in_array($activeNav, ['profile', 'settings'], true);
         <span class="w-nav-txt">Pay &amp; Transfer</span>
       </a>
       <a href="autopay.php" class="w-nav-item<?= $activeNav === 'autopay' ? ' is-active' : '' ?>"<?= $activeNav === 'autopay' ? ' aria-current="page"' : '' ?>>
-        <span class="w-nav-ico"><i class="fa-solid fa-award"></i></span>
-        <span class="w-nav-txt">Rewards</span>
+        <span class="w-nav-ico"><i class="fa-solid fa-bolt"></i></span>
+        <span class="w-nav-txt">AutoPay</span>
       </a>
       <a href="control-number.php" class="w-nav-item<?= $activeNav === 'services' ? ' is-active' : '' ?>"<?= $activeNav === 'services' ? ' aria-current="page"' : '' ?>>
         <span class="w-nav-ico"><i class="fa-solid fa-mobile-screen-button"></i></span>
