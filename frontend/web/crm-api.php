@@ -254,7 +254,7 @@ function crmDefaultEmailTemplate(): array
         'contactWebsite' => 'https://makarious.legitconsult.co.tz/',
         'contactOrg' => 'Digital Matrix Technology · Tanzania',
         'fromEmail' => 'stevenabalwambo@gmail.com',
-        'fromName' => 'Steven Abalwambo',
+        'fromName' => 'Steven Makarious',
         'updatedAt' => null,
     ];
 }
@@ -316,7 +316,7 @@ function crmSaveEmailTemplate(array $template): bool
         'contactWebsite' => trim((string) ($template['contactWebsite'] ?? $defaults['contactWebsite'])),
         'contactOrg' => trim((string) ($template['contactOrg'] ?? $defaults['contactOrg'])),
         'fromEmail' => 'stevenabalwambo@gmail.com',
-        'fromName' => trim((string) ($template['fromName'] ?? $defaults['fromName'])) ?: 'Steven Abalwambo',
+        'fromName' => trim((string) ($template['fromName'] ?? $defaults['fromName'])) ?: 'Steven Makarious',
         'updatedAt' => gmdate('c'),
     ];
     if ($payload['ctaUrl'] === '' || str_starts_with(strtolower($payload['ctaUrl']), 'mailto:')) {
@@ -502,7 +502,7 @@ function crmMailConfig(): array
         'user' => trim((string) (getenv('CRM_SMTP_USER') ?: getenv('CRM_MAIL_FROM') ?: 'stevenabalwambo@gmail.com')),
         'pass' => trim((string) (getenv('CRM_SMTP_PASS') ?: getenv('CRM_SMTP_PASSWORD') ?: '')),
         'fromEmail' => trim((string) (getenv('CRM_MAIL_FROM') ?: 'stevenabalwambo@gmail.com')),
-        'fromName' => trim((string) (getenv('CRM_MAIL_FROM_NAME') ?: 'Steven Abalwambo')),
+        'fromName' => trim((string) (getenv('CRM_MAIL_FROM_NAME') ?: 'Steven Makarious')),
         'secure' => strtolower(trim((string) (getenv('CRM_SMTP_SECURE') ?: 'tls'))),
     ];
 }
@@ -1434,7 +1434,7 @@ if ($method === 'POST' && $action === 'email-template') {
         'footerLine' => trim((string) ($input['footerLine'] ?? '')),
         'ctaText' => trim((string) ($input['ctaText'] ?? '')),
         'ctaUrl' => trim((string) ($input['ctaUrl'] ?? '')),
-        'fromName' => trim((string) ($input['fromName'] ?? 'Steven Abalwambo')),
+        'fromName' => trim((string) ($input['fromName'] ?? 'Steven Makarious')),
         'fromEmail' => 'stevenabalwambo@gmail.com',
     ];
     if (!crmSaveEmailTemplate($template)) {
