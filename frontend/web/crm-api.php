@@ -480,6 +480,25 @@ function crmDeveloperPortraitPath(): string
 }
 
 /**
+ * School systems event thumbnail (from project root h.jpeg).
+ */
+function crmSchoolSystemsImagePath(): string
+{
+    $candidates = [
+        __DIR__ . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'crm' . DIRECTORY_SEPARATOR . 'school-systems.jpg',
+        dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'h.jpeg',
+        dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'h.jpg',
+        dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'h.png',
+    ];
+    foreach ($candidates as $path) {
+        if (is_file($path) && filesize($path) > 0) {
+            return $path;
+        }
+    }
+    return '';
+}
+
+/**
  * Absolute public base URL for email assets (images must load for recipients).
  */
 function crmEmailPublicBaseUrl(): string
@@ -543,8 +562,22 @@ function crmBuildEmailEventsSection(string $font): array
     } else {
         $portrait = crmEmailImageUrl('images/crm/steven-makarious.jpg');
     }
-    // Public stock images (Unsplash) — always reachable in recipient inboxes
-    $schoolImg = 'https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=240&h=160&q=80';
+
+    $schoolPath = crmSchoolSystemsImagePath();
+    $schoolCid = 'crm_school_systems';
+    if ($schoolPath !== '') {
+        $ext = strtolower(pathinfo($schoolPath, PATHINFO_EXTENSION));
+        $mime = $ext === 'png' ? 'image/png' : 'image/jpeg';
+        $schoolImg = 'cid:' . $schoolCid;
+        $attachments[] = [
+            'cid' => $schoolCid,
+            'path' => $schoolPath,
+            'mime' => $mime,
+            'name' => 'school-systems.' . ($ext === 'png' ? 'png' : 'jpg'),
+        ];
+    } else {
+        $schoolImg = crmEmailImageUrl('images/crm/school-systems.jpg');
+    }
     $officeImg = 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=240&h=160&q=80';
 
     $events = [
@@ -564,7 +597,7 @@ function crmBuildEmailEventsSection(string $font): array
         ],
         [
             'img' => $officeImg,
-            'title' => 'CRM & PRODUCT MANAGEMENT SESSION',
+            'title' => 'CRM & PRODUCT MANAGEMENT SYSTEM',
             'when' => 'Oct 18, 2026 09:30 - 13:00',
             'where' => 'Digital Matrix Technology Studio, Dar es Salaam',
             'desc' => 'Lead tracking, product catalogs and end-to-end business workflows.',
@@ -659,7 +692,8 @@ function crmEmailFormatBodyHtml(string $bodyRaw): string
     $paragraphs = preg_split("/\n{2,}/", trim($bodyRaw)) ?: [];
     $bodyHtml = '';
     $pStyle = 'margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;font-family:Georgia,\'Times New Roman\',serif;';
-    $dotColors = ['#4F378B', '#0284c7', '#16a34a', '#ea580c', '#db2777', '#0f766e'];
+    // Single modern brand color for all list dots
+    $dotColor = '#4F378B';
 
     foreach ($paragraphs as $para) {
         $para = trim((string) $para);
@@ -682,13 +716,15 @@ function crmEmailFormatBodyHtml(string $bodyRaw): string
 
         // Treat project summary lines as a list even if bullet prefix was dropped.
         if ($bulletCount >= 2 && $bulletCount === count($lines)) {
-            $bodyHtml .= '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;">';
-            foreach ($lines as $i => $line) {
+            $bodyHtml .= '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;">';
+            foreach ($lines as $line) {
                 $item = (string) preg_replace('/^(?:•|\-|\*|●)\s+/u', '', $line);
-                $color = $dotColors[$i % count($dotColors)];
                 $bodyHtml .= '<tr>'
-                    . '<td width="18" valign="top" style="padding:3px 0 8px 0;font-size:15px;line-height:1.65;color:' . $color . ';">&#9679;</td>'
-                    . '<td valign="top" style="padding:0 0 8px 4px;font-size:15px;line-height:1.65;color:#334155;font-family:Georgia,\'Times New Roman\',serif;">'
+                    . '<td width="22" valign="top" style="padding:5px 0 10px 0;">'
+                    . '<table role="presentation" cellpadding="0" cellspacing="0"><tr>'
+                    . '<td style="width:9px;height:9px;border-radius:50%;background:' . $dotColor . ';font-size:0;line-height:9px;">&nbsp;</td>'
+                    . '</tr></table></td>'
+                    . '<td valign="top" style="padding:0 0 10px 6px;font-size:15px;line-height:1.65;color:#334155;font-family:Georgia,\'Times New Roman\',serif;">'
                     . crmEmailInlineFormat($item)
                     . '</td></tr>';
             }
