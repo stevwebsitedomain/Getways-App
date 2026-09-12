@@ -403,6 +403,154 @@ function crmEmailInlineFormat(string $text): string
 }
 
 /**
+ * Absolute public base URL for email assets (images must load for recipients).
+ */
+function crmEmailPublicBaseUrl(): string
+{
+    $candidates = [
+        trim((string) (getenv('CRM_PUBLIC_BASE_URL') ?: '')),
+        trim((string) (getenv('BASE_URL') ?: '')),
+        trim((string) (getenv('APP_URL') ?: '')),
+    ];
+    foreach ($candidates as $base) {
+        if ($base === '') {
+            continue;
+        }
+        $base = rtrim($base, '/');
+        if (preg_match('#^https?://#i', $base)) {
+            return $base;
+        }
+    }
+    return 'https://makarious.legitconsult.co.tz';
+}
+
+/**
+ * Absolute image URL for CRM email (local path or full https URL).
+ */
+function crmEmailImageUrl(string $pathOrUrl): string
+{
+    $value = trim($pathOrUrl);
+    if ($value === '') {
+        return '';
+    }
+    if (preg_match('#^https?://#i', $value)) {
+        return $value;
+    }
+    return crmEmailPublicBaseUrl() . '/' . ltrim(str_replace('\\', '/', $value), '/');
+}
+
+/**
+ * Compact Events + News block for the middle of the CRM email.
+ */
+function crmBuildEmailEventsSection(string $font): string
+{
+    $base = crmEmailPublicBaseUrl();
+    $portrait = crmEmailImageUrl('images/crm/steven-makarious.jpg');
+    // Public stock images (Unsplash) — always reachable in recipient inboxes
+    $schoolImg = 'https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=240&h=160&q=80';
+    $officeImg = 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=240&h=160&q=80';
+
+    $events = [
+        [
+            'img' => $portrait,
+            'title' => 'THE DIGITAL MATRIX TECHNOLOGY CLIENT SYSTEMS WORKSHOP 2026',
+            'when' => 'Sep 22, 2026 09:00 - Sep 23, 2026 16:00',
+            'where' => 'Dar es Salaam, Tanzania',
+            'desc' => 'Briefings on school portals, TRA data systems, CRM and office platforms.',
+        ],
+        [
+            'img' => $schoolImg,
+            'title' => 'SCHOOL SYSTEMS DELIVERY BRIEFING',
+            'when' => 'Oct 05, 2026 10:00 - 14:00',
+            'where' => 'Dar es Salaam, Tanzania',
+            'desc' => 'Student records, academic operations and administration tools.',
+        ],
+        [
+            'img' => $officeImg,
+            'title' => 'CRM & PRODUCT MANAGEMENT SESSION',
+            'when' => 'Oct 18, 2026 09:30 - 13:00',
+            'where' => 'Julius Nyerere International Convention Centre',
+            'desc' => 'Lead tracking, product catalogs and end-to-end business workflows.',
+        ],
+    ];
+
+    $news = [
+        [
+            'day' => '08',
+            'meta' => 'Tue Sep',
+            'title' => 'DIGITAL MATRIX TECHNOLOGY EXPANDS FULL-STACK DELIVERY',
+        ],
+        [
+            'day' => '12',
+            'meta' => 'Fri Sep',
+            'title' => 'NEW PROJECTS: TRA DATA, SCHOOL SYSTEMS, CRM & PRODUCT TOOLS',
+        ],
+        [
+            'day' => '15',
+            'meta' => 'Mon Sep',
+            'title' => 'SUPPORT VIA WHATSAPP · +255 715 296 092',
+        ],
+        [
+            'day' => '20',
+            'meta' => 'Sat Sep',
+            'title' => 'PORTFOLIO UPDATES AT MAKARIOUS.LEGITCONSULT.CO.TZ',
+        ],
+    ];
+
+    $imgStyle = 'display:block;width:72px;height:56px;object-fit:cover;border:0;';
+    $eventRows = '';
+    foreach ($events as $ev) {
+        $eventRows .= '<tr><td style="padding:0 0 14px;">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+            . '<td width="78" valign="top" style="padding-right:10px;">'
+            . '<img src="' . crmEmailEscape((string) $ev['img']) . '" width="72" height="56" alt="" style="' . $imgStyle . '" />'
+            . '</td>'
+            . '<td valign="top" style="' . $font . '">'
+            . '<div style="font-size:11px;font-weight:800;letter-spacing:0.02em;color:#1e293b;text-transform:uppercase;line-height:1.35;margin:0 0 4px;">'
+            . crmEmailEscape((string) $ev['title']) . '</div>'
+            . '<div style="font-size:10px;color:#64748b;line-height:1.45;margin:0 0 2px;">'
+            . crmEmailEscape((string) $ev['when']) . '</div>'
+            . '<div style="font-size:10px;color:#64748b;line-height:1.45;margin:0 0 4px;">'
+            . crmEmailEscape((string) $ev['where']) . '</div>'
+            . '<div style="font-size:11px;color:#475569;line-height:1.45;">'
+            . crmEmailEscape((string) $ev['desc']) . '</div>'
+            . '</td></tr></table></td></tr>';
+    }
+
+    $newsRows = '';
+    foreach ($news as $i => $item) {
+        $border = $i === 0 ? '' : 'border-top:1px solid #e2e8f0;';
+        $newsRows .= '<tr><td style="padding:10px 0;' . $border . '">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+            . '<td width="42" valign="top" style="padding-right:8px;' . $font . 'text-align:left;">'
+            . '<div style="font-size:18px;font-weight:800;color:#0f172a;line-height:1;">' . crmEmailEscape((string) $item['day']) . '</div>'
+            . '<div style="font-size:9px;color:#64748b;line-height:1.2;margin-top:2px;">' . crmEmailEscape((string) $item['meta']) . '</div>'
+            . '</td>'
+            . '<td valign="middle" style="' . $font . 'font-size:11px;font-weight:700;color:#1e293b;text-transform:uppercase;line-height:1.35;">'
+            . crmEmailEscape((string) $item['title'])
+            . '</td></tr></table></td></tr>';
+    }
+
+    return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;border-top:1px solid #e2e8f0;">'
+        . '<tr><td style="padding:18px 0 8px;">'
+        . '<div style="' . $font . 'font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#4F378B;margin:0 0 12px;">Highlights</div>'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+        // Events column
+        . '<td width="54%" valign="top" style="padding-right:12px;">'
+        . '<div style="' . $font . 'font-size:13px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#1e293b;margin:0 0 12px;">Events</div>'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $eventRows . '</table>'
+        . '</td>'
+        // News column
+        . '<td width="46%" valign="top" style="padding-left:12px;border-left:1px solid #e2e8f0;">'
+        . '<div style="' . $font . 'font-size:13px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#1e293b;margin:0 0 8px;">News</div>'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $newsRows . '</table>'
+        . '</td>'
+        . '</tr></table>'
+        . '<div style="margin-top:6px;' . $font . 'font-size:10px;color:#94a3b8;">More at <a href="' . crmEmailEscape($base) . '" style="color:#4F378B;text-decoration:none;">' . crmEmailEscape(preg_replace('#^https?://#i', '', $base) ?: $base) . '</a></div>'
+        . '</td></tr></table>';
+}
+
+/**
  * Convert template body text into HTML paragraphs + bullet lists.
  */
 function crmEmailFormatBodyHtml(string $bodyRaw): string
@@ -518,6 +666,9 @@ function crmBuildEmailHtml(array $template, array $lead): string
         . '<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#0f172a;' . $font . '">'
         . $greeting . '</p>'
         . $bodyHtml
+
+        // Events + News (middle of email)
+        . crmBuildEmailEventsSection($font)
 
         // Signature
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 8px;">'
