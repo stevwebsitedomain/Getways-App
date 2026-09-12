@@ -1660,7 +1660,7 @@ if ($method === 'POST' && $action === 'send-test-emails') {
     $bodyText = crmRenderEmailPlaceholders(
         trim((string) ($template['greeting'] ?? '')) . "\n\n" . (string) $template['body'] . "\n\n"
         . trim((string) ($template['signOff'] ?? 'Best regards,')) . "\n"
-        . trim((string) ($template['signName'] ?? 'Steven Abalwambo')) . "\n"
+        . trim((string) ($template['signName'] ?? 'Steven Makarious')) . "\n"
         . trim((string) ($template['signRole'] ?? '')),
         $fakeLead
     );
