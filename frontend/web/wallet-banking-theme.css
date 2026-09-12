@@ -839,7 +839,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px 4px 4px;
+  padding: 4px 10px 4px 4px;
   border-radius: 999px;
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -847,11 +847,18 @@
 }
 
 .gw-network-strip__list .gw-net-ico {
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
   display: block;
   flex: 0 0 auto;
-  border-radius: 6px;
+  border-radius: 7px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.gw-network-strip__list .gw-net-ico--airtel {
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 .gw-network-strip__list .gw-net-name {
