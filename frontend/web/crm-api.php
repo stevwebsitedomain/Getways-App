@@ -11,7 +11,9 @@ declare(strict_types=1);
  * GET  ?action=regions
  * GET  ?action=email-template
  * POST ?action=email-template JSON { subject, body }
- * POST ?action=send-emails JSON { platform?, ids? }
+ * POST ?action=send-emails JSON { platform?, ids?, emails? }
+ * GET  ?action=send-selection
+ * POST ?action=send-selection JSON { emails: string[]|string }
  * GET  ?action=test-emails
  * POST ?action=test-emails JSON { emails: string[]|string }  (import / replace test list)
  * POST ?action=send-test-emails JSON { emails?: string[] }   (send to imported or provided)
@@ -107,6 +109,52 @@ function crmTestEmailsPath(): string
         @mkdir($dir, 0775, true);
     }
     return $dir . DIRECTORY_SEPARATOR . 'crm-test-emails.json';
+}
+
+function crmSendSelectionPath(): string
+{
+    $dir = __DIR__ . DIRECTORY_SEPARATOR . 'runtime';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    return $dir . DIRECTORY_SEPARATOR . 'crm-send-selection.json';
+}
+
+/**
+ * @return list<string>
+ */
+function crmLoadSendSelection(): array
+{
+    $path = crmSendSelectionPath();
+    if (!is_file($path)) {
+        return [];
+    }
+    $raw = file_get_contents($path);
+    if (!is_string($raw) || $raw === '') {
+        return [];
+    }
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    return crmParseEmailList($decoded['emails'] ?? $decoded);
+}
+
+/**
+ * @param list<string> $emails
+ */
+function crmSaveSendSelection(array $emails): bool
+{
+    $path = crmSendSelectionPath();
+    $payload = [
+        'emails' => array_values(array_unique(array_map('strtolower', $emails))),
+        'updatedAt' => gmdate('c'),
+    ];
+    $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if (!is_string($json)) {
+        return false;
+    }
+    return @file_put_contents($path, $json, LOCK_EX) !== false;
 }
 
 function crmEmailLogPath(): string
@@ -1779,6 +1827,11 @@ if ($method === 'POST' && $action === 'send-emails') {
             }
         }
     }
+    $selectedOnly = crmParseEmailList($input['emails'] ?? []);
+    $selectedMap = [];
+    foreach ($selectedOnly as $email) {
+        $selectedMap[$email] = true;
+    }
 
     $template = crmLoadEmailTemplate();
     if (!empty($input['subject'])) {
@@ -1807,6 +1860,9 @@ if ($method === 'POST' && $action === 'send-emails') {
         }
         $unique = [];
         foreach ($emails as $email) {
+            if ($selectedMap !== [] && !isset($selectedMap[$email])) {
+                continue;
+            }
             if (isset($seenEmails[$email])) {
                 continue;
             }
@@ -1819,15 +1875,28 @@ if ($method === 'POST' && $action === 'send-emails') {
         $targets[] = ['lead' => $lead, 'emails' => $unique, 'source' => 'lead'];
     }
 
-    // Extra emails from Edit email popup — merged with online lead emails.
+    // Extra emails — only when not filtered by selection, or when selected explicitly.
     $extraEmails = crmLoadTestEmails();
     $extraOnly = [];
     foreach ($extraEmails as $email) {
+        if ($selectedMap !== [] && !isset($selectedMap[$email])) {
+            continue;
+        }
         if (isset($seenEmails[$email])) {
             continue;
         }
         $seenEmails[$email] = true;
         $extraOnly[] = $email;
+    }
+    // Also allow selected emails that are not in leads/extras list.
+    if ($selectedMap !== []) {
+        foreach (array_keys($selectedMap) as $email) {
+            if (isset($seenEmails[$email])) {
+                continue;
+            }
+            $seenEmails[$email] = true;
+            $extraOnly[] = $email;
+        }
     }
     if ($extraOnly !== []) {
         $targets[] = [
@@ -1845,7 +1914,7 @@ if ($method === 'POST' && $action === 'send-emails') {
     }
 
     if ($targets === []) {
-        crmJson(422, ['ok' => false, 'message' => 'No emails to send. Save leads with emails or add emails via Edit email.']);
+        crmJson(422, ['ok' => false, 'message' => 'No emails to send. Select emails in the popup, or add emails via Edit email.']);
     }
 
     $sent = 0;
@@ -1922,6 +1991,38 @@ if ($action === 'test-emails' && $method === 'GET') {
         'count' => count($emails),
         'mailReady' => crmMailConfig()['pass'] !== '',
         'fromEmail' => crmMailConfig()['fromEmail'],
+    ]);
+}
+
+if ($action === 'send-selection' && $method === 'GET') {
+    $emails = crmLoadSendSelection();
+    crmJson(200, [
+        'ok' => true,
+        'emails' => $emails,
+        'count' => count($emails),
+    ]);
+}
+
+if ($method === 'POST' && $action === 'send-selection') {
+    $input = crmReadJsonBody();
+    $clear = !empty($input['clear']);
+    $emails = crmParseEmailList($input['emails'] ?? $input['text'] ?? '');
+    if ($emails === [] && !$clear) {
+        crmJson(422, ['ok' => false, 'message' => 'Select at least one email to save.']);
+    }
+    if (count($emails) > 200) {
+        crmJson(422, ['ok' => false, 'message' => 'Save up to 200 selected emails.']);
+    }
+    if (!crmSaveSendSelection($emails)) {
+        crmJson(500, ['ok' => false, 'message' => 'Could not save email selection.']);
+    }
+    crmJson(200, [
+        'ok' => true,
+        'message' => $emails === []
+            ? 'Send selection cleared.'
+            : 'Saved ' . count($emails) . ' selected email(s).',
+        'emails' => $emails,
+        'count' => count($emails),
     ]);
 }
 

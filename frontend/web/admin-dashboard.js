@@ -3737,43 +3737,218 @@
       }
     }
 
-    async function sendDatabaseEmails() {
+    async function loadSendSelection() {
+      const res = await fetch("crm-api.php?action=send-selection", { credentials: "same-origin" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return [];
+      return Array.isArray(data.emails) ? data.emails : [];
+    }
+
+    async function saveSendSelection(emails) {
+      const list = Array.isArray(emails) ? emails : [];
+      const res = await fetch("crm-api.php?action=send-selection", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: list, clear: list.length === 0 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.message || "Could not save selection.");
+      return data;
+    }
+
+    function collectSendCandidates(extraEmails) {
       const filtered =
         crmDbPlatform === "all"
           ? crmDbItems
           : crmDbItems.filter((item) => String(item.platform || "") === crmDbPlatform);
-      const withEmail = filtered.filter((item) => {
-        const emails = Array.isArray(item.emails) ? item.emails.filter(Boolean) : [];
-        return Boolean(item.email || emails.length);
+      const rows = [];
+      const seen = new Set();
+      filtered.forEach((item) => {
+        const name = String(item.name || item.title || item.username || "Lead");
+        const platform = platformLabel(item.platform || "");
+        const list = [];
+        if (item.email) list.push(String(item.email));
+        if (Array.isArray(item.emails)) {
+          item.emails.forEach((e) => {
+            if (e) list.push(String(e));
+          });
+        }
+        list.forEach((raw) => {
+          const email = String(raw || "").trim().toLowerCase();
+          if (!email || seen.has(email)) return;
+          seen.add(email);
+          rows.push({
+            email,
+            label: name,
+            meta: platform || "Lead",
+            source: "lead",
+            id: item.id || "",
+          });
+        });
       });
+      (Array.isArray(extraEmails) ? extraEmails : []).forEach((raw) => {
+        const email = String(raw || "").trim().toLowerCase();
+        if (!email || seen.has(email)) return;
+        seen.add(email);
+        rows.push({
+          email,
+          label: "Extra email",
+          meta: "Edit email list",
+          source: "extra",
+          id: "",
+        });
+      });
+      return rows;
+    }
+
+    function readSelectedEmailsFromPopup() {
+      return Array.from(document.querySelectorAll(".ad-crm-send-pick:checked"))
+        .map((el) => String(el.value || "").trim().toLowerCase())
+        .filter(Boolean);
+    }
+
+    async function sendDatabaseEmails() {
+      if (!window.Swal || typeof window.Swal.fire !== "function") {
+        notify("SweetAlert is required to select emails.", "error", { force: true });
+        return;
+      }
+
       let extraEmails = [];
+      let savedSelection = [];
       try {
         extraEmails = await loadExtraEmails();
       } catch (_) {
         extraEmails = [];
       }
-      if (!withEmail.length && !extraEmails.length) {
+      try {
+        savedSelection = await loadSendSelection();
+      } catch (_) {
+        savedSelection = [];
+      }
+
+      const candidates = collectSendCandidates(extraEmails);
+      if (!candidates.length) {
         notify("No emails to send. Add lead emails or use Edit email.", "warning", { force: true });
         return;
       }
 
-      const ok = await confirmAction({
-        title: "Send emails?",
-        text: `Send to ${withEmail.length} online lead${withEmail.length === 1 ? "" : "s"} + ${extraEmails.length} extra email${extraEmails.length === 1 ? "" : "s"} from stevenabalwambo@gmail.com${crmDbPlatform !== "all" ? ` (${platformLabel(crmDbPlatform)})` : ""}.`,
-        confirmButtonText: "Send emails",
+      const savedSet = new Set(savedSelection.map((e) => String(e).toLowerCase()));
+      const hasSaved = savedSet.size > 0;
+      const rowsHtml = candidates
+        .map((row, idx) => {
+          const checked = hasSaved ? savedSet.has(row.email) : true;
+          return `<label class="ad-crm-send-row">
+            <input type="checkbox" class="ad-crm-send-pick" value="${esc(row.email)}" data-idx="${idx}" ${checked ? "checked" : ""} />
+            <span class="ad-crm-send-row-main">
+              <strong>${esc(row.email)}</strong>
+              <small>${esc(row.label)} · ${esc(row.meta)}</small>
+            </span>
+          </label>`;
+        })
+        .join("");
+
+      const result = await window.Swal.fire({
+        title: "Select emails to send",
+        width: 640,
+        focusConfirm: false,
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: "Send selected",
+        denyButtonText: "Save selection",
+        cancelButtonText: "Cancel",
         confirmButtonColor: "#1a3352",
-        icon: "question",
+        denyButtonColor: "#0f766e",
+        buttonsStyling: true,
+        allowOutsideClick: false,
+        customClass: {
+          popup: "ad-crm-swal-popup ad-crm-swal-square ad-crm-swal-email",
+        },
+        html: `<div class="ad-crm-send-picker">
+          <p class="ad-crm-email-hint">Tick the emails you want, then <strong>Save selection</strong> or <strong>Send selected</strong>.</p>
+          <div class="ad-crm-send-picker-tools">
+            <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-send-select-all">Select all</button>
+            <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-send-clear-all">Clear</button>
+            <span class="ad-crm-send-picker-count" id="ad-crm-send-pick-count"></span>
+          </div>
+          <div class="ad-crm-send-picker-list">${rowsHtml}</div>
+        </div>`,
+        didOpen: () => {
+          const updateCount = () => {
+            const n = readSelectedEmailsFromPopup().length;
+            const el = document.getElementById("ad-crm-send-pick-count");
+            if (el) el.textContent = `${n} selected`;
+          };
+          document.getElementById("ad-crm-send-select-all")?.addEventListener("click", () => {
+            document.querySelectorAll(".ad-crm-send-pick").forEach((el) => {
+              el.checked = true;
+            });
+            updateCount();
+          });
+          document.getElementById("ad-crm-send-clear-all")?.addEventListener("click", () => {
+            document.querySelectorAll(".ad-crm-send-pick").forEach((el) => {
+              el.checked = false;
+            });
+            updateCount();
+          });
+          document.querySelectorAll(".ad-crm-send-pick").forEach((el) => {
+            el.addEventListener("change", updateCount);
+          });
+          updateCount();
+        },
+        preConfirm: () => {
+          const emails = readSelectedEmailsFromPopup();
+          if (!emails.length) {
+            window.Swal.showValidationMessage("Select at least one email to send.");
+            return false;
+          }
+          return { emails, action: "send" };
+        },
+        preDeny: () => {
+          const emails = readSelectedEmailsFromPopup();
+          if (!emails.length) {
+            window.Swal.showValidationMessage("Select at least one email to save.");
+            return false;
+          }
+          return { emails, action: "save" };
+        },
       });
-      if (!ok) return;
+
+      if (result.isDenied && result.value?.emails) {
+        try {
+          const saved = await saveSendSelection(result.value.emails);
+          notify(saved.message || "Selection saved.", "success", { toast: true, force: true });
+          await refreshExtraEmailHint();
+        } catch (error) {
+          notify(error.message || "Could not save selection.", "error", { force: true });
+        }
+        return;
+      }
+
+      if (!result.isConfirmed || !result.value?.emails?.length) return;
+
+      const selectedEmails = result.value.emails;
+      try {
+        await saveSendSelection(selectedEmails);
+      } catch (_) {
+        /* sending can continue even if save fails */
+      }
+
+      const selectedLeadIds = candidates
+        .filter((row) => row.source === "lead" && selectedEmails.includes(row.email) && row.id)
+        .map((row) => row.id);
 
       showWaitSwal(
         "Sending emails…",
         '<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Sending job application emails. Please wait…</p>'
       );
       try {
-        const payload = { platform: crmDbPlatform };
-        if (withEmail.length) {
-          payload.ids = withEmail.map((item) => item.id).filter(Boolean);
+        const payload = {
+          platform: crmDbPlatform,
+          emails: selectedEmails,
+        };
+        if (selectedLeadIds.length) {
+          payload.ids = [...new Set(selectedLeadIds)];
         }
         const res = await fetch("crm-api.php?action=send-emails", {
           method: "POST",
@@ -3846,7 +4021,7 @@
           return;
         }
         hint.hidden = false;
-        hint.textContent = `${emails.length} extra email${emails.length === 1 ? "" : "s"} will also receive Send emails (Edit email).`;
+        hint.textContent = `${emails.length} extra email${emails.length === 1 ? "" : "s"} available · use Send emails to select & save.`;
       } catch (_) {
         hint.hidden = true;
       }
