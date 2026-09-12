@@ -1451,11 +1451,11 @@
           <td>${statusBadge(row.status)}</td>
           <td>
             <div class="acs-dt-actions ad-actions">
-            ${row.hasControlNumber ? `<button type="button" class="acs-dt-action acs-dt-action--ghost" data-copy="${esc(row.controlNumber)}"><i class="fa-regular fa-copy"></i><span>Copy</span></button>` : ""}
-            ${showResend ? `<button type="button" class="acs-dt-action" data-resend="${row.id}"><i class="fa-solid fa-paper-plane"></i><span>Resend</span></button>` : ""}
-            ${showWithdraw ? `<button type="button" class="acs-dt-action" data-withdraw="${row.id}"><i class="fa-solid fa-money-bill-wave"></i><span>Withdraw</span></button>` : ""}
-            ${row.invoiceUrl ? `<button type="button" class="acs-dt-action" data-invoice="${esc(row.invoiceUrl)}"><i class="fa-solid fa-receipt"></i><span>View</span></button>` : ""}
-            ${row.invoiceUrl ? `<button type="button" class="acs-dt-action acs-dt-action--ghost" data-invoice-download="${esc(row.invoiceUrl)}"><i class="fa-solid fa-file-pdf"></i><span>PDF</span></button>` : ""}
+            ${row.hasControlNumber ? `<button type="button" class="acs-dt-action acs-dt-action--ghost" data-copy="${esc(row.controlNumber)}" title="Copy control number"><i class="fa-regular fa-copy"></i><span>Copy</span></button>` : ""}
+            ${showResend ? `<button type="button" class="acs-dt-action" data-resend="${row.id}" title="Resend"><i class="fa-solid fa-paper-plane"></i><span>Resend</span></button>` : ""}
+            ${showWithdraw ? `<button type="button" class="acs-dt-action" data-withdraw="${row.id}" title="Withdraw"><i class="fa-solid fa-money-bill-wave"></i><span>Withdraw</span></button>` : ""}
+            ${row.invoiceUrl ? `<button type="button" class="acs-dt-action" data-invoice="${esc(row.invoiceUrl)}" title="View receipt"><i class="fa-solid fa-receipt"></i><span>View</span></button>` : ""}
+            ${row.invoiceUrl ? `<button type="button" class="acs-dt-action acs-dt-action--ghost" data-invoice-download="${esc(row.invoiceUrl)}" title="Download PDF"><i class="fa-solid fa-file-pdf"></i><span>PDF</span></button>` : ""}
             <button type="button" class="acs-dt-action acs-dt-action--danger" data-delete-payment="${row.id}" data-delete-ref="${esc(row.reference || row.orderId || row.id)}" title="Delete transaction"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
             </div>
           </td>

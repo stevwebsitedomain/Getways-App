@@ -435,13 +435,13 @@ body.ad-body {
 }
 
 .ad-table--controls .ad-col-order { width: 8%; }
-.ad-table--controls .ad-col-customer { width: 9%; }
+.ad-table--controls .ad-col-customer { width: 10%; }
 .ad-table--controls .ad-col-control { width: 11%; }
-.ad-table--controls .ad-col-ref { width: 22%; }
+.ad-table--controls .ad-col-ref { width: 14%; }
 .ad-table--controls .ad-col-money { width: 9%; }
-.ad-table--controls .ad-col-withdraw { width: 9%; }
-.ad-table--controls .ad-col-status { width: 9%; }
-.ad-table--controls .ad-col-actions { width: 17%; min-width: 150px; }
+.ad-table--controls .ad-col-withdraw { width: 10%; }
+.ad-table--controls .ad-col-status { width: 8%; }
+.ad-table--controls .ad-col-actions { width: 17%; min-width: 0; }
 
 .ad-table th,
 .ad-table td {
@@ -481,11 +481,12 @@ body.ad-body {
 }
 
 .ad-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 4px;
-  width: 100%;
-  max-width: 188px;
+  width: auto;
+  max-width: none;
 }
 
 .ad-btn {
@@ -2562,15 +2563,18 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 .ad-payout-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 7px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
   color: #475569;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ad-payout-pill--ok {
@@ -2932,14 +2936,17 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 .ad-portal .ad-actions .ad-btn {
   background: #fff !important;
   border: 1px solid #cbd5e1 !important;
-  border-radius: 8px !important;
+  border-radius: 4px !important;
+  min-height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
 }
 
 .ad-portal .ad-actions--payout .ad-btn {
   background: #fff !important;
   border: 1px solid #cbd5e1 !important;
-  border-radius: 8px !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border-radius: 4px !important;
+  box-shadow: none;
 }
 
 .ad-portal .ad-payout-updated {
