@@ -3489,6 +3489,8 @@
         confirmButtonText: "Close",
         confirmButtonColor: "#1a3352",
         buttonsStyling: true,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
         customClass: { popup: "ad-crm-swal-popup ad-crm-swal-chart" },
         didOpen: () => {
           const el = document.getElementById("ad-crm-search-chart");
