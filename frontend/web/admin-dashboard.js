@@ -466,7 +466,6 @@
     el.classList.toggle("ad-auto-off", !enabled);
     const modeEl = document.getElementById("stat-auto-mode");
     if (modeEl) modeEl.textContent = mode || "TEST";
-    syncPortalCards();
   }
 
   const chartStore = window.__gwAdminCharts || (window.__gwAdminCharts = {});
@@ -915,6 +914,7 @@
       }
     } catch (error) {
       setAutoPayoutUi(false, "ERROR");
+      syncPortalCards();
       setBanner("ad-payouts-error", error.message, "error", { toast: true });
     }
   }
@@ -1994,7 +1994,12 @@
     }
   }
 
+  let portalCardsSyncing = false;
+
   function syncPortalCards() {
+    if (portalCardsSyncing) return;
+    portalCardsSyncing = true;
+    try {
     const map = [
       ["stat-balance", "ad-portal-balance"],
       ["stat-balance-updated", "ad-portal-balance-updated"],
@@ -2037,6 +2042,9 @@
     document.getElementById("ad-portal-controls").textContent = String(latestAllControlRows.length || latestControlRows.length);
     const portalUsers = document.getElementById("ad-portal-users");
     if (portalUsers) portalUsers.textContent = String(latestUserRows.length);
+    } finally {
+      portalCardsSyncing = false;
+    }
   }
 
   const PORTAL_SECTION_TITLES = {
