@@ -3686,6 +3686,21 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   background: #fff;
 }
 
+.ad-crm-mail-log-table-wrap--popup {
+  max-height: min(48vh, 360px);
+}
+
+.ad-crm-extra-email-hint {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .ad-crm-mail-log-table {
   width: 100%;
   border-collapse: collapse;

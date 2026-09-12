@@ -3583,8 +3583,7 @@
     });
     document.addEventListener("crm:load-database", () => {
       loadSavedLeads();
-      void loadTestEmails();
-      void loadEmailLog();
+      void refreshExtraEmailHint();
     });
 
     async function fetchEmailTemplate() {
@@ -3759,12 +3758,10 @@
         notify(data.message || "Emails sent.", "success", { force: true });
         setCrmMsg(data.message || "Emails sent.", "success", dbMsgEl);
         await showEmailSendReport(data);
-        await loadEmailLog();
         await refreshExtraEmailHint();
       } catch (error) {
         dismissWaitSwal();
         notify(error.message || "Could not send emails.", "error", { force: true });
-        await loadEmailLog();
       }
     }
 
@@ -3901,37 +3898,89 @@
       }
     }
 
-    async function loadEmailLog() {
-      const body = document.getElementById("ad-crm-email-log-body");
-      if (!body) return;
-      try {
-        const res = await fetch("crm-api.php?action=email-log", { credentials: "same-origin" });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.ok) throw new Error(data.message || "Could not load email log.");
-        const items = Array.isArray(data.items) ? data.items : [];
-        if (!items.length) {
-          body.innerHTML = `<tr><td colspan="5" class="ad-crm-empty">No sends yet.</td></tr>`;
-          return;
-        }
-        body.innerHTML = items
-          .map((row) => {
-            const ok = String(row.status || "") === "sent";
-            const sourceLabel =
-              row.source === "extra" || row.source === "test"
-                ? "Extra"
-                : row.leadName || "Lead";
-            return `<tr>
-              <td>${esc(formatEmailLogTime(row.at))}</td>
-              <td>${esc(row.to || "—")}</td>
-              <td>${esc(sourceLabel)}</td>
-              <td><span class="ad-crm-status ${ok ? "ad-crm-status--sent" : "ad-crm-status--failed"}">${ok ? "Sent" : "Failed"}</span></td>
-              <td>${esc(row.error || row.subject || "—")}</td>
-            </tr>`;
-          })
-          .join("");
-      } catch (error) {
-        body.innerHTML = `<tr><td colspan="5" class="ad-crm-empty">${esc(error.message || "Could not load log.")}</td></tr>`;
+    async function fetchEmailLogItems() {
+      const res = await fetch("crm-api.php?action=email-log", { credentials: "same-origin" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.message || "Could not load email log.");
+      return Array.isArray(data.items) ? data.items : [];
+    }
+
+    function emailLogRowsHtml(items) {
+      if (!items.length) {
+        return `<tr><td colspan="5" class="ad-crm-empty">No sends yet.</td></tr>`;
       }
+      return items
+        .map((row) => {
+          const ok = String(row.status || "") === "sent";
+          const sourceLabel =
+            row.source === "extra" || row.source === "test"
+              ? "Extra"
+              : row.leadName || "Lead";
+          return `<tr>
+            <td>${esc(formatEmailLogTime(row.at))}</td>
+            <td>${esc(row.to || "—")}</td>
+            <td>${esc(sourceLabel)}</td>
+            <td><span class="ad-crm-status ${ok ? "ad-crm-status--sent" : "ad-crm-status--failed"}">${ok ? "Sent" : "Failed"}</span></td>
+            <td>${esc(row.error || row.subject || "—")}</td>
+          </tr>`;
+        })
+        .join("");
+    }
+
+    async function openDeliveryLogPopup() {
+      if (!window.Swal || typeof window.Swal.fire !== "function") {
+        notify("SweetAlert is required.", "error", { force: true });
+        return;
+      }
+      let items = [];
+      try {
+        items = await fetchEmailLogItems();
+      } catch (error) {
+        notify(error.message || "Could not load email log.", "error", { force: true });
+        return;
+      }
+
+      await window.Swal.fire({
+        title: "Delivery log",
+        width: 720,
+        confirmButtonText: "Close",
+        confirmButtonColor: "#1a3352",
+        showDenyButton: true,
+        denyButtonText: "Refresh",
+        denyButtonColor: "#64748b",
+        buttonsStyling: true,
+        customClass: {
+          popup: "ad-crm-swal-popup ad-crm-swal-square ad-crm-swal-email",
+        },
+        html: `<div class="ad-crm-email-editor">
+          <p class="ad-crm-email-hint" style="margin-bottom:10px">Sent / Failed status for CRM emails. Check inbox and spam too.</p>
+          <div class="ad-crm-mail-log-table-wrap ad-crm-mail-log-table-wrap--popup">
+            <table class="ad-crm-mail-log-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>To</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody id="ad-crm-email-log-body">${emailLogRowsHtml(items)}</tbody>
+            </table>
+          </div>
+        </div>`,
+        preDeny: async () => {
+          try {
+            const fresh = await fetchEmailLogItems();
+            const body = document.getElementById("ad-crm-email-log-body");
+            if (body) body.innerHTML = emailLogRowsHtml(fresh);
+          } catch (error) {
+            window.Swal.showValidationMessage(error.message || "Could not refresh.");
+            return false;
+          }
+          return false;
+        },
+      });
     }
 
     document.getElementById("ad-crm-email-set")?.addEventListener("click", () => {
@@ -3943,12 +3992,11 @@
     document.getElementById("ad-crm-email-send")?.addEventListener("click", () => {
       void sendDatabaseEmails();
     });
-    document.getElementById("ad-crm-email-log-refresh")?.addEventListener("click", () => {
-      void loadEmailLog();
+    document.getElementById("ad-crm-email-log-open")?.addEventListener("click", () => {
+      void openDeliveryLogPopup();
     });
 
     void refreshExtraEmailHint();
-    void loadEmailLog();
 
     async function saveLead(idx) {
       const item = crmItems[idx];

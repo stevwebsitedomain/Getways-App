@@ -920,6 +920,9 @@ require __DIR__ . '/acs-gov-banner.php';
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-edit-emails">
             <i class="fa-solid fa-at"></i><span>Edit email</span>
           </button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-email-log-open">
+            <i class="fa-solid fa-envelope-circle-check"></i><span>Delivery log</span>
+          </button>
           <button type="button" class="ad-btn ad-btn--primary" id="ad-crm-email-send">
             <i class="fa-solid fa-paper-plane"></i><span>Send emails</span>
           </button>
@@ -936,32 +939,6 @@ require __DIR__ . '/acs-gov-banner.php';
       </div>
       <p id="ad-crm-db-msg" class="ad-msg" hidden></p>
       <p class="ad-crm-extra-email-hint" id="ad-crm-extra-email-hint" hidden></p>
-      <div class="ad-crm-mail-tools">
-        <div class="ad-crm-mail-log ad-crm-mail-log--full">
-          <div class="ad-crm-mail-import-head">
-            <h3><i class="fa-solid fa-envelope-circle-check"></i> Delivery log</h3>
-            <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-email-log-refresh" title="Refresh log">
-              <i class="fa-solid fa-rotate"></i><span>Refresh</span>
-            </button>
-          </div>
-          <div class="ad-crm-mail-log-table-wrap">
-            <table class="ad-crm-mail-log-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>To</th>
-                  <th>Source</th>
-                  <th>Status</th>
-                  <th>Note</th>
-                </tr>
-              </thead>
-              <tbody id="ad-crm-email-log-body">
-                <tr><td colspan="5" class="ad-crm-empty">No sends yet.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
       <div id="ad-crm-db-results" class="ad-crm-results" aria-live="polite"></div>
     </section>
 
