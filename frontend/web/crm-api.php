@@ -588,6 +588,129 @@ function crmRunInstagramSearch(string $query, string $location, int $limit): arr
     return $items;
 }
 
+function crmNormalizeLinkedinItem(array $item): array
+{
+    $jobId = trim((string) ($item['id'] ?? ''));
+    $title = trim((string) ($item['title'] ?? 'LinkedIn job'));
+    $company = trim((string) ($item['companyName'] ?? ''));
+    $link = trim((string) ($item['link'] ?? ''));
+    $companyUrl = trim((string) ($item['companyLinkedinUrl'] ?? ''));
+    $posterUrl = trim((string) ($item['jobPosterProfileUrl'] ?? ''));
+    $pageUrl = $link !== '' ? $link : ($companyUrl !== '' ? $companyUrl : $posterUrl);
+
+    $salary = $item['salaryInfo'] ?? [];
+    if (is_array($salary)) {
+        $salaryText = trim(implode(' – ', array_map('strval', $salary)));
+    } else {
+        $salaryText = trim((string) $salary);
+    }
+
+    $categories = array_values(array_filter([
+        trim((string) ($item['employmentType'] ?? '')),
+        trim((string) ($item['seniorityLevel'] ?? '')),
+        trim((string) ($item['jobFunction'] ?? '')),
+        trim((string) ($item['industries'] ?? '')),
+    ]));
+
+    $benefits = $item['benefits'] ?? [];
+    if (!is_array($benefits)) {
+        $benefits = $benefits !== '' && $benefits !== null ? [(string) $benefits] : [];
+    }
+
+    $description = trim((string) ($item['descriptionText'] ?? $item['companyDescription'] ?? ''));
+    if ($description === '' && !empty($item['descriptionHtml']) && is_string($item['descriptionHtml'])) {
+        $description = trim(html_entity_decode(strip_tags($item['descriptionHtml']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    $profilePicture = crmExtractUrl($item['companyLogo'] ?? null);
+    if ($profilePicture === '') {
+        $profilePicture = crmExtractUrl($item['jobPosterPhoto'] ?? null);
+    }
+    $thumbs = array_values(array_filter([
+        crmExtractUrl($item['companyLogo'] ?? null),
+        crmExtractUrl($item['jobPosterPhoto'] ?? null),
+    ]));
+
+    $name = $company !== '' ? $company : ($item['jobPosterName'] ?? $title);
+    $followers = isset($item['companyEmployeesCount']) ? (int) $item['companyEmployeesCount'] : null;
+
+    return [
+        'id' => $jobId !== '' ? 'li_' . $jobId : 'li_' . md5($pageUrl !== '' ? $pageUrl : $title . $company),
+        'platform' => 'linkedin',
+        'name' => (string) $name,
+        'title' => $title,
+        'username' => trim((string) ($item['jobPosterName'] ?? '')),
+        'pageUrl' => $pageUrl,
+        'facebookUrl' => '',
+        'instagramUrl' => '',
+        'linkedinUrl' => $pageUrl,
+        'companyUrl' => $companyUrl,
+        'pageId' => $jobId,
+        'phone' => '',
+        'phones' => [],
+        'email' => '',
+        'emails' => [],
+        'website' => trim((string) ($item['companyWebsite'] ?? '')),
+        'address' => trim((string) ($item['location'] ?? '')),
+        'description' => $description,
+        'categories' => $categories,
+        'likes' => null,
+        'followers' => $followers,
+        'rating' => '',
+        'ratingOverall' => null,
+        'ratingCount' => null,
+        'creationDate' => trim((string) ($item['postedAt'] ?? '')),
+        'adStatus' => '',
+        'messenger' => '',
+        'priceRange' => $salaryText,
+        'employmentType' => trim((string) ($item['employmentType'] ?? '')),
+        'seniorityLevel' => trim((string) ($item['seniorityLevel'] ?? '')),
+        'jobFunction' => trim((string) ($item['jobFunction'] ?? '')),
+        'industries' => trim((string) ($item['industries'] ?? '')),
+        'applicantsCount' => trim((string) ($item['applicantsCount'] ?? '')),
+        'jobPosterName' => trim((string) ($item['jobPosterName'] ?? '')),
+        'jobPosterTitle' => trim((string) ($item['jobPosterTitle'] ?? '')),
+        'jobPosterPhoto' => crmProxyImageUrl(crmExtractUrl($item['jobPosterPhoto'] ?? null)),
+        'benefits' => array_values(array_map('strval', $benefits)),
+        'companyDescription' => trim((string) ($item['companyDescription'] ?? '')),
+        'profilePicture' => crmProxyImageUrl($profilePicture),
+        'profilePictureRaw' => $profilePicture,
+        'thumbnails' => crmWrapImageList($thumbs),
+    ];
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function crmRunLinkedinSearch(string $query, string $location, int $limit): array
+{
+    $payload = [
+        'keywords' => $query,
+        'datePosted' => 'anyTime',
+        'companyIds' => [],
+        'under10Applicants' => false,
+        'autoConvertToAiSearch' => true,
+        'scrapeCompany' => true,
+        'limitPerSource' => $limit,
+        'splitByLocation' => false,
+    ];
+    if ($location !== '') {
+        $payload['location'] = $location . ', Tanzania';
+    } else {
+        $payload['location'] = 'Tanzania';
+    }
+
+    $raw = crmApifyRun('curious_coder~linkedin-jobs-scraper', $payload);
+    $items = [];
+    foreach ($raw as $row) {
+        $items[] = crmNormalizeLinkedinItem($row);
+        if (count($items) >= $limit) {
+            break;
+        }
+    }
+    return $items;
+}
+
 function crmProxyImage(): never
 {
     $url = trim((string) ($_GET['u'] ?? ''));
@@ -606,6 +729,8 @@ function crmProxyImage(): never
         'fbsbx.com',
         'instagram.com',
         'cdninstagram.com',
+        'linkedin.com',
+        'licdn.com',
         'unavatar.io',
         'googleusercontent.com',
     ];
@@ -737,7 +862,7 @@ if ($method === 'POST' && $action === 'search') {
     $query = trim((string) ($input['query'] ?? $input['q'] ?? ''));
     $location = trim((string) ($input['location'] ?? ''));
     $platform = strtolower(trim((string) ($input['platform'] ?? 'facebook')));
-    if (!in_array($platform, ['facebook', 'instagram'], true)) {
+    if (!in_array($platform, ['facebook', 'instagram', 'linkedin'], true)) {
         $platform = 'facebook';
     }
     $limit = (int) ($input['limit'] ?? 20);
@@ -751,9 +876,13 @@ if ($method === 'POST' && $action === 'search') {
         crmJson(422, ['ok' => false, 'message' => 'Enter a search term (at least 2 characters).']);
     }
 
-    $items = $platform === 'instagram'
-        ? crmRunInstagramSearch($query, $location, $limit)
-        : crmRunFacebookSearch($query, $location, $limit);
+    if ($platform === 'instagram') {
+        $items = crmRunInstagramSearch($query, $location, $limit);
+    } elseif ($platform === 'linkedin') {
+        $items = crmRunLinkedinSearch($query, $location, $limit);
+    } else {
+        $items = crmRunFacebookSearch($query, $location, $limit);
+    }
 
     crmJson(200, [
         'ok' => true,

@@ -3164,8 +3164,44 @@
     }
 
     function platformIcon(platform) {
-      return platform === "instagram" ? "fa-brands fa-instagram" : "fa-brands fa-facebook";
+      if (platform === "instagram") return "fa-brands fa-instagram";
+      if (platform === "linkedin") return "fa-brands fa-linkedin";
+      return "fa-brands fa-facebook";
     }
+
+    function platformLabel(platform) {
+      if (platform === "instagram") return "Instagram";
+      if (platform === "linkedin") return "LinkedIn";
+      return "Facebook";
+    }
+
+    function getSelectedPlatform() {
+      return String(document.getElementById("ad-crm-platform-value")?.value || "facebook").trim() || "facebook";
+    }
+
+    function setSelectedPlatform(platform) {
+      const value = ["facebook", "instagram", "linkedin"].includes(platform) ? platform : "facebook";
+      const hidden = document.getElementById("ad-crm-platform-value");
+      if (hidden) hidden.value = value;
+      document.querySelectorAll(".ad-crm-platform").forEach((btn) => {
+        const active = btn.dataset.platform === value;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      const queryEl = document.getElementById("ad-crm-query");
+      if (queryEl) {
+        if (value === "linkedin") {
+          queryEl.placeholder = "e.g. software engineer, accountant, hotel manager…";
+        } else {
+          queryEl.placeholder = "e.g. hotel, restaurant, salon…";
+        }
+      }
+    }
+
+    document.querySelectorAll(".ad-crm-platform").forEach((btn) => {
+      btn.addEventListener("click", () => setSelectedPlatform(btn.dataset.platform || "facebook"));
+    });
+    setSelectedPlatform(getSelectedPlatform());
 
     function crmImgSrc(url) {
       const src = String(url || "").trim();
@@ -3199,7 +3235,7 @@
     }
 
     function openUrl(item) {
-      return item.pageUrl || item.instagramUrl || item.facebookUrl || "";
+      return item.pageUrl || item.linkedinUrl || item.instagramUrl || item.facebookUrl || item.companyUrl || "";
     }
 
     function cardHtml(item, idx, mode) {
@@ -3287,8 +3323,14 @@
           </div>
         </div>
         <div class="ad-crm-popup-grid">
-          <div class="ad-crm-popup-row"><strong>Platform</strong><span>${esc(platform)}</span></div>
+          <div class="ad-crm-popup-row"><strong>Platform</strong><span>${esc(platformLabel(platform))}</span></div>
           <div class="ad-crm-popup-row"><strong>Username</strong><span>${esc(item.username || "—")}</span></div>
+          ${platform === "linkedin" ? `<div class="ad-crm-popup-row"><strong>Job title</strong><span>${esc(item.title || "—")}</span></div>` : ""}
+          ${platform === "linkedin" ? `<div class="ad-crm-popup-row"><strong>Employment</strong><span>${esc(item.employmentType || "—")}</span></div>` : ""}
+          ${platform === "linkedin" ? `<div class="ad-crm-popup-row"><strong>Seniority</strong><span>${esc(item.seniorityLevel || "—")}</span></div>` : ""}
+          ${platform === "linkedin" ? `<div class="ad-crm-popup-row"><strong>Applicants</strong><span>${esc(item.applicantsCount || "—")}</span></div>` : ""}
+          ${platform === "linkedin" ? `<div class="ad-crm-popup-row"><strong>Salary</strong><span>${esc(item.priceRange || "—")}</span></div>` : ""}
+          ${platform === "linkedin" && item.jobPosterName ? `<div class="ad-crm-popup-row"><strong>Posted by</strong><span>${esc(item.jobPosterName)}${item.jobPosterTitle ? ` · ${esc(item.jobPosterTitle)}` : ""}</span></div>` : ""}
           <div class="ad-crm-popup-row"><strong>Phone</strong><span>${formatList(phones)}</span></div>
           <div class="ad-crm-popup-row"><strong>Email</strong><span>${formatList(emails)}</span></div>
           <div class="ad-crm-popup-row"><strong>Website</strong><span>${
@@ -3436,7 +3478,7 @@
       event.preventDefault();
       const query = String(document.getElementById("ad-crm-query")?.value || "").trim();
       const location = String(document.getElementById("ad-crm-location")?.value || "").trim();
-      const platform = String(document.getElementById("ad-crm-platform")?.value || "facebook").trim();
+      const platform = getSelectedPlatform();
       const limit = Number(document.getElementById("ad-crm-limit")?.value || 12);
       if (query.length < 2) {
         setCrmMsg("Andika search term (angalau herufi 2).", "error");
@@ -3446,7 +3488,7 @@
       setCrmTab("results");
       const btn = document.getElementById("ad-crm-search-btn");
       if (btn) btn.disabled = true;
-      const label = platform === "instagram" ? "Instagram" : "Facebook";
+      const label = platformLabel(platform);
       setCrmMsg(`Inatafuta ${label}…`);
       resultsEl.innerHTML = `<div class="ad-crm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Searching ${esc(label)}…</div>`;
       showWaitSwal("CRM search", `<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Tunatafuta ${esc(label)} kupitia Apify…</p>`);

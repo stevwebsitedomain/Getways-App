@@ -814,18 +814,29 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="ad-card-head">
         <div>
           <h2><i class="fa-solid fa-address-book"></i> CRM</h2>
-          <p class="ad-period-sub">Search Facebook &amp; Instagram leads via Apify</p>
+          <p class="ad-period-sub">Search Facebook, Instagram &amp; LinkedIn leads via Apify</p>
         </div>
       </div>
       <form id="ad-crm-form" class="ad-crm-search" autocomplete="off">
         <div class="ad-crm-search-row">
-          <label class="ad-crm-field">
+          <div class="ad-crm-field ad-crm-field--platforms">
             <span>Platform</span>
-            <select id="ad-crm-platform">
-              <option value="facebook">Facebook</option>
-              <option value="instagram">Instagram</option>
-            </select>
-          </label>
+            <div class="ad-crm-platforms" id="ad-crm-platform" role="radiogroup" aria-label="CRM platform">
+              <button type="button" class="ad-crm-platform is-active" data-platform="facebook" aria-pressed="true">
+                <i class="fa-brands fa-facebook" style="color:#1877f2"></i>
+                <span>Facebook</span>
+              </button>
+              <button type="button" class="ad-crm-platform" data-platform="instagram" aria-pressed="false">
+                <i class="fa-brands fa-instagram" style="color:#e4405f"></i>
+                <span>Instagram</span>
+              </button>
+              <button type="button" class="ad-crm-platform" data-platform="linkedin" aria-pressed="false">
+                <i class="fa-brands fa-linkedin" style="color:#0a66c2"></i>
+                <span>LinkedIn</span>
+              </button>
+            </div>
+            <input type="hidden" id="ad-crm-platform-value" value="facebook" />
+          </div>
           <label class="ad-crm-field ad-crm-field--grow">
             <span>Search</span>
             <input id="ad-crm-query" type="search" placeholder="e.g. hotel, restaurant, salon…" required />
