@@ -7,11 +7,6 @@ $googleClientId = trim((string) ($googleClientId ?? (getenv('GOOGLE_CLIENT_ID') 
   <div class="auth-google" id="google-login-box">
     <div id="google-gis" class="auth-google-gis"<?= $googleClientId === '' ? ' hidden' : '' ?>></div>
     <button type="button" id="google-login-fallback" class="auth-google-btn" aria-label="Continue with Google">
-      <span class="auth-google-avatars" aria-hidden="true">
-        <span class="ag-av ag-av-1"></span>
-        <span class="ag-av ag-av-2"></span>
-        <span class="ag-av ag-av-3"></span>
-      </span>
       <span class="auth-google-copy">
         <strong>Continue with Google</strong>
         <small>Use your Google account</small>

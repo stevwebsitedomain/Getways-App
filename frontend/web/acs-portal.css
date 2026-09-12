@@ -380,7 +380,7 @@ body.acs-body textarea {
   align-items: center;
   gap: 10px;
   min-height: 52px;
-  padding: 8px 12px 8px 10px;
+  padding: 8px 14px 8px 16px;
   border: 1px solid #dadce0;
   border-radius: 28px;
   background: #fff;
@@ -395,27 +395,6 @@ body.acs-body textarea {
   background: #f8f9fa;
   box-shadow: 0 1px 3px rgba(60, 64, 67, 0.24);
 }
-
-.auth-google-avatars {
-  position: relative;
-  width: 44px;
-  height: 32px;
-  flex: 0 0 44px;
-}
-
-.ag-av {
-  position: absolute;
-  top: 4px;
-  width: 24px;
-  height: 24px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-sizing: border-box;
-}
-
-.ag-av-1 { left: 0; background: #fbbc04; z-index: 1; }
-.ag-av-2 { left: 10px; background: #34a853; z-index: 2; }
-.ag-av-3 { left: 20px; background: #4285f4; z-index: 3; }
 
 .auth-google-copy {
   display: flex;
