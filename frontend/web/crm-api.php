@@ -3,13 +3,15 @@
 declare(strict_types=1);
 
 /**
- * Admin CRM API — Facebook search via Apify.
+ * Admin CRM API — Facebook / Instagram search via Apify + saved leads.
  *
- * POST ?action=search JSON { query, location?, limit? }
+ * POST ?action=search  JSON { query, location?, limit?, platform? }
+ * GET  ?action=image&u=URL   (proxied profile / media images)
+ * GET  ?action=saved
+ * GET  ?action=regions
+ * POST ?action=save    JSON { item }
+ * POST ?action=delete  JSON { id }
  */
-
-header('Content-Type: application/json; charset=UTF-8');
-header('Cache-Control: no-store');
 
 require_once __DIR__ . '/auth-init.php';
 require_once __DIR__ . '/env-load.php';
@@ -18,6 +20,8 @@ gwAuthStartSession();
 
 function crmJson(int $code, array $payload): never
 {
+    header('Content-Type: application/json; charset=UTF-8');
+    header('Cache-Control: no-store');
     http_response_code($code);
     echo json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     exit;
@@ -46,6 +50,82 @@ function crmApifyToken(): string
     return trim((string) (getenv('APIFY_TOKEN') ?: getenv('APIFY_API_TOKEN') ?: ''));
 }
 
+function crmStorePath(): string
+{
+    $dir = __DIR__ . DIRECTORY_SEPARATOR . 'runtime';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    return $dir . DIRECTORY_SEPARATOR . 'crm-leads.json';
+}
+
+function crmLoadLeads(): array
+{
+    $path = crmStorePath();
+    if (!is_file($path)) {
+        return ['leads' => []];
+    }
+    $raw = file_get_contents($path);
+    if (!is_string($raw) || $raw === '') {
+        return ['leads' => []];
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data) || !isset($data['leads']) || !is_array($data['leads'])) {
+        return ['leads' => []];
+    }
+    return $data;
+}
+
+function crmSaveLeads(array $data): bool
+{
+    $path = crmStorePath();
+    $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if (!is_string($json)) {
+        return false;
+    }
+    return @file_put_contents($path, $json, LOCK_EX) !== false;
+}
+
+/**
+ * @return list<string>
+ */
+function crmTanzaniaRegions(): array
+{
+    return [
+        'Arusha',
+        'Dar es Salaam',
+        'Dodoma',
+        'Geita',
+        'Iringa',
+        'Kagera',
+        'Katavi',
+        'Kigoma',
+        'Kilimanjaro',
+        'Lindi',
+        'Manyara',
+        'Mara',
+        'Mbeya',
+        'Morogoro',
+        'Mtwara',
+        'Mwanza',
+        'Njombe',
+        'Pwani',
+        'Rukwa',
+        'Ruvuma',
+        'Shinyanga',
+        'Simiyu',
+        'Singida',
+        'Songwe',
+        'Tabora',
+        'Tanga',
+        'Kaskazini Unguja',
+        'Kusini Unguja',
+        'Mjini Magharibi',
+        'Kaskazini Pemba',
+        'Kusini Pemba',
+    ];
+}
+
 /**
  * @param list<string>|string|null $value
  */
@@ -70,35 +150,93 @@ function crmAsList($value): array
     return [];
 }
 
-function crmPickImage(array $item): string
+function crmIsHttpUrl(string $url): bool
+{
+    return (bool) preg_match('#^https?://#i', $url);
+}
+
+/**
+ * @param mixed $value
+ */
+function crmExtractUrl($value): string
+{
+    if (is_string($value) && crmIsHttpUrl(trim($value))) {
+        return trim($value);
+    }
+    if (!is_array($value)) {
+        return '';
+    }
+    foreach (['uri', 'url', 'src', 'href', 'thumbnail', 'display_url', 'profile_pic_url'] as $key) {
+        if (!empty($value[$key]) && is_string($value[$key]) && crmIsHttpUrl(trim($value[$key]))) {
+            return trim($value[$key]);
+        }
+    }
+    return '';
+}
+
+function crmProxyImageUrl(string $url): string
+{
+    $url = trim($url);
+    if ($url === '' || !crmIsHttpUrl($url)) {
+        return '';
+    }
+    return 'crm-api.php?action=image&u=' . rawurlencode($url);
+}
+
+function crmFacebookPictureCandidates(array $item): array
+{
+    $pageId = trim((string) ($item['pageId'] ?? $item['facebookId'] ?? $item['id'] ?? ''));
+    $pageName = trim((string) ($item['pageName'] ?? ''));
+    $urls = [];
+    if ($pageId !== '' && preg_match('/^\d+$/', $pageId)) {
+        $urls[] = 'https://graph.facebook.com/' . rawurlencode($pageId) . '/picture?type=large';
+        $urls[] = 'https://graph.facebook.com/' . rawurlencode($pageId) . '/picture?width=320&height=320';
+    }
+    if ($pageName !== '') {
+        $urls[] = 'https://graph.facebook.com/' . rawurlencode($pageName) . '/picture?type=large';
+        $urls[] = 'https://unavatar.io/facebook/' . rawurlencode($pageName);
+    }
+    return $urls;
+}
+
+function crmPickImage(array $item, string $platform = 'facebook'): string
 {
     $candidates = [
+        $item['profilePicUrlHD'] ?? null,
+        $item['profilePicUrl'] ?? null,
+        $item['profile_pic_url_hd'] ?? null,
+        $item['profile_pic_url'] ?? null,
         $item['profilePicture'] ?? null,
         $item['profilePic'] ?? null,
         $item['profile_photo'] ?? null,
         $item['photo'] ?? null,
         $item['image'] ?? null,
+        $item['displayUrl'] ?? null,
+        $item['display_url'] ?? null,
+        $item['thumbnailUrl'] ?? null,
+        $item['thumbnail_src'] ?? null,
         $item['coverPhoto'] ?? null,
         $item['cover'] ?? null,
         $item['thumbnail'] ?? null,
         $item['picture'] ?? null,
+        $item['ownerProfilePicUrl'] ?? null,
     ];
+    if (!empty($item['owner']) && is_array($item['owner'])) {
+        $candidates[] = $item['owner']['profile_pic_url'] ?? null;
+        $candidates[] = $item['owner']['profilePicUrl'] ?? null;
+    }
     foreach ($candidates as $url) {
-        if (is_string($url) && preg_match('#^https?://#i', $url)) {
-            return $url;
-        }
-        if (is_array($url)) {
-            foreach (['uri', 'url', 'src'] as $key) {
-                if (!empty($url[$key]) && is_string($url[$key]) && preg_match('#^https?://#i', $url[$key])) {
-                    return $url[$key];
-                }
-            }
+        $resolved = crmExtractUrl($url);
+        if ($resolved !== '') {
+            return $resolved;
         }
     }
 
-    $pageId = trim((string) ($item['pageId'] ?? $item['facebookId'] ?? $item['id'] ?? ''));
-    if ($pageId !== '' && preg_match('/^\d+$/', $pageId)) {
-        return 'https://graph.facebook.com/' . rawurlencode($pageId) . '/picture?type=large';
+    if ($platform === 'facebook') {
+        $fb = crmFacebookPictureCandidates($item);
+        if ($fb !== []) {
+            return $fb[0];
+        }
     }
 
     return '';
@@ -107,7 +245,7 @@ function crmPickImage(array $item): string
 /**
  * @return list<string>
  */
-function crmPickThumbnails(array $item): array
+function crmPickThumbnails(array $item, string $platform = 'facebook'): array
 {
     $thumbs = [];
     $bags = [
@@ -116,35 +254,62 @@ function crmPickThumbnails(array $item): array
         $item['media'] ?? null,
         $item['gallery'] ?? null,
         $item['thumbnails'] ?? null,
+        $item['latestPosts'] ?? null,
+        $item['topPosts'] ?? null,
+        $item['relatedProfiles'] ?? null,
     ];
     foreach ($bags as $bag) {
         if (!is_array($bag)) {
             continue;
         }
         foreach ($bag as $entry) {
-            if (is_string($entry) && preg_match('#^https?://#i', $entry)) {
-                $thumbs[] = $entry;
+            $url = '';
+            if (is_string($entry)) {
+                $url = crmExtractUrl($entry);
             } elseif (is_array($entry)) {
-                foreach (['uri', 'url', 'src', 'thumbnail'] as $key) {
-                    if (!empty($entry[$key]) && is_string($entry[$key]) && preg_match('#^https?://#i', $entry[$key])) {
-                        $thumbs[] = $entry[$key];
-                        break;
-                    }
+                $url = crmExtractUrl($entry['displayUrl'] ?? $entry['display_url'] ?? $entry['thumbnail'] ?? $entry['url'] ?? $entry['src'] ?? $entry);
+                if ($url === '') {
+                    $url = crmPickImage($entry, $platform);
                 }
+            }
+            if ($url !== '') {
+                $thumbs[] = $url;
             }
             if (count($thumbs) >= 8) {
                 break 2;
             }
         }
     }
-    $cover = crmPickImage($item);
+
+    $cover = crmPickImage($item, $platform);
     if ($cover !== '') {
         array_unshift($thumbs, $cover);
     }
-    return array_values(array_unique($thumbs));
+    if ($platform === 'facebook') {
+        foreach (crmFacebookPictureCandidates($item) as $fbUrl) {
+            $thumbs[] = $fbUrl;
+        }
+    }
+
+    return array_values(array_unique(array_filter($thumbs)));
 }
 
-function crmNormalizeItem(array $item): array
+/**
+ * @return list<string>
+ */
+function crmWrapImageList(array $urls): array
+{
+    $out = [];
+    foreach ($urls as $url) {
+        $proxied = crmProxyImageUrl((string) $url);
+        if ($proxied !== '') {
+            $out[] = $proxied;
+        }
+    }
+    return array_values(array_unique($out));
+}
+
+function crmNormalizeFacebookItem(array $item): array
 {
     $info = $item['info'] ?? [];
     if (is_string($info)) {
@@ -175,12 +340,18 @@ function crmNormalizeItem(array $item): array
         $name = preg_replace('/\s*\|\s*.*$/', '', $title) ?: $title;
     }
 
+    $profilePicture = crmPickImage($item, 'facebook');
+    $thumbnails = crmPickThumbnails($item, 'facebook');
+
     return [
-        'id' => $pageId !== '' ? $pageId : md5($pageUrl !== '' ? $pageUrl : $title),
+        'id' => $pageId !== '' ? 'fb_' . $pageId : 'fb_' . md5($pageUrl !== '' ? $pageUrl : $title),
+        'platform' => 'facebook',
         'name' => $name !== '' ? $name : $title,
         'title' => $title,
+        'username' => trim((string) ($item['pageName'] ?? '')),
         'pageUrl' => $pageUrl,
         'facebookUrl' => trim((string) ($item['facebookUrl'] ?? $pageUrl)),
+        'instagramUrl' => '',
         'pageId' => $pageId,
         'phone' => $phones[0] ?? '',
         'phones' => $phones,
@@ -199,29 +370,102 @@ function crmNormalizeItem(array $item): array
         'adStatus' => trim((string) ($item['ad_status'] ?? $item['adStatus'] ?? '')),
         'messenger' => trim((string) ($item['messenger'] ?? '')),
         'priceRange' => trim((string) ($item['priceRange'] ?? '')),
-        'profilePicture' => crmPickImage($item),
-        'thumbnails' => crmPickThumbnails($item),
+        'profilePicture' => crmProxyImageUrl($profilePicture),
+        'profilePictureRaw' => $profilePicture,
+        'thumbnails' => crmWrapImageList($thumbnails),
     ];
 }
 
-function crmRunApifySearch(string $query, string $location, int $limit): array
+function crmNormalizeInstagramItem(array $item): array
+{
+    $username = trim((string) ($item['username'] ?? $item['ownerUsername'] ?? ''));
+    if ($username === '' && !empty($item['owner']['username'])) {
+        $username = trim((string) $item['owner']['username']);
+    }
+    $fullName = trim((string) ($item['fullName'] ?? $item['full_name'] ?? $item['name'] ?? ''));
+    $id = trim((string) ($item['id'] ?? $item['pk'] ?? ''));
+    $url = trim((string) ($item['url'] ?? $item['inputUrl'] ?? ''));
+    if ($url === '' && $username !== '') {
+        $url = 'https://www.instagram.com/' . rawurlencode($username) . '/';
+    }
+
+    $emails = crmAsList($item['email'] ?? ($item['emails'] ?? ($item['contactPhoneNumber'] ?? [])));
+    $phones = crmAsList($item['phone'] ?? ($item['phones'] ?? ($item['contactPhoneNumber'] ?? [])));
+    if ($phones === [] && !empty($item['businessPhoneNumber'])) {
+        $phones = crmAsList($item['businessPhoneNumber']);
+    }
+    if ($emails === [] && !empty($item['businessEmail'])) {
+        $emails = crmAsList($item['businessEmail']);
+    }
+
+    $website = trim((string) ($item['externalUrl'] ?? $item['website'] ?? ''));
+    if ($website === '' && !empty($item['externalUrls'][0]['url'])) {
+        $website = trim((string) $item['externalUrls'][0]['url']);
+    }
+
+    $bio = trim((string) ($item['biography'] ?? $item['bio'] ?? $item['description'] ?? ''));
+    $categories = crmAsList($item['businessCategoryName'] ?? ($item['category'] ?? ($item['categories'] ?? [])));
+    $addressParts = array_filter([
+        trim((string) ($item['address'] ?? '')),
+        trim((string) ($item['cityName'] ?? $item['city'] ?? '')),
+        trim((string) ($item['addressStreet'] ?? '')),
+    ]);
+    $address = trim(implode(', ', $addressParts));
+    if ($address === '' && !empty($item['locationName'])) {
+        $address = trim((string) $item['locationName']);
+    }
+
+    $profilePicture = crmPickImage($item, 'instagram');
+    $thumbnails = crmPickThumbnails($item, 'instagram');
+    $name = $fullName !== '' ? $fullName : ($username !== '' ? '@' . $username : 'Instagram profile');
+
+    return [
+        'id' => $id !== '' ? 'ig_' . $id : 'ig_' . md5($url !== '' ? $url : $username),
+        'platform' => 'instagram',
+        'name' => $name,
+        'title' => $name,
+        'username' => $username,
+        'pageUrl' => $url,
+        'facebookUrl' => '',
+        'instagramUrl' => $url,
+        'pageId' => $id,
+        'phone' => $phones[0] ?? '',
+        'phones' => $phones,
+        'email' => $emails[0] ?? '',
+        'emails' => $emails,
+        'website' => $website,
+        'address' => $address,
+        'description' => $bio,
+        'categories' => $categories,
+        'likes' => isset($item['likesCount']) ? (int) $item['likesCount'] : (isset($item['likes']) ? (int) $item['likes'] : null),
+        'followers' => isset($item['followersCount']) ? (int) $item['followersCount'] : (isset($item['followers']) ? (int) $item['followers'] : null),
+        'rating' => '',
+        'ratingOverall' => null,
+        'ratingCount' => null,
+        'creationDate' => '',
+        'adStatus' => '',
+        'messenger' => '',
+        'priceRange' => '',
+        'postsCount' => isset($item['postsCount']) ? (int) $item['postsCount'] : null,
+        'isBusiness' => !empty($item['isBusinessAccount']) || !empty($item['isBusiness']),
+        'verified' => !empty($item['verified']) || !empty($item['isVerified']),
+        'profilePicture' => crmProxyImageUrl($profilePicture),
+        'profilePictureRaw' => $profilePicture,
+        'thumbnails' => crmWrapImageList($thumbnails),
+    ];
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function crmApifyRun(string $actorId, array $payload): array
 {
     $token = crmApifyToken();
     if ($token === '') {
         crmJson(503, ['ok' => false, 'message' => 'APIFY_TOKEN is not configured in .env']);
     }
 
-    $payload = [
-        'categories' => [$query],
-        'resultsLimit' => $limit,
-    ];
-    if ($location !== '') {
-        $payload['locations'] = [$location];
-    } else {
-        $payload['locations'] = [];
-    }
-
-    $url = 'https://api.apify.com/v2/acts/apify~facebook-search-scraper/run-sync-get-dataset-items'
+    $url = 'https://api.apify.com/v2/acts/' . rawurlencode($actorId) . '/run-sync-get-dataset-items'
         . '?token=' . rawurlencode($token)
         . '&format=json'
         . '&clean=1';
@@ -235,13 +479,13 @@ function crmRunApifySearch(string $query, string $location, int $limit): array
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CONNECTTIMEOUT => 20,
-        CURLOPT_TIMEOUT => 180,
+        CURLOPT_TIMEOUT => 240,
         CURLOPT_HTTPHEADER => [
             'Content-Type: application/json',
             'Accept: application/json',
         ],
         CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_SLASHES),
-        CURLOPT_USERAGENT => 'Getways-App-CRM/1.0',
+        CURLOPT_USERAGENT => 'Getways-App-CRM/1.1',
     ]);
 
     $body = curl_exec($ch);
@@ -266,7 +510,6 @@ function crmRunApifySearch(string $query, string $location, int $limit): array
         crmJson(502, ['ok' => false, 'message' => 'Apify returned invalid JSON.']);
     }
 
-    // Dataset items are a list; error payloads are associative.
     if ($decoded !== [] && array_keys($decoded) !== range(0, count($decoded) - 1)) {
         $message = (string) ($decoded['error']['message'] ?? $decoded['message'] ?? 'Apify search failed.');
         crmJson(502, ['ok' => false, 'message' => $message]);
@@ -275,17 +518,228 @@ function crmRunApifySearch(string $query, string $location, int $limit): array
     $items = [];
     foreach ($decoded as $row) {
         if (is_array($row)) {
-            $items[] = crmNormalizeItem($row);
+            $items[] = $row;
         }
     }
-
     return $items;
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function crmRunFacebookSearch(string $query, string $location, int $limit): array
+{
+    $payload = [
+        'categories' => [$query],
+        'resultsLimit' => $limit,
+        'locations' => [],
+    ];
+    if ($location !== '') {
+        $payload['locations'] = [$location . ', Tanzania'];
+    }
+
+    $raw = crmApifyRun('apify~facebook-search-scraper', $payload);
+    $items = [];
+    foreach ($raw as $row) {
+        $items[] = crmNormalizeFacebookItem($row);
+    }
+    return $items;
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function crmRunInstagramSearch(string $query, string $location, int $limit): array
+{
+    $search = $query;
+    if ($location !== '') {
+        $search = trim($query . ' ' . $location . ' Tanzania');
+    }
+
+    $payload = [
+        'search' => $search,
+        'searchType' => 'user',
+        'searchLimit' => $limit,
+        'resultsType' => 'details',
+        'resultsLimit' => 1,
+    ];
+
+    $raw = crmApifyRun('apify~instagram-scraper', $payload);
+    $items = [];
+    $seen = [];
+    foreach ($raw as $row) {
+        $normalized = crmNormalizeInstagramItem($row);
+        $key = (string) ($normalized['id'] ?? '');
+        if ($key !== '' && isset($seen[$key])) {
+            continue;
+        }
+        if ($key !== '') {
+            $seen[$key] = true;
+        }
+        // Prefer profile-like rows (skip pure posts when username missing and it's a post)
+        if (($normalized['username'] ?? '') === '' && ($normalized['name'] ?? '') === 'Instagram profile') {
+            continue;
+        }
+        $items[] = $normalized;
+        if (count($items) >= $limit) {
+            break;
+        }
+    }
+    return $items;
+}
+
+function crmProxyImage(): never
+{
+    $url = trim((string) ($_GET['u'] ?? ''));
+    if ($url === '' || !crmIsHttpUrl($url)) {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo 'Invalid image URL';
+        exit;
+    }
+
+    $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?: ''));
+    $allowed = false;
+    $needles = [
+        'facebook.com',
+        'fbcdn.net',
+        'fbsbx.com',
+        'instagram.com',
+        'cdninstagram.com',
+        'unavatar.io',
+        'googleusercontent.com',
+    ];
+    foreach ($needles as $needle) {
+        if ($host === $needle || str_ends_with($host, '.' . $needle)) {
+            $allowed = true;
+            break;
+        }
+    }
+    if (!$allowed) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo 'Host not allowed';
+        exit;
+    }
+
+    $ch = curl_init($url);
+    if ($ch === false) {
+        http_response_code(502);
+        exit;
+    }
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_CONNECTTIMEOUT => 12,
+        CURLOPT_TIMEOUT => 25,
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; GetwaysCRM/1.1)',
+        CURLOPT_HTTPHEADER => [
+            'Accept: image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        ],
+    ]);
+    $body = curl_exec($ch);
+    $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $ctype = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+    curl_close($ch);
+
+    if ($body === false || $body === '' || $http >= 400) {
+        // 1x1 transparent PNG fallback
+        header('Content-Type: image/png');
+        header('Cache-Control: public, max-age=300');
+        echo base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5W2XQAAAAASUVORK5CYII=');
+        exit;
+    }
+
+    if ($ctype === '' || stripos($ctype, 'text/') === 0 || stripos($ctype, 'application/json') === 0) {
+        $ctype = 'image/jpeg';
+    }
+    header('Content-Type: ' . $ctype);
+    header('Cache-Control: public, max-age=86400');
+    echo $body;
+    exit;
+}
+
+if ($action === 'image' && $method === 'GET') {
+    crmProxyImage();
+}
+
+if ($action === 'regions' && $method === 'GET') {
+    crmJson(200, ['ok' => true, 'regions' => crmTanzaniaRegions()]);
+}
+
+if ($action === 'saved' && $method === 'GET') {
+    $data = crmLoadLeads();
+    $leads = array_values($data['leads']);
+    usort($leads, static function ($a, $b) {
+        return strcmp((string) ($b['savedAt'] ?? ''), (string) ($a['savedAt'] ?? ''));
+    });
+    crmJson(200, ['ok' => true, 'count' => count($leads), 'items' => $leads]);
+}
+
+if ($method === 'POST' && $action === 'save') {
+    $input = crmReadJsonBody();
+    $item = $input['item'] ?? $input;
+    if (!is_array($item)) {
+        crmJson(422, ['ok' => false, 'message' => 'Invalid lead payload.']);
+    }
+    $id = trim((string) ($item['id'] ?? ''));
+    if ($id === '') {
+        $id = 'lead_' . md5(json_encode($item) ?: uniqid('crm', true));
+        $item['id'] = $id;
+    }
+    $item['savedAt'] = gmdate('c');
+    $item['savedBy'] = (string) ($user['id'] ?? $user['email'] ?? 'admin');
+
+    $data = crmLoadLeads();
+    $found = false;
+    foreach ($data['leads'] as $i => $lead) {
+        if (!is_array($lead)) {
+            continue;
+        }
+        if ((string) ($lead['id'] ?? '') === $id) {
+            $data['leads'][$i] = $item;
+            $found = true;
+            break;
+        }
+    }
+    if (!$found) {
+        $data['leads'][] = $item;
+    }
+    if (!crmSaveLeads($data)) {
+        crmJson(500, ['ok' => false, 'message' => 'Could not save lead.']);
+    }
+    crmJson(200, ['ok' => true, 'message' => $found ? 'Lead updated.' : 'Lead saved.', 'item' => $item]);
+}
+
+if ($method === 'POST' && $action === 'delete') {
+    $input = crmReadJsonBody();
+    $id = trim((string) ($input['id'] ?? ''));
+    if ($id === '') {
+        crmJson(422, ['ok' => false, 'message' => 'Lead id required.']);
+    }
+    $data = crmLoadLeads();
+    $before = count($data['leads']);
+    $data['leads'] = array_values(array_filter($data['leads'], static function ($lead) use ($id) {
+        return !is_array($lead) || (string) ($lead['id'] ?? '') !== $id;
+    }));
+    if (count($data['leads']) === $before) {
+        crmJson(404, ['ok' => false, 'message' => 'Lead not found.']);
+    }
+    if (!crmSaveLeads($data)) {
+        crmJson(500, ['ok' => false, 'message' => 'Could not delete lead.']);
+    }
+    crmJson(200, ['ok' => true, 'message' => 'Lead deleted.']);
 }
 
 if ($method === 'POST' && $action === 'search') {
     $input = crmReadJsonBody();
     $query = trim((string) ($input['query'] ?? $input['q'] ?? ''));
     $location = trim((string) ($input['location'] ?? ''));
+    $platform = strtolower(trim((string) ($input['platform'] ?? 'facebook')));
+    if (!in_array($platform, ['facebook', 'instagram'], true)) {
+        $platform = 'facebook';
+    }
     $limit = (int) ($input['limit'] ?? 20);
     if ($limit < 1) {
         $limit = 10;
@@ -297,9 +751,13 @@ if ($method === 'POST' && $action === 'search') {
         crmJson(422, ['ok' => false, 'message' => 'Enter a search term (at least 2 characters).']);
     }
 
-    $items = crmRunApifySearch($query, $location, $limit);
+    $items = $platform === 'instagram'
+        ? crmRunInstagramSearch($query, $location, $limit)
+        : crmRunFacebookSearch($query, $location, $limit);
+
     crmJson(200, [
         'ok' => true,
+        'platform' => $platform,
         'query' => $query,
         'location' => $location,
         'count' => count($items),

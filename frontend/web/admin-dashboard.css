@@ -3386,7 +3386,8 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   text-transform: uppercase;
   color: #64748b;
 }
-.ad-crm-field input {
+.ad-crm-field input,
+.ad-crm-field select {
   height: 42px;
   border: 1px solid #dbe3ef;
   border-radius: 10px;
@@ -3395,10 +3396,32 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   background: #fff;
   color: #0f172a;
 }
-.ad-crm-field input:focus {
+.ad-crm-field input:focus,
+.ad-crm-field select:focus {
   outline: none;
   border-color: #1a3352;
   box-shadow: 0 0 0 3px rgba(26, 51, 82, 0.12);
+}
+.ad-crm-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+  flex-wrap: wrap;
+}
+.ad-crm-tab {
+  border: 1px solid #dbe3ef;
+  background: #fff;
+  color: #475569;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ad-crm-tab.is-active {
+  background: #1a3352;
+  border-color: #1a3352;
+  color: #fff;
 }
 .ad-crm-results {
   display: grid;

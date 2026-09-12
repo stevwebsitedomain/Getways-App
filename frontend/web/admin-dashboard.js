@@ -3135,10 +3135,14 @@
   function bindCrmSection() {
     const form = document.getElementById("ad-crm-form");
     const resultsEl = document.getElementById("ad-crm-results");
+    const savedEl = document.getElementById("ad-crm-saved");
     const msgEl = document.getElementById("ad-crm-msg");
     if (!form || !resultsEl) return;
 
     let crmItems = [];
+    let crmSavedItems = [];
+    let crmTab = "results";
+    const savedIds = new Set();
 
     function setCrmMsg(text, type = "") {
       if (!msgEl) return;
@@ -3159,10 +3163,24 @@
       return arr.length ? arr.map((x) => esc(x)).join(", ") : "—";
     }
 
+    function platformIcon(platform) {
+      return platform === "instagram" ? "fa-brands fa-instagram" : "fa-brands fa-facebook";
+    }
+
+    function crmImgSrc(url) {
+      const src = String(url || "").trim();
+      if (!src) return "";
+      if (src.startsWith("crm-api.php?")) return src;
+      if (/^https?:\/\//i.test(src)) {
+        return `crm-api.php?action=image&u=${encodeURIComponent(src)}`;
+      }
+      return src;
+    }
+
     function avatarHtml(item, sizeClass = "ad-crm-avatar") {
-      const src = String(item.profilePicture || "").trim();
+      const src = crmImgSrc(item.profilePicture || item.profilePictureRaw || "");
       if (src) {
-        return `<img class="${sizeClass}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`;
+        return `<img class="${sizeClass}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'${sizeClass} ad-crm-avatar--ph',innerHTML:'<i class=&quot;fa-solid fa-user&quot;></i>'}))" />`;
       }
       return `<div class="${sizeClass} ad-crm-avatar--ph" aria-hidden="true"><i class="fa-solid fa-user"></i></div>`;
     }
@@ -3171,8 +3189,59 @@
       const thumbs = Array.isArray(item.thumbnails) ? item.thumbnails.filter(Boolean).slice(0, limit) : [];
       if (!thumbs.length) return "";
       return `<div class="${cls}">${thumbs
-        .map((u) => `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" />`)
+        .map((u) => {
+          const src = crmImgSrc(u);
+          return src
+            ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" />`
+            : "";
+        })
         .join("")}</div>`;
+    }
+
+    function openUrl(item) {
+      return item.pageUrl || item.instagramUrl || item.facebookUrl || "";
+    }
+
+    function cardHtml(item, idx, mode) {
+      const phone = item.phone || (Array.isArray(item.phones) && item.phones[0]) || "";
+      const email = item.email || (Array.isArray(item.emails) && item.emails[0]) || "";
+      const cats = Array.isArray(item.categories) ? item.categories.slice(0, 2).join(" · ") : "";
+      const desc = String(item.description || "").trim();
+      const platform = String(item.platform || "facebook");
+      const alreadySaved = savedIds.has(String(item.id || ""));
+      const link = openUrl(item);
+      const viewAttr = mode === "saved" ? `data-crm-saved-view="${idx}"` : `data-crm-view="${idx}"`;
+      const saveBtn =
+        mode === "saved"
+          ? `<button type="button" class="ad-btn ad-btn--ghost ad-btn--delete" data-crm-delete="${esc(item.id || "")}"><i class="fa-solid fa-trash"></i> Delete</button>`
+          : `<button type="button" class="ad-btn ad-btn--ghost" data-crm-save="${idx}" ${alreadySaved ? "disabled" : ""}><i class="fa-solid fa-bookmark"></i> ${alreadySaved ? "Saved" : "Save"}</button>`;
+
+      return `<article class="ad-crm-card" data-crm-idx="${idx}">
+        <div class="ad-crm-card-top">
+          ${avatarHtml(item)}
+          <div class="ad-crm-card-meta">
+            <h3>${esc(item.name || item.title || "Lead")}</h3>
+            <p><i class="${platformIcon(platform)}"></i> ${esc(cats || item.username || item.address || platform)}</p>
+          </div>
+        </div>
+        ${thumbsHtml(item)}
+        <div class="ad-crm-chips">
+          ${phone ? `<span class="ad-crm-chip"><i class="fa-solid fa-phone"></i> ${esc(phone)}</span>` : ""}
+          ${email ? `<span class="ad-crm-chip"><i class="fa-solid fa-envelope"></i> ${esc(email)}</span>` : ""}
+          ${item.likes != null ? `<span class="ad-crm-chip"><i class="fa-solid fa-thumbs-up"></i> ${esc(item.likes)}</span>` : ""}
+          ${item.followers != null ? `<span class="ad-crm-chip"><i class="fa-solid fa-users"></i> ${esc(item.followers)}</span>` : ""}
+        </div>
+        ${desc ? `<p class="ad-crm-desc">${esc(desc)}</p>` : ""}
+        <div class="ad-crm-card-actions">
+          <button type="button" class="ad-btn ad-btn--ghost ad-btn--view" ${viewAttr}>
+            <i class="fa-solid fa-eye"></i> View
+          </button>
+          ${saveBtn}
+          ${link
+            ? `<a class="ad-btn ad-btn--ghost" href="${esc(link)}" target="_blank" rel="noopener noreferrer"><i class="${platformIcon(platform)}"></i> Open</a>`
+            : ""}
+        </div>
+      </article>`;
     }
 
     function renderCrmResults(items) {
@@ -3181,66 +3250,56 @@
         resultsEl.innerHTML = `<div class="ad-crm-empty">Hakuna matokeo. Jaribu search nyingine.</div>`;
         return;
       }
-      resultsEl.innerHTML = crmItems
-        .map((item, idx) => {
-          const phone = item.phone || (Array.isArray(item.phones) && item.phones[0]) || "";
-          const email = item.email || (Array.isArray(item.emails) && item.emails[0]) || "";
-          const cats = Array.isArray(item.categories) ? item.categories.slice(0, 2).join(" · ") : "";
-          const desc = String(item.description || "").trim();
-          return `<article class="ad-crm-card" data-crm-idx="${idx}">
-            <div class="ad-crm-card-top">
-              ${avatarHtml(item)}
-              <div class="ad-crm-card-meta">
-                <h3>${esc(item.name || item.title || "Facebook page")}</h3>
-                <p>${esc(cats || item.address || "Facebook page")}</p>
-              </div>
-            </div>
-            ${thumbsHtml(item)}
-            <div class="ad-crm-chips">
-              ${phone ? `<span class="ad-crm-chip"><i class="fa-solid fa-phone"></i> ${esc(phone)}</span>` : ""}
-              ${email ? `<span class="ad-crm-chip"><i class="fa-solid fa-envelope"></i> ${esc(email)}</span>` : ""}
-              ${item.likes != null ? `<span class="ad-crm-chip"><i class="fa-solid fa-thumbs-up"></i> ${esc(item.likes)}</span>` : ""}
-              ${item.followers != null ? `<span class="ad-crm-chip"><i class="fa-solid fa-users"></i> ${esc(item.followers)}</span>` : ""}
-            </div>
-            ${desc ? `<p class="ad-crm-desc">${esc(desc)}</p>` : ""}
-            <div class="ad-crm-card-actions">
-              <button type="button" class="ad-btn ad-btn--ghost ad-btn--view" data-crm-view="${idx}">
-                <i class="fa-solid fa-eye"></i> View
-              </button>
-              ${item.pageUrl || item.facebookUrl
-                ? `<a class="ad-btn ad-btn--ghost" href="${esc(item.pageUrl || item.facebookUrl)}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-facebook"></i> Open</a>`
-                : ""}
-            </div>
-          </article>`;
-        })
-        .join("");
+      resultsEl.innerHTML = crmItems.map((item, idx) => cardHtml(item, idx, "results")).join("");
     }
 
-    async function openCrmPopup(idx) {
-      const item = crmItems[idx];
+    function renderSavedResults(items) {
+      crmSavedItems = Array.isArray(items) ? items : [];
+      savedIds.clear();
+      crmSavedItems.forEach((item) => {
+        if (item && item.id) savedIds.add(String(item.id));
+      });
+      if (!savedEl) return;
+      if (!crmSavedItems.length) {
+        savedEl.innerHTML = `<div class="ad-crm-empty">Hakuna leads zilizohifadhiwa bado.</div>`;
+        return;
+      }
+      savedEl.innerHTML = crmSavedItems.map((item, idx) => cardHtml(item, idx, "saved")).join("");
+      if (crmTab === "results") {
+        renderCrmResults(crmItems);
+      }
+    }
+
+    async function openCrmPopup(item) {
       if (!item) return;
       const phones = Array.isArray(item.phones) && item.phones.length ? item.phones : item.phone ? [item.phone] : [];
       const emails = Array.isArray(item.emails) && item.emails.length ? item.emails : item.email ? [item.email] : [];
-      const pageLink = item.pageUrl || item.facebookUrl || "";
+      const pageLink = openUrl(item);
+      const platform = String(item.platform || "facebook");
       const html = `<div class="ad-crm-popup">
         <div class="ad-crm-popup-hero">
           ${avatarHtml(item)}
           <div>
-            <h3>${esc(item.name || item.title || "Facebook page")}</h3>
-            <p>${esc((Array.isArray(item.categories) ? item.categories.join(" · ") : "") || "Facebook page")}</p>
+            <h3>${esc(item.name || item.title || "Lead")}</h3>
+            <p><i class="${platformIcon(platform)}"></i> ${esc(
+              (Array.isArray(item.categories) ? item.categories.join(" · ") : "") || item.username || platform
+            )}</p>
           </div>
         </div>
         <div class="ad-crm-popup-grid">
+          <div class="ad-crm-popup-row"><strong>Platform</strong><span>${esc(platform)}</span></div>
+          <div class="ad-crm-popup-row"><strong>Username</strong><span>${esc(item.username || "—")}</span></div>
           <div class="ad-crm-popup-row"><strong>Phone</strong><span>${formatList(phones)}</span></div>
           <div class="ad-crm-popup-row"><strong>Email</strong><span>${formatList(emails)}</span></div>
           <div class="ad-crm-popup-row"><strong>Website</strong><span>${
             item.website
-              ? `<a href="${esc(item.website)}" target="_blank" rel="noopener noreferrer">${esc(item.website)}</a>`
+              ? `<a href="${esc(/^https?:\/\//i.test(item.website) ? item.website : `https://${item.website}`)}" target="_blank" rel="noopener noreferrer">${esc(item.website)}</a>`
               : "—"
           }</span></div>
           <div class="ad-crm-popup-row"><strong>Address</strong><span>${esc(item.address || "—")}</span></div>
           <div class="ad-crm-popup-row"><strong>Likes</strong><span>${item.likes != null ? esc(item.likes) : "—"}</span></div>
           <div class="ad-crm-popup-row"><strong>Followers</strong><span>${item.followers != null ? esc(item.followers) : "—"}</span></div>
+          <div class="ad-crm-popup-row"><strong>Posts</strong><span>${item.postsCount != null ? esc(item.postsCount) : "—"}</span></div>
           <div class="ad-crm-popup-row"><strong>Rating</strong><span>${esc(
             item.rating || (item.ratingOverall != null ? String(item.ratingOverall) : "") || "—"
           )}${item.ratingCount != null ? ` (${esc(item.ratingCount)} reviews)` : ""}</span></div>
@@ -3249,7 +3308,7 @@
           <div class="ad-crm-popup-row"><strong>Created</strong><span>${esc(item.creationDate || "—")}</span></div>
           <div class="ad-crm-popup-row"><strong>Ad status</strong><span>${esc(item.adStatus || "—")}</span></div>
           <div class="ad-crm-popup-row"><strong>Page ID</strong><span>${esc(item.pageId || "—")}</span></div>
-          <div class="ad-crm-popup-row"><strong>Facebook</strong><span>${
+          <div class="ad-crm-popup-row"><strong>Profile</strong><span>${
             pageLink
               ? `<a href="${esc(pageLink)}" target="_blank" rel="noopener noreferrer">${esc(pageLink)}</a>`
               : "—"
@@ -3273,35 +3332,131 @@
       });
     }
 
+    async function loadSavedLeads() {
+      if (!savedEl) return;
+      try {
+        const res = await fetch("crm-api.php?action=saved", { credentials: "same-origin" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.message || "Could not load saved leads.");
+        renderSavedResults(Array.isArray(data.items) ? data.items : []);
+      } catch (error) {
+        savedEl.innerHTML = `<div class="ad-crm-empty">${esc(error.message || "Could not load saved leads.")}</div>`;
+      }
+    }
+
+    function setCrmTab(tab) {
+      crmTab = tab === "saved" ? "saved" : "results";
+      document.querySelectorAll(".ad-crm-tab").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.crmTab === crmTab);
+      });
+      resultsEl.hidden = crmTab !== "results";
+      if (savedEl) savedEl.hidden = crmTab !== "saved";
+      if (crmTab === "saved") loadSavedLeads();
+    }
+
+    document.querySelectorAll(".ad-crm-tab").forEach((btn) => {
+      btn.addEventListener("click", () => setCrmTab(btn.dataset.crmTab || "results"));
+    });
+
+    async function saveLead(idx) {
+      const item = crmItems[idx];
+      if (!item) return;
+      try {
+        const res = await fetch("crm-api.php?action=save", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.message || "Could not save lead.");
+        if (item.id) savedIds.add(String(item.id));
+        notify("Lead imehifadhiwa.", "success", { toast: true, force: true });
+        renderCrmResults(crmItems);
+        if (crmTab === "saved") loadSavedLeads();
+      } catch (error) {
+        notify(error.message || "Could not save lead.", "error", { force: true });
+      }
+    }
+
+    async function deleteLead(id) {
+      const ok = await confirmAction({
+        title: "Delete lead?",
+        text: "Lead hii itaondolewa kwenye saved list.",
+        confirmButtonText: "Delete",
+      });
+      if (!ok) return;
+      try {
+        const res = await fetch("crm-api.php?action=delete", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.message || "Could not delete lead.");
+        savedIds.delete(String(id));
+        notify("Lead deleted.", "success", { toast: true, force: true });
+        await loadSavedLeads();
+        renderCrmResults(crmItems);
+      } catch (error) {
+        notify(error.message || "Could not delete lead.", "error", { force: true });
+      }
+    }
+
     resultsEl.addEventListener("click", (event) => {
-      const btn = event.target.closest("[data-crm-view]");
-      if (!btn) return;
-      const idx = Number(btn.getAttribute("data-crm-view"));
-      if (Number.isFinite(idx)) openCrmPopup(idx);
+      const viewBtn = event.target.closest("[data-crm-view]");
+      if (viewBtn) {
+        const idx = Number(viewBtn.getAttribute("data-crm-view"));
+        if (Number.isFinite(idx)) openCrmPopup(crmItems[idx]);
+        return;
+      }
+      const saveBtn = event.target.closest("[data-crm-save]");
+      if (saveBtn) {
+        const idx = Number(saveBtn.getAttribute("data-crm-save"));
+        if (Number.isFinite(idx)) saveLead(idx);
+      }
+    });
+
+    savedEl?.addEventListener("click", (event) => {
+      const viewBtn = event.target.closest("[data-crm-saved-view]");
+      if (viewBtn) {
+        const idx = Number(viewBtn.getAttribute("data-crm-saved-view"));
+        if (Number.isFinite(idx)) openCrmPopup(crmSavedItems[idx]);
+        return;
+      }
+      const delBtn = event.target.closest("[data-crm-delete]");
+      if (delBtn) {
+        const id = delBtn.getAttribute("data-crm-delete");
+        if (id) deleteLead(id);
+      }
     });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const query = String(document.getElementById("ad-crm-query")?.value || "").trim();
       const location = String(document.getElementById("ad-crm-location")?.value || "").trim();
+      const platform = String(document.getElementById("ad-crm-platform")?.value || "facebook").trim();
       const limit = Number(document.getElementById("ad-crm-limit")?.value || 12);
       if (query.length < 2) {
         setCrmMsg("Andika search term (angalau herufi 2).", "error");
         return;
       }
 
+      setCrmTab("results");
       const btn = document.getElementById("ad-crm-search-btn");
       if (btn) btn.disabled = true;
-      setCrmMsg("Inatafuta Facebook pages…");
-      resultsEl.innerHTML = `<div class="ad-crm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Searching…</div>`;
-      showWaitSwal("CRM search", '<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Tunatafuta Facebook pages kupitia Apify…</p>');
+      const label = platform === "instagram" ? "Instagram" : "Facebook";
+      setCrmMsg(`Inatafuta ${label}…`);
+      resultsEl.innerHTML = `<div class="ad-crm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Searching ${esc(label)}…</div>`;
+      showWaitSwal("CRM search", `<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Tunatafuta ${esc(label)} kupitia Apify…</p>`);
 
       try {
         const res = await fetch("crm-api.php?action=search", {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, location, limit }),
+          body: JSON.stringify({ query, location, limit, platform }),
         });
         const data = await res.json().catch(() => ({}));
         dismissWaitSwal();
@@ -3309,10 +3464,10 @@
           throw new Error(data.message || "CRM search failed.");
         }
         const items = Array.isArray(data.items) ? data.items : [];
-        setCrmMsg(`${items.length} result${items.length === 1 ? "" : "s"} for “${query}”`, "success");
+        setCrmMsg(`${items.length} result${items.length === 1 ? "" : "s"} · ${label}${location ? ` · ${location}` : ""}`, "success");
         renderCrmResults(items);
         if (items.length) {
-          notify(`Found ${items.length} Facebook pages.`, "success", { toast: true, force: true });
+          notify(`Found ${items.length} ${label} results.`, "success", { toast: true, force: true });
         }
       } catch (error) {
         dismissWaitSwal();
@@ -3323,6 +3478,8 @@
         if (btn) btn.disabled = false;
       }
     });
+
+    loadSavedLeads();
   }
 
   function bindWhatsappSection() {

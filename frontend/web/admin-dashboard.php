@@ -814,18 +814,58 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="ad-card-head">
         <div>
           <h2><i class="fa-solid fa-address-book"></i> CRM</h2>
-          <p class="ad-period-sub">Search Facebook pages &amp; leads via Apify</p>
+          <p class="ad-period-sub">Search Facebook &amp; Instagram leads via Apify</p>
         </div>
       </div>
       <form id="ad-crm-form" class="ad-crm-search" autocomplete="off">
         <div class="ad-crm-search-row">
+          <label class="ad-crm-field">
+            <span>Platform</span>
+            <select id="ad-crm-platform">
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+            </select>
+          </label>
           <label class="ad-crm-field ad-crm-field--grow">
             <span>Search</span>
             <input id="ad-crm-query" type="search" placeholder="e.g. hotel, restaurant, salon…" required />
           </label>
           <label class="ad-crm-field">
-            <span>Location</span>
-            <input id="ad-crm-location" type="text" placeholder="e.g. Dar es Salaam, Tanzania" />
+            <span>Mkoa (Location)</span>
+            <select id="ad-crm-location">
+              <option value="">All regions</option>
+              <option value="Arusha">Arusha</option>
+              <option value="Dar es Salaam">Dar es Salaam</option>
+              <option value="Dodoma">Dodoma</option>
+              <option value="Geita">Geita</option>
+              <option value="Iringa">Iringa</option>
+              <option value="Kagera">Kagera</option>
+              <option value="Katavi">Katavi</option>
+              <option value="Kigoma">Kigoma</option>
+              <option value="Kilimanjaro">Kilimanjaro</option>
+              <option value="Lindi">Lindi</option>
+              <option value="Manyara">Manyara</option>
+              <option value="Mara">Mara</option>
+              <option value="Mbeya">Mbeya</option>
+              <option value="Morogoro">Morogoro</option>
+              <option value="Mtwara">Mtwara</option>
+              <option value="Mwanza">Mwanza</option>
+              <option value="Njombe">Njombe</option>
+              <option value="Pwani">Pwani</option>
+              <option value="Rukwa">Rukwa</option>
+              <option value="Ruvuma">Ruvuma</option>
+              <option value="Shinyanga">Shinyanga</option>
+              <option value="Simiyu">Simiyu</option>
+              <option value="Singida">Singida</option>
+              <option value="Songwe">Songwe</option>
+              <option value="Tabora">Tabora</option>
+              <option value="Tanga">Tanga</option>
+              <option value="Kaskazini Unguja">Kaskazini Unguja</option>
+              <option value="Kusini Unguja">Kusini Unguja</option>
+              <option value="Mjini Magharibi">Mjini Magharibi</option>
+              <option value="Kaskazini Pemba">Kaskazini Pemba</option>
+              <option value="Kusini Pemba">Kusini Pemba</option>
+            </select>
           </label>
           <label class="ad-crm-field ad-crm-field--sm">
             <span>Limit</span>
@@ -836,8 +876,13 @@ require __DIR__ . '/acs-gov-banner.php';
           </button>
         </div>
       </form>
+      <div class="ad-crm-tabs" role="tablist">
+        <button type="button" class="ad-crm-tab is-active" data-crm-tab="results">Search results</button>
+        <button type="button" class="ad-crm-tab" data-crm-tab="saved">Saved leads</button>
+      </div>
       <p id="ad-crm-msg" class="ad-msg" hidden></p>
       <div id="ad-crm-results" class="ad-crm-results" aria-live="polite"></div>
+      <div id="ad-crm-saved" class="ad-crm-results" hidden aria-live="polite"></div>
     </section>
 
     <section class="ad-page-section ad-ga-page" id="ad-section-general-analysis" data-ad-page="general-analysis">
