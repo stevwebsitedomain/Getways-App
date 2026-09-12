@@ -49,7 +49,12 @@ $gwAuthJson = json_encode([
 
               <div class="bk-form-field">
                 <label for="autopayPhone"><i class="fa-solid fa-phone"></i> Phone</label>
-                <?php require __DIR__ . '/wallet-network-icons.php'; ?>
+                <?php
+                $gwNetIcons = __DIR__ . '/wallet-network-icons.php';
+                if (is_file($gwNetIcons)) {
+                    include $gwNetIcons;
+                }
+                ?>
                 <input
                   type="tel"
                   id="autopayPhone"
@@ -125,7 +130,7 @@ $gwAuthJson = json_encode([
       </div>
     </div>
 
-<?php $activeNav = 'autopay'; require __DIR__ . '/wallet-bottom-nav.php'; ?>
+<?php $activeNav = 'autopay'; include __DIR__ . '/wallet-bottom-nav.php'; ?>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>

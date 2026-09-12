@@ -810,7 +810,11 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 10px;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
 }
 
 .gw-network-strip__label {
@@ -818,11 +822,13 @@
   font-weight: 700;
   color: var(--bk-muted);
   letter-spacing: 0.01em;
+  flex: 0 0 auto;
 }
 
 .gw-network-strip__list {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -830,23 +836,38 @@
 }
 
 .gw-network-strip__list li {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 999px;
   background: #fff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  overflow: hidden;
 }
 
-.gw-network-strip__list img {
+.gw-network-strip__list .gw-net-ico {
   width: 22px;
   height: 22px;
-  object-fit: contain;
   display: block;
+  flex: 0 0 auto;
+  border-radius: 6px;
+}
+
+.gw-network-strip__list .gw-net-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #334155;
+  line-height: 1;
+}
+
+/* Keep bottom nav above page cards on AutoPay / Transfer */
+.bk-theme .w-bottom-nav,
+.bk-theme .ch-bottom-nav {
+  z-index: 120 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .bk-form-field input,

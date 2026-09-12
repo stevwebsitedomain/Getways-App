@@ -51,7 +51,12 @@ $gwAuthJson = json_encode([
 
               <div class="bk-form-field">
                 <label for="customerPhone"><i class="fa-solid fa-phone"></i> From (Your phone)</label>
-                <?php require __DIR__ . '/wallet-network-icons.php'; ?>
+                <?php
+                $gwNetIcons = __DIR__ . '/wallet-network-icons.php';
+                if (is_file($gwNetIcons)) {
+                    include $gwNetIcons;
+                }
+                ?>
                 <input type="text" id="customerPhone" name="cp_phone" value="" placeholder="2557XXXXXXXX" autocomplete="off" autocapitalize="off" spellcheck="false" required />
               </div>
 
