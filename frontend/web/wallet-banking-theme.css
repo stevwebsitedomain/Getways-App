@@ -807,9 +807,9 @@
 
 .gw-network-strip {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   margin: 0 0 10px;
   padding: 8px 10px;
   border-radius: 10px;
@@ -828,18 +828,29 @@
 .gw-network-strip__list {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.gw-network-strip__list::-webkit-scrollbar {
+  display: none;
 }
 
 .gw-network-strip__list li {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px 4px 4px;
+  gap: 5px;
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding: 4px 6px;
   border-radius: 999px;
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -847,17 +858,17 @@
 }
 
 .gw-network-strip__list .gw-net-ico {
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   display: block;
   flex: 0 0 auto;
-  border-radius: 7px;
+  border-radius: 5px;
   object-fit: contain;
   background: #fff;
 }
 
 .gw-network-strip__list .gw-net-ico--airtel {
-  padding: 4px;
+  padding: 2px;
   box-sizing: border-box;
 }
 
@@ -865,7 +876,8 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: none;
+  box-shadow: none;
 }
 
 .gw-network-strip__list .gw-net-ico--inline svg {
@@ -875,10 +887,14 @@
 }
 
 .gw-network-strip__list .gw-net-name {
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
   color: #334155;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Keep bottom nav above page cards on AutoPay / Transfer */
