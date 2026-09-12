@@ -3604,11 +3604,10 @@
         notify(error.message || "Could not load email message.", "error", { force: true });
         return;
       }
-      const template = data.template || {};
-      const placeholders = Array.isArray(data.placeholders) ? data.placeholders.join(" ") : "{{name}} {{company}}";
+      const t = data.template || {};
       const result = await window.Swal.fire({
         title: "Set email message",
-        width: 720,
+        width: 760,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: "Save message",
@@ -3620,13 +3619,49 @@
         },
         html: `<div class="ad-crm-email-editor">
           <p class="ad-crm-email-hint">From: <strong>${esc(data.fromEmail || "stevenabalwambo@gmail.com")}</strong><br/>
-          Placeholders: <code>${esc(placeholders)}</code></p>
+          Sent emails use the purple card design. Use <code>**bold**</code> and placeholders like <code>{{name}}</code>, <code>{{platform}}</code>, <code>{{location}}</code>.</p>
           <label><span>Subject</span>
-            <input id="ad-crm-email-subject" type="text" value="${esc(template.subject || "")}" />
+            <input id="ad-crm-email-subject" type="text" value="${esc(t.subject || "")}" />
+          </label>
+          <div class="ad-crm-email-grid">
+            <label><span>Header title</span>
+              <input id="ad-crm-email-header-title" type="text" value="${esc(t.headerTitle || "")}" />
+            </label>
+            <label><span>Header subtitle</span>
+              <input id="ad-crm-email-header-sub" type="text" value="${esc(t.headerSubtitle || "")}" />
+            </label>
+          </div>
+          <label><span>Body title</span>
+            <input id="ad-crm-email-body-title" type="text" value="${esc(t.bodyTitle || "")}" />
+          </label>
+          <label><span>Greeting</span>
+            <input id="ad-crm-email-greeting" type="text" value="${esc(t.greeting || "")}" />
           </label>
           <label><span>Message</span>
-            <textarea id="ad-crm-email-body">${esc(template.body || "")}</textarea>
+            <textarea id="ad-crm-email-body">${esc(t.body || "")}</textarea>
           </label>
+          <div class="ad-crm-email-grid">
+            <label><span>Sign-off</span>
+              <input id="ad-crm-email-signoff" type="text" value="${esc(t.signOff || "")}" />
+            </label>
+            <label><span>Your name</span>
+              <input id="ad-crm-email-signname" type="text" value="${esc(t.signName || "")}" />
+            </label>
+          </div>
+          <label><span>Your role</span>
+            <input id="ad-crm-email-signrole" type="text" value="${esc(t.signRole || "")}" />
+          </label>
+          <label><span>Footer line</span>
+            <input id="ad-crm-email-footer" type="text" value="${esc(t.footerLine || "")}" />
+          </label>
+          <div class="ad-crm-email-grid">
+            <label><span>Button text</span>
+              <input id="ad-crm-email-cta-text" type="text" value="${esc(t.ctaText || "")}" />
+            </label>
+            <label><span>Button link</span>
+              <input id="ad-crm-email-cta-url" type="text" value="${esc(t.ctaUrl || "")}" />
+            </label>
+          </div>
         </div>`,
         preConfirm: () => {
           const subject = String(document.getElementById("ad-crm-email-subject")?.value || "").trim();
@@ -3639,7 +3674,20 @@
             window.Swal.showValidationMessage("Enter the message body.");
             return false;
           }
-          return { subject, body };
+          return {
+            subject,
+            body,
+            headerTitle: String(document.getElementById("ad-crm-email-header-title")?.value || "").trim(),
+            headerSubtitle: String(document.getElementById("ad-crm-email-header-sub")?.value || "").trim(),
+            bodyTitle: String(document.getElementById("ad-crm-email-body-title")?.value || "").trim(),
+            greeting: String(document.getElementById("ad-crm-email-greeting")?.value || "").trim(),
+            signOff: String(document.getElementById("ad-crm-email-signoff")?.value || "").trim(),
+            signName: String(document.getElementById("ad-crm-email-signname")?.value || "").trim(),
+            signRole: String(document.getElementById("ad-crm-email-signrole")?.value || "").trim(),
+            footerLine: String(document.getElementById("ad-crm-email-footer")?.value || "").trim(),
+            ctaText: String(document.getElementById("ad-crm-email-cta-text")?.value || "").trim(),
+            ctaUrl: String(document.getElementById("ad-crm-email-cta-url")?.value || "").trim(),
+          };
         },
       });
       if (!result.isConfirmed || !result.value) return;

@@ -99,15 +99,20 @@ function crmEmailTemplatePath(): string
 function crmDefaultEmailTemplate(): array
 {
     return [
-        'subject' => 'Job application / Application for opportunities at {{name}}',
-        'body' => "Dear Hiring Team at {{name}},\n\n"
-            . "I hope this email finds you well. My name is Steven Abalwambo, and I am writing to express my strong interest in available job opportunities within your organization.\n\n"
-            . "I am hardworking, reliable, and eager to contribute my skills while growing with a professional team. I would be grateful for the chance to discuss how I can support your goals, whether through a current opening or future opportunities.\n\n"
-            . "Please feel free to contact me if there is a suitable role, or if you would like to schedule a short conversation.\n\n"
-            . "Kind regards,\n"
-            . "Steven Abalwambo\n"
-            . "Email: stevenabalwambo@gmail.com\n"
-            . "Phone: +255 XXX XXX XXX",
+        'subject' => 'Job application — opportunities at {{name}}',
+        'headerTitle' => 'WELCOME TO CAREER OPPORTUNITIES:',
+        'headerSubtitle' => 'Everything You Need to Get Started.',
+        'bodyTitle' => 'JOB APPLICATION',
+        'greeting' => 'Hello {{name}},',
+        'body' => "I hope this email finds you well. My name is **Steven Abalwambo**, and I am writing to express my strong interest in available job opportunities within your organization.\n\n"
+            . "I am hardworking, reliable, and eager to contribute my skills while growing with a professional team. I would be grateful for the chance to discuss how I can support your goals.\n\n"
+            . "Please feel free to contact me if there is a suitable role, or if you would like to schedule a short conversation.",
+        'signOff' => 'Best regards,',
+        'signName' => 'Steven Abalwambo',
+        'signRole' => 'Job Applicant',
+        'footerLine' => 'A practical partnership to grow your team with the right talent.',
+        'ctaText' => 'Get in touch',
+        'ctaUrl' => 'mailto:stevenabalwambo@gmail.com',
         'fromEmail' => 'stevenabalwambo@gmail.com',
         'fromName' => 'Steven Abalwambo',
         'updatedAt' => null,
@@ -118,34 +123,49 @@ function crmLoadEmailTemplate(): array
 {
     $defaults = crmDefaultEmailTemplate();
     $path = crmEmailTemplatePath();
-    if (!is_file($path)) {
-        return $defaults;
+    $data = [];
+    if (is_file($path)) {
+        $raw = file_get_contents($path);
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $data = $decoded;
+            }
+        }
     }
-    $raw = file_get_contents($path);
-    if (!is_string($raw) || $raw === '') {
-        return $defaults;
+    $out = $defaults;
+    foreach ($defaults as $key => $value) {
+        if ($key === 'updatedAt') {
+            continue;
+        }
+        if (isset($data[$key]) && is_string($data[$key]) && trim($data[$key]) !== '') {
+            $out[$key] = trim($data[$key]);
+        }
     }
-    $data = json_decode($raw, true);
-    if (!is_array($data)) {
-        return $defaults;
-    }
-    return [
-        'subject' => trim((string) ($data['subject'] ?? $defaults['subject'])) ?: $defaults['subject'],
-        'body' => trim((string) ($data['body'] ?? $defaults['body'])) ?: $defaults['body'],
-        'fromEmail' => trim((string) ($data['fromEmail'] ?? $defaults['fromEmail'])) ?: $defaults['fromEmail'],
-        'fromName' => trim((string) ($data['fromName'] ?? $defaults['fromName'])) ?: $defaults['fromName'],
-        'updatedAt' => $data['updatedAt'] ?? null,
-    ];
+    $out['fromEmail'] = 'stevenabalwambo@gmail.com';
+    $out['updatedAt'] = $data['updatedAt'] ?? null;
+    return $out;
 }
 
 function crmSaveEmailTemplate(array $template): bool
 {
+    $defaults = crmDefaultEmailTemplate();
     $path = crmEmailTemplatePath();
     $payload = [
-        'subject' => trim((string) ($template['subject'] ?? '')),
-        'body' => trim((string) ($template['body'] ?? '')),
+        'subject' => trim((string) ($template['subject'] ?? $defaults['subject'])),
+        'headerTitle' => trim((string) ($template['headerTitle'] ?? $defaults['headerTitle'])),
+        'headerSubtitle' => trim((string) ($template['headerSubtitle'] ?? $defaults['headerSubtitle'])),
+        'bodyTitle' => trim((string) ($template['bodyTitle'] ?? $defaults['bodyTitle'])),
+        'greeting' => trim((string) ($template['greeting'] ?? $defaults['greeting'])),
+        'body' => trim((string) ($template['body'] ?? $defaults['body'])),
+        'signOff' => trim((string) ($template['signOff'] ?? $defaults['signOff'])),
+        'signName' => trim((string) ($template['signName'] ?? $defaults['signName'])),
+        'signRole' => trim((string) ($template['signRole'] ?? $defaults['signRole'])),
+        'footerLine' => trim((string) ($template['footerLine'] ?? $defaults['footerLine'])),
+        'ctaText' => trim((string) ($template['ctaText'] ?? $defaults['ctaText'])),
+        'ctaUrl' => trim((string) ($template['ctaUrl'] ?? $defaults['ctaUrl'])),
         'fromEmail' => 'stevenabalwambo@gmail.com',
-        'fromName' => trim((string) ($template['fromName'] ?? 'Steven Abalwambo')) ?: 'Steven Abalwambo',
+        'fromName' => trim((string) ($template['fromName'] ?? $defaults['fromName'])) ?: 'Steven Abalwambo',
         'updatedAt' => gmdate('c'),
     ];
     if ($payload['subject'] === '' || $payload['body'] === '') {
@@ -164,18 +184,119 @@ function crmSaveEmailTemplate(array $template): bool
 function crmRenderEmailPlaceholders(string $text, array $lead): string
 {
     $name = trim((string) ($lead['name'] ?? $lead['title'] ?? 'your company'));
+    $platform = trim((string) ($lead['platform'] ?? ''));
+    $platformLabel = $platform !== '' ? ucfirst($platform) : 'CRM';
+    $address = trim((string) ($lead['address'] ?? ''));
+    if ($address === '') {
+        $address = 'Tanzania';
+    }
     $map = [
         '{{name}}' => $name,
         '{{title}}' => trim((string) ($lead['title'] ?? $name)),
         '{{username}}' => trim((string) ($lead['username'] ?? '')),
-        '{{platform}}' => trim((string) ($lead['platform'] ?? '')),
+        '{{platform}}' => $platformLabel,
         '{{email}}' => trim((string) ($lead['email'] ?? '')),
         '{{phone}}' => trim((string) ($lead['phone'] ?? '')),
         '{{website}}' => trim((string) ($lead['website'] ?? '')),
-        '{{address}}' => trim((string) ($lead['address'] ?? '')),
+        '{{address}}' => $address,
+        '{{location}}' => $address,
         '{{company}}' => $name,
+        '{{focus}}' => $platformLabel,
     ];
     return strtr($text, $map);
+}
+
+function crmEmailEscape(string $text): string
+{
+    return htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+}
+
+function crmEmailInlineFormat(string $text): string
+{
+    $escaped = crmEmailEscape($text);
+    return (string) preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $escaped);
+}
+
+/**
+ * Build HTML email card matching the branded template design.
+ *
+ * @param array<string, mixed> $template
+ * @param array<string, mixed> $lead
+ */
+function crmBuildEmailHtml(array $template, array $lead): string
+{
+    $headerTitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['headerTitle'] ?? ''), $lead));
+    $headerSubtitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['headerSubtitle'] ?? ''), $lead));
+    $bodyTitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['bodyTitle'] ?? ''), $lead));
+    $greeting = crmEmailInlineFormat(crmRenderEmailPlaceholders((string) ($template['greeting'] ?? ''), $lead));
+    $bodyRaw = crmRenderEmailPlaceholders((string) ($template['body'] ?? ''), $lead);
+    $signOff = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['signOff'] ?? 'Best regards,'), $lead));
+    $signName = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['signName'] ?? ''), $lead));
+    $signRole = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['signRole'] ?? ''), $lead));
+    $footerLine = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['footerLine'] ?? ''), $lead));
+    $ctaText = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['ctaText'] ?? 'Get in touch'), $lead));
+    $ctaUrl = trim(crmRenderEmailPlaceholders((string) ($template['ctaUrl'] ?? 'mailto:stevenabalwambo@gmail.com'), $lead));
+    if ($ctaUrl === '') {
+        $ctaUrl = 'mailto:stevenabalwambo@gmail.com';
+    }
+    $ctaUrlEsc = crmEmailEscape($ctaUrl);
+
+    $focus = crmEmailEscape(crmRenderEmailPlaceholders('{{platform}}', $lead));
+    $location = crmEmailEscape(crmRenderEmailPlaceholders('{{location}}', $lead));
+
+    $paragraphs = preg_split("/\n{2,}/", trim($bodyRaw)) ?: [];
+    $bodyHtml = '';
+    foreach ($paragraphs as $para) {
+        $para = trim((string) $para);
+        if ($para === '') {
+            continue;
+        }
+        $lines = array_map('trim', explode("\n", $para));
+        $bodyHtml .= '<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#1f2937;font-family:Arial,Helvetica,sans-serif;">'
+            . crmEmailInlineFormat(implode('<br>', $lines))
+            . '</p>';
+    }
+
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        . '<body style="margin:0;padding:0;background:#f3f4f6;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 12px;">'
+        . '<tr><td align="center">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,0.08);">'
+        . '<tr><td style="background:#EADDFF;padding:28px 24px;text-align:center;">'
+        . '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;letter-spacing:0.04em;color:#4F378B;text-transform:uppercase;">'
+        . $headerTitle . '</div>'
+        . '<div style="margin-top:8px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:600;color:#5B4B8A;">'
+        . $headerSubtitle . '</div>'
+        . '</td></tr>'
+        . '<tr><td style="padding:28px 28px 8px;background:#ffffff;">'
+        . '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;color:#111827;text-transform:uppercase;margin:0 0 16px;">'
+        . $bodyTitle . '</div>'
+        . '<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#1f2937;font-family:Arial,Helvetica,sans-serif;">'
+        . $greeting . '</p>'
+        . $bodyHtml
+        . '<p style="margin:18px 0 4px;font-size:15px;line-height:1.55;color:#1f2937;font-family:Arial,Helvetica,sans-serif;">'
+        . $signOff . '<br>'
+        . '<strong>' . $signName . '</strong><br>'
+        . '<span style="color:#4b5563;">' . $signRole . '</span></p>'
+        . '</td></tr>'
+        . '<tr><td style="padding:8px 28px 18px;background:#ffffff;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F2F2F2;border-radius:12px;">'
+        . '<tr>'
+        . '<td width="50%" style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;border-right:1px solid #d4d4d8;">'
+        . '<strong>Focus:</strong> ' . $focus . '</td>'
+        . '<td width="50%" style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;">'
+        . '<strong>Location:</strong> ' . $location . '</td>'
+        . '</tr></table>'
+        . '</td></tr>'
+        . '<tr><td style="padding:4px 28px 28px;background:#ffffff;text-align:center;">'
+        . '<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#4b5563;">'
+        . $footerLine . '</p>'
+        . '<a href="' . $ctaUrlEsc . '" style="display:inline-block;background:#D0BCFF;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;padding:12px 28px;border-radius:999px;">'
+        . $ctaText . '</a>'
+        . '</td></tr>'
+        . '</table>'
+        . '</td></tr></table>'
+        . '</body></html>';
 }
 
 function crmMailConfig(): array
@@ -217,9 +338,9 @@ function crmSmtpCommand($socket, string $command, string $expectPrefix): string
 }
 
 /**
- * Send one email via SMTP (Gmail-compatible STARTTLS).
+ * Send one email via SMTP (Gmail-compatible STARTTLS) as multipart HTML + plain text.
  */
-function crmSendSmtpMail(string $to, string $subject, string $bodyText): void
+function crmSendSmtpMail(string $to, string $subject, string $bodyText, string $bodyHtml = ''): void
 {
     $cfg = crmMailConfig();
     if ($cfg['pass'] === '') {
@@ -266,6 +387,7 @@ function crmSendSmtpMail(string $to, string $subject, string $bodyText): void
         crmSmtpCommand($socket, 'RCPT TO:<' . $to . '>', '250');
         crmSmtpCommand($socket, 'DATA', '354');
 
+        $boundary = 'gw_crm_' . bin2hex(random_bytes(8));
         $headers = [
             'Date: ' . date('r'),
             'From: ' . sprintf('"%s" <%s>', addcslashes($fromName, '"\\'), $from),
@@ -273,13 +395,27 @@ function crmSendSmtpMail(string $to, string $subject, string $bodyText): void
             'Reply-To: <' . $from . '>',
             'Subject: ' . '=?UTF-8?B?' . base64_encode($subject) . '?=',
             'MIME-Version: 1.0',
-            'Content-Type: text/plain; charset=UTF-8',
-            'Content-Transfer-Encoding: base64',
+            'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
             'X-Mailer: Getways-CRM',
         ];
-        $encodedBody = chunk_split(base64_encode($bodyText));
-        $data = implode("\r\n", $headers) . "\r\n\r\n" . $encodedBody . "\r\n.";
-        fwrite($socket, $data . "\r\n");
+
+        if ($bodyHtml === '') {
+            $bodyHtml = '<pre style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">'
+                . crmEmailEscape($bodyText) . '</pre>';
+        }
+
+        $message = implode("\r\n", $headers) . "\r\n\r\n"
+            . '--' . $boundary . "\r\n"
+            . "Content-Type: text/plain; charset=UTF-8\r\n"
+            . "Content-Transfer-Encoding: base64\r\n\r\n"
+            . chunk_split(base64_encode($bodyText))
+            . '--' . $boundary . "\r\n"
+            . "Content-Type: text/html; charset=UTF-8\r\n"
+            . "Content-Transfer-Encoding: base64\r\n\r\n"
+            . chunk_split(base64_encode($bodyHtml))
+            . '--' . $boundary . "--\r\n.";
+
+        fwrite($socket, $message . "\r\n");
         crmSmtpExpect($socket, '250');
         fwrite($socket, "QUIT\r\n");
     } finally {
@@ -1084,7 +1220,6 @@ if ($method === 'POST' && $action === 'email-template') {
     $input = crmReadJsonBody();
     $subject = trim((string) ($input['subject'] ?? ''));
     $body = trim((string) ($input['body'] ?? ''));
-    $fromName = trim((string) ($input['fromName'] ?? 'Steven Abalwambo'));
     if ($subject === '' || mb_strlen($subject) < 3) {
         crmJson(422, ['ok' => false, 'message' => 'Subject is required.']);
     }
@@ -1093,8 +1228,18 @@ if ($method === 'POST' && $action === 'email-template') {
     }
     $template = [
         'subject' => $subject,
+        'headerTitle' => trim((string) ($input['headerTitle'] ?? '')),
+        'headerSubtitle' => trim((string) ($input['headerSubtitle'] ?? '')),
+        'bodyTitle' => trim((string) ($input['bodyTitle'] ?? '')),
+        'greeting' => trim((string) ($input['greeting'] ?? '')),
         'body' => $body,
-        'fromName' => $fromName !== '' ? $fromName : 'Steven Abalwambo',
+        'signOff' => trim((string) ($input['signOff'] ?? '')),
+        'signName' => trim((string) ($input['signName'] ?? '')),
+        'signRole' => trim((string) ($input['signRole'] ?? '')),
+        'footerLine' => trim((string) ($input['footerLine'] ?? '')),
+        'ctaText' => trim((string) ($input['ctaText'] ?? '')),
+        'ctaUrl' => trim((string) ($input['ctaUrl'] ?? '')),
+        'fromName' => trim((string) ($input['fromName'] ?? 'Steven Abalwambo')),
         'fromEmail' => 'stevenabalwambo@gmail.com',
     ];
     if (!crmSaveEmailTemplate($template)) {
@@ -1154,10 +1299,17 @@ if ($method === 'POST' && $action === 'send-emails') {
     foreach ($targets as $row) {
         $lead = $row['lead'];
         $subject = crmRenderEmailPlaceholders((string) $template['subject'], $lead);
-        $body = crmRenderEmailPlaceholders((string) $template['body'], $lead);
+        $bodyText = crmRenderEmailPlaceholders(
+            trim((string) ($template['greeting'] ?? '')) . "\n\n" . (string) $template['body'] . "\n\n"
+            . trim((string) ($template['signOff'] ?? 'Best regards,')) . "\n"
+            . trim((string) ($template['signName'] ?? 'Steven Abalwambo')) . "\n"
+            . trim((string) ($template['signRole'] ?? '')),
+            $lead
+        );
+        $bodyHtml = crmBuildEmailHtml($template, $lead);
         foreach ($row['emails'] as $email) {
             try {
-                crmSendSmtpMail($email, $subject, $body);
+                crmSendSmtpMail($email, $subject, $bodyText, $bodyHtml);
                 $sent++;
             } catch (Throwable $e) {
                 $failed++;

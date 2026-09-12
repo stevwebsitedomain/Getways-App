@@ -3599,8 +3599,21 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   gap: 8px;
   align-items: center;
 }
+.ad-crm-email-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .ad-crm-email-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .ad-crm-email-editor {
   text-align: left;
+  max-height: min(72vh, 640px);
+  overflow: auto;
+  padding-right: 4px;
 }
 .ad-crm-email-editor label {
   display: block;
