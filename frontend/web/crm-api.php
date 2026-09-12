@@ -251,8 +251,8 @@ function crmDefaultEmailTemplate(): array
         'signOff' => 'Best regards,',
         'signName' => 'Steven Makarious',
         'signRole' => 'Software Developer',
-        'footerLine' => 'A practical partnership to grow your team with the right talent.',
-        'ctaText' => 'Get in touch',
+        'footerLine' => 'Want to see more of my work? Click the button below to explore additional projects and case studies.',
+        'ctaText' => 'View more projects',
         'ctaUrl' => 'https://makarious.legitconsult.co.tz/',
         'contactPhones' => '+255 715 296 092 | +255 622 045 972',
         'contactEmail' => 'stevenabalwambo@gmail.com',
@@ -314,6 +314,17 @@ function crmLoadEmailTemplate(): array
             $out['signName'] = (string) $defaults['signName'];
             break;
         }
+    }
+    // Prefer portfolio CTA copy that invites viewing more projects
+    $legacyCta = [
+        'Get in touch',
+        'A practical partnership to grow your team with the right talent.',
+    ];
+    if (in_array(trim((string) $out['ctaText']), $legacyCta, true) || trim((string) $out['ctaText']) === '') {
+        $out['ctaText'] = (string) $defaults['ctaText'];
+    }
+    if (in_array(trim((string) $out['footerLine']), $legacyCta, true) || trim((string) $out['footerLine']) === '') {
+        $out['footerLine'] = (string) $defaults['footerLine'];
     }
     $out['updatedAt'] = $data['updatedAt'] ?? null;
     return $out;
