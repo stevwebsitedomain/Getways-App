@@ -46,6 +46,42 @@ class ClickPesaService extends Component
     }
 
     /**
+     * Whether outbound ClickPesa HTTP is allowed (token, balance, sync, payout, etc.).
+     * Disable during maintenance with CLICKPESA_MAINTENANCE_MODE=true or CLICKPESA_API_ENABLED=false.
+     */
+    public function isRemoteApiEnabled(): bool
+    {
+        $params = Yii::$app->params['clickpesa'] ?? [];
+        if (array_key_exists('apiEnabled', $params)) {
+            return (bool) $params['apiEnabled'];
+        }
+        $maint = filter_var(getenv('CLICKPESA_MAINTENANCE_MODE') ?: false, FILTER_VALIDATE_BOOLEAN);
+        if ($maint) {
+            return false;
+        }
+        $raw = getenv('CLICKPESA_API_ENABLED');
+        if ($raw === false || $raw === '') {
+            return true;
+        }
+
+        return filter_var($raw, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * @throws ForbiddenHttpException
+     */
+    private function assertRemoteApiEnabled(string $operation = 'request'): void
+    {
+        if ($this->isRemoteApiEnabled()) {
+            return;
+        }
+        throw new ForbiddenHttpException(
+            'ClickPesa API is paused (maintenance mode). Set CLICKPESA_MAINTENANCE_MODE=false to re-enable. Operation blocked: '
+            . $operation
+        );
+    }
+
+    /**
      * @return array{
      *   baseUrl:string,clientId:string,apiKey:string,checksumKey:string,
      *   webhookToken:string,currency:string,autoPayoutEnabled:bool,
@@ -85,6 +121,8 @@ class ClickPesaService extends Component
      */
     public function generateToken(bool $forceRefresh = false): string
     {
+        $this->assertRemoteApiEnabled('generate-token');
+
         if (!$forceRefresh) {
             $cached = Yii::$app->cache->get(self::TOKEN_CACHE_KEY);
             if (is_array($cached) && !empty($cached['token']) && (int) ($cached['expiresAt'] ?? 0) > time() + 60) {
@@ -148,6 +186,36 @@ class ClickPesaService extends Component
 
     public function getAccountBalance(): array
     {
+        if (!$this->isRemoteApiEnabled()) {
+            // Local estimate only — do not call ClickPesa during maintenance.
+            $collected = 0.0;
+            $txRows = ClickPesaTransaction::find()
+                ->where(['transaction_type' => ClickPesaTransaction::TYPE_COLLECTION])
+                ->andWhere(['payment_status' => [
+                    ClickPesaTransaction::STATUS_SUCCESS,
+                    ClickPesaTransaction::STATUS_PAID,
+                ]])
+                ->select(['received_amount', 'expected_amount', 'amount'])
+                ->asArray()
+                ->all();
+            foreach ($txRows as $row) {
+                $collected += (float) ($row['received_amount'] ?: $row['expected_amount'] ?: $row['amount'] ?: 0);
+            }
+            $paidOut = (float) (ClickPesaPayout::find()
+                ->where(['payout_status' => ClickPesaPayout::STATUS_SUCCESS])
+                ->sum('amount') ?: 0);
+
+            return [
+                'success' => true,
+                'currency' => strtoupper($this->getConfig()['currency']),
+                'balance' => max(0, round($collected - $paidOut, 2)),
+                'lastUpdated' => date('c'),
+                'source' => 'local-db',
+                'apiEnabled' => false,
+                'message' => 'ClickPesa API paused (maintenance). Showing local estimate.',
+            ];
+        }
+
         $response = $this->request('GET', 'account/balance');
         $balance = $this->normalizeAmount($this->extractValue($response, [
             'balance',
@@ -167,6 +235,8 @@ class ClickPesaService extends Component
             'currency' => strtoupper($currency),
             'balance' => $balance,
             'lastUpdated' => date('c'),
+            'source' => 'clickpesa',
+            'apiEnabled' => true,
         ];
     }
 
@@ -2200,6 +2270,8 @@ class ClickPesaService extends Component
      */
     private function request(string $method, string $path, ?array $body = null, bool $retryOnUnauthorized = true): array
     {
+        $this->assertRemoteApiEnabled($method . ' ' . $path);
+
         $config = $this->getConfig();
         $token = $this->generateToken();
 

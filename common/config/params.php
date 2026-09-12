@@ -67,6 +67,9 @@ function clickpesaEnvConfig(): array
         'autoPayoutPercentage' => (float) $env('CLICKPESA_AUTO_PAYOUT_PERCENTAGE', null, '100'),
         'autoPayoutMinimum' => (float) $env('CLICKPESA_AUTO_PAYOUT_MINIMUM_AMOUNT', null, '1000'),
         'autoPayoutDelay' => (int) $env('CLICKPESA_AUTO_PAYOUT_DELAY_SECONDS', null, '60'),
+        // When false / maintenance mode: no outbound ClickPesa HTTP (protects daily API limit).
+        'apiEnabled' => !$envBool('CLICKPESA_MAINTENANCE_MODE', null, false)
+            && $envBool('CLICKPESA_API_ENABLED', null, true),
     ];
 }
 

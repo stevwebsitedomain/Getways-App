@@ -864,9 +864,17 @@
     try {
       if (valueEl) valueEl.textContent = "Loading...";
       const result = await requestJson("balance");
+      window.__gwClickPesaApiEnabled = result.apiEnabled !== false;
       if (valueEl) valueEl.textContent = `${esc(result.currency || "TZS")} ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(result.balance || 0))}`;
-      if (updatedEl) updatedEl.textContent = `Last updated: ${fmtDate(result.lastUpdated)}`;
-      setBanner("ad-db-banner", "");
+      if (updatedEl) {
+        const src = result.source === "local-db" ? " · local (API paused)" : "";
+        updatedEl.textContent = `Last updated: ${fmtDate(result.lastUpdated)}${src}`;
+      }
+      if (result.apiEnabled === false && result.message) {
+        setBanner("ad-db-banner", result.message, "warning", { toast: !!options.manual });
+      } else {
+        setBanner("ad-db-banner", "");
+      }
       syncPortalCards();
     } catch (error) {
       if (valueEl) valueEl.textContent = "Balance unavailable";
@@ -1921,6 +1929,10 @@
   }
 
   async function syncTransactions() {
+    if (window.__gwClickPesaApiEnabled === false) {
+      notify("ClickPesa API is paused (maintenance). Sync is blocked to protect your daily limit.", "warning", { force: true });
+      return;
+    }
     const btn = document.getElementById("ad-sync-transactions");
     try {
       if (btn) btn.disabled = true;
@@ -4885,5 +4897,6 @@
       scrollToPortalSection(section);
     }
   });
-  window.setInterval(loadBalance, REFRESH_MS);
+  // Do not auto-poll ClickPesa balance — each poll burns API quota.
+  // Manual refresh via ad-balance-refresh / ad-refresh only.
 })();

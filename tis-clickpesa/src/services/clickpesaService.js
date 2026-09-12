@@ -21,6 +21,32 @@ const tokenCaches = {
   autopay: { accessToken: null, expiresAt: 0 },
 };
 
+function isClickPesaRemoteApiEnabled() {
+  const maint = String(process.env.CLICKPESA_MAINTENANCE_MODE || "")
+    .trim()
+    .toLowerCase();
+  if (["1", "true", "yes", "on"].includes(maint)) {
+    return false;
+  }
+  const raw = String(process.env.CLICKPESA_API_ENABLED ?? "").trim().toLowerCase();
+  if (raw === "") {
+    return true;
+  }
+  return !["0", "false", "no", "off"].includes(raw);
+}
+
+function assertClickPesaRemoteApiEnabled(operation = "request") {
+  if (isClickPesaRemoteApiEnabled()) {
+    return;
+  }
+  const err = new Error(
+    `ClickPesa API is paused (maintenance mode). Set CLICKPESA_MAINTENANCE_MODE=false to re-enable. Blocked: ${operation}`
+  );
+  err.code = "CLICKPESA_MAINTENANCE";
+  err.status = 403;
+  throw err;
+}
+
 /**
  * ClickPesa canonical HMAC-SHA256 checksum.
  * @see https://docs.clickpesa.com/home/checksum
@@ -84,6 +110,7 @@ function resolveCredentials(channel = "default") {
 }
 
 async function generateAccessToken(channel = "default") {
+  assertClickPesaRemoteApiEnabled("generate-token");
   const creds = resolveCredentials(channel);
   if (!creds.clientId || !creds.apiKey) {
     throw new Error(creds.missingMessage);
@@ -345,4 +372,6 @@ module.exports = {
   createMobileMoneyPayout,
   queryPayoutStatus,
   createOrderControlNumber,
+  isClickPesaRemoteApiEnabled,
+  assertClickPesaRemoteApiEnabled,
 };

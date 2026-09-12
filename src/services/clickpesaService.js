@@ -19,7 +19,34 @@ let tokenCache = {
   expiresAt: 0,
 };
 
+function isClickPesaRemoteApiEnabled() {
+  const maint = String(process.env.CLICKPESA_MAINTENANCE_MODE || "")
+    .trim()
+    .toLowerCase();
+  if (["1", "true", "yes", "on"].includes(maint)) {
+    return false;
+  }
+  const raw = String(process.env.CLICKPESA_API_ENABLED ?? "").trim().toLowerCase();
+  if (raw === "") {
+    return true;
+  }
+  return !["0", "false", "no", "off"].includes(raw);
+}
+
+function assertClickPesaRemoteApiEnabled(operation = "request") {
+  if (isClickPesaRemoteApiEnabled()) {
+    return;
+  }
+  const err = new Error(
+    `ClickPesa API is paused (maintenance mode). Set CLICKPESA_MAINTENANCE_MODE=false to re-enable. Blocked: ${operation}`
+  );
+  err.code = "CLICKPESA_MAINTENANCE";
+  err.status = 403;
+  throw err;
+}
+
 async function generateAccessToken() {
+  assertClickPesaRemoteApiEnabled("generate-token");
   const clientId = process.env.CLIENT_ID;
   const apiKey = process.env.API_KEY;
 
