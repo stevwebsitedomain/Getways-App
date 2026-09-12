@@ -240,11 +240,11 @@ function crmDefaultEmailTemplate(): array
         'headerSubtitle' => 'Everything You Need to Get Started.',
         'bodyTitle' => 'JOB APPLICATION',
         'greeting' => 'Hello {{name}},',
-        'body' => "I hope this email finds you well. My name is **Steven Abalwambo**, and I am writing to express my strong interest in available job opportunities within your organization.\n\n"
+        'body' => "I hope this email finds you well. My name is **Steven Makarious**, and I am writing to express my strong interest in available job opportunities within your organization.\n\n"
             . "I am hardworking, reliable, and eager to contribute my skills while growing with a professional team. I would be grateful for the chance to discuss how I can support your goals.\n\n"
             . "Please feel free to contact me if there is a suitable role, or if you would like to schedule a short conversation.",
         'signOff' => 'Best regards,',
-        'signName' => 'Steven Abalwambo',
+        'signName' => 'Steven Makarious',
         'signRole' => 'Full Stack Developer · Job Applicant',
         'footerLine' => 'A practical partnership to grow your team with the right talent.',
         'ctaText' => 'Get in touch',
@@ -290,6 +290,12 @@ function crmLoadEmailTemplate(): array
     }
     // Prefer pipe separator in subject instead of em/en dashes
     $out['subject'] = str_replace(['—', '–', '---', ' -- '], [' | ', ' | ', ' | ', ' | '], (string) $out['subject']);
+    // Migrate legacy name in saved templates
+    $out['body'] = str_replace('Steven Abalwambo', 'Steven Makarious', (string) $out['body']);
+    $out['signName'] = str_replace('Steven Abalwambo', 'Steven Makarious', (string) $out['signName']);
+    if (trim((string) $out['signName']) === '' || strcasecmp(trim((string) $out['signName']), 'Steven Abalwambo') === 0) {
+        $out['signName'] = 'Steven Makarious';
+    }
     $out['updatedAt'] = $data['updatedAt'] ?? null;
     return $out;
 }
@@ -323,6 +329,11 @@ function crmSaveEmailTemplate(array $template): bool
         $payload['ctaUrl'] = (string) $defaults['ctaUrl'];
     }
     $payload['subject'] = str_replace(['—', '–', '---'], [' | ', ' | ', ' | '], $payload['subject']);
+    $payload['body'] = str_replace('Steven Abalwambo', 'Steven Makarious', $payload['body']);
+    $payload['signName'] = str_replace('Steven Abalwambo', 'Steven Makarious', $payload['signName']);
+    if ($payload['signName'] === '') {
+        $payload['signName'] = 'Steven Makarious';
+    }
     if ($payload['subject'] === '' || $payload['body'] === '') {
         return false;
     }
@@ -426,12 +437,12 @@ function crmBuildEmailHtml(array $template, array $lead): string
         . '<body style="margin:0;padding:0;background:#eef2f7;">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px;">'
         . '<tr><td align="center">'
-        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 12px 32px rgba(15,23,42,0.10);border:1px solid #e2e8f0;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:0;overflow:hidden;box-shadow:0 12px 32px rgba(15,23,42,0.10);border:1px solid #e2e8f0;">'
 
-        // Header
-        . '<tr><td style="background:linear-gradient(135deg,#4F378B 0%,#7C5CBF 55%,#EADDFF 100%);padding:0;">'
+        // Header — solid color edge to edge (no fade)
+        . '<tr><td style="background:#4F378B;padding:0;">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
-        . '<tr><td style="padding:30px 28px 26px;text-align:center;">'
+        . '<tr><td style="padding:30px 28px 26px;text-align:center;background:#4F378B;">'
         . '<div style="' . $font . 'font-size:11px;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.85);text-transform:uppercase;margin:0 0 10px;">Digital Matrix Technology</div>'
         . '<div style="' . $font . 'font-size:20px;font-weight:800;letter-spacing:0.03em;color:#ffffff;text-transform:uppercase;line-height:1.3;">'
         . $headerTitle . '</div>'
@@ -442,7 +453,7 @@ function crmBuildEmailHtml(array $template, array $lead): string
         // Body
         . '<tr><td style="padding:30px 30px 10px;background:#ffffff;">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;">'
-        . '<tr><td style="width:4px;background:#7C5CBF;border-radius:4px;"></td>'
+        . '<tr><td style="width:4px;background:#4F378B;"></td>'
         . '<td style="padding-left:12px;' . $font . 'font-size:17px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;">'
         . $bodyTitle . '</td></tr></table>'
         . '<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#0f172a;' . $font . '">'
@@ -458,9 +469,9 @@ function crmBuildEmailHtml(array $template, array $lead): string
         . '</td></tr></table>'
 
         // Contact card
-        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:0;">'
         . '<tr><td style="padding:14px 16px;' . $font . '">'
-        . '<div style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#7C5CBF;margin:0 0 8px;">Contact information</div>'
+        . '<div style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#4F378B;margin:0 0 8px;">Contact information</div>'
         . '<div style="font-size:14px;line-height:1.7;color:#0f172a;">'
         . '<strong>Phone:</strong> ' . $contactPhones . '<br>'
         . '<strong>Email:</strong> <a href="mailto:' . $contactEmail . '" style="color:#4F378B;text-decoration:none;">' . $contactEmail . '</a><br>'
@@ -471,7 +482,7 @@ function crmBuildEmailHtml(array $template, array $lead): string
 
         // Focus | Location
         . '<tr><td style="padding:8px 30px 16px;background:#ffffff;">'
-        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:10px;border:1px solid #e2e8f0;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:0;border:1px solid #e2e8f0;">'
         . '<tr><td style="padding:12px 16px;' . $font . 'font-size:13px;color:#334155;">'
         . '<strong style="color:#0f172a;">Focus:</strong> ' . $focus
         . ' <span style="color:#94a3b8;padding:0 8px;">|</span> '
@@ -482,7 +493,7 @@ function crmBuildEmailHtml(array $template, array $lead): string
         . '<tr><td style="padding:6px 30px 30px;background:#ffffff;text-align:center;">'
         . '<p style="margin:0 0 18px;' . $font . 'font-size:13px;line-height:1.55;color:#64748b;">'
         . $footerLine . '</p>'
-        . '<a href="' . $ctaUrlEsc . '" style="display:inline-block;background:#4F378B;color:#ffffff;text-decoration:none;' . $font . 'font-size:14px;font-weight:700;padding:13px 32px;border-radius:999px;box-shadow:0 8px 18px rgba(79,55,139,0.28);">'
+        . '<a href="' . $ctaUrlEsc . '" style="display:inline-block;background:#4F378B;color:#ffffff;text-decoration:none;' . $font . 'font-size:14px;font-weight:700;padding:13px 32px;border-radius:0;box-shadow:0 8px 18px rgba(79,55,139,0.28);">'
         . $ctaText . '</a>'
         . '<div style="margin-top:14px;' . $font . 'font-size:11px;color:#94a3b8;">'
         . crmEmailEscape(str_replace(['https://', 'http://'], '', $ctaUrl))
@@ -1537,7 +1548,7 @@ if ($method === 'POST' && $action === 'send-emails') {
         $bodyText = crmRenderEmailPlaceholders(
             trim((string) ($template['greeting'] ?? '')) . "\n\n" . (string) $template['body'] . "\n\n"
             . trim((string) ($template['signOff'] ?? 'Best regards,')) . "\n"
-            . trim((string) ($template['signName'] ?? 'Steven Abalwambo')) . "\n"
+            . trim((string) ($template['signName'] ?? 'Steven Makarious')) . "\n"
             . trim((string) ($template['signRole'] ?? '')),
             $lead
         );
