@@ -3460,7 +3460,7 @@
       await window.Swal.fire({
         title: "Lead details",
         html,
-        width: "920px",
+        width: "520px",
         confirmButtonText: "Close",
         confirmButtonColor: "#1a3352",
         buttonsStyling: true,

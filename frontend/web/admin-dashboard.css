@@ -3664,21 +3664,31 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   border-radius: 0 !important;
 }
 .ad-crm-swal-popup {
-  width: min(920px, 96vw) !important;
+  width: min(520px, 92vw) !important;
 }
 
-/* Beat ACS compact SweetAlert (360px) so Lead details can show full fields */
-body.ad-acs .swal2-popup.ad-crm-swal-popup:not(.swal2-toast),
-body.ad-acs .swal2-popup.ad-crm-swal-popup.ad-crm-swal-chart:not(.swal2-toast) {
-  width: min(920px, 96vw) !important;
+/* Moderate Lead details size (not ACS 360px, not full-screen wide) */
+body.ad-acs .swal2-popup.ad-crm-swal-popup:not(.swal2-toast) {
+  width: min(520px, 92vw) !important;
   max-width: calc(100vw - 1.5rem) !important;
-  padding: 1.35em 1.4em 1.4em !important;
+  padding: 1.05em 1.05em 1.1em !important;
+}
+
+body.ad-acs .swal2-popup.ad-crm-swal-popup.ad-crm-swal-chart:not(.swal2-toast) {
+  width: min(820px, 94vw) !important;
+  max-width: calc(100vw - 1.5rem) !important;
+  padding: 1.2em 1.25em 1.25em !important;
 }
 
 body.ad-acs .swal2-popup.ad-crm-swal-popup .swal2-html-container {
-  margin: 0.75em 0.15em 0.35em !important;
+  margin: 0.45em 0.05em 0.15em !important;
   max-width: 100%;
   overflow-x: hidden;
+}
+
+body.ad-acs .swal2-popup.ad-crm-swal-popup:not(.ad-crm-swal-chart) .swal2-title {
+  font-size: 1.15rem !important;
+  padding: 0.15em 0.2em 0 !important;
 }
 .ad-crm-swal-chart {
   padding-bottom: 8px;
@@ -3700,46 +3710,48 @@ body.ad-acs .swal2-popup.ad-crm-swal-popup .swal2-html-container {
 }
 .ad-crm-popup {
   text-align: left;
-  max-height: min(72vh, 640px);
+  max-height: min(52vh, 380px);
   overflow: auto;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  padding-right: 2px;
 }
 .ad-crm-popup-hero {
   display: flex;
-  gap: 14px;
+  gap: 10px;
   align-items: flex-start;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .ad-crm-popup-hero img {
-  width: 72px;
-  height: 72px;
-  border-radius: 14px;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
   object-fit: cover;
   background: #e2e8f0;
 }
 .ad-crm-popup-hero h3 {
-  margin: 0 0 4px;
-  font-size: 1.05rem;
+  margin: 0 0 2px;
+  font-size: 0.98rem;
   color: #0f172a;
 }
 .ad-crm-popup-hero p {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #64748b;
 }
 .ad-crm-popup-grid {
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 .ad-crm-popup-row {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
-  gap: 10px 14px;
-  font-size: 0.86rem;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 6px 10px;
+  font-size: 0.8rem;
   align-items: start;
+  line-height: 1.35;
 }
 .ad-crm-popup-row strong {
   color: #64748b;
