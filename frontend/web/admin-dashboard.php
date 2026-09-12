@@ -822,6 +822,11 @@ require __DIR__ . '/acs-gov-banner.php';
           <h2><i class="fa-solid fa-address-book"></i> CRM</h2>
           <p class="ad-period-sub">Search Facebook, Instagram &amp; LinkedIn leads via Apify</p>
         </div>
+        <div class="ad-card-actions">
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-save-all" disabled title="Save all current results">
+            <i class="fa-solid fa-floppy-disk"></i><span>Save all</span>
+          </button>
+        </div>
       </div>
       <form id="ad-crm-form" class="ad-crm-search" autocomplete="off">
         <div class="ad-crm-search-row">
@@ -890,9 +895,6 @@ require __DIR__ . '/acs-gov-banner.php';
           </label>
           <button type="submit" class="ad-btn ad-btn--primary" id="ad-crm-search-btn">
             <i class="fa-solid fa-magnifying-glass"></i><span>Search</span>
-          </button>
-          <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-save-all" disabled title="Save all current results">
-            <i class="fa-solid fa-floppy-disk"></i><span>Save all</span>
           </button>
         </div>
       </form>

@@ -3707,6 +3707,12 @@ body.ad-acs .swal2-popup.ad-crm-swal-popup:not(.ad-crm-swal-chart) .swal2-title 
 }
 #ad-crm-save-all {
   white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+#ad-section-crm > .ad-card-head {
+  align-items: flex-start;
 }
 .ad-crm-popup {
   text-align: left;
