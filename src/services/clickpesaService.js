@@ -122,4 +122,6 @@ module.exports = {
   generateAccessToken,
   getAccessToken,
   createCheckoutLink,
+  isClickPesaRemoteApiEnabled,
+  assertClickPesaRemoteApiEnabled,
 };
