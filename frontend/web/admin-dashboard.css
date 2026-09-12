@@ -3674,6 +3674,12 @@ body.ad-acs .swal2-popup.ad-crm-swal-popup:not(.swal2-toast) {
   padding: 1.05em 1.05em 1.1em !important;
 }
 
+body.ad-acs .swal2-popup.ad-crm-swal-popup.ad-crm-swal-email:not(.swal2-toast) {
+  width: min(960px, 96vw) !important;
+  max-width: calc(100vw - 1.25rem) !important;
+  padding: 1.15em 1.2em 1.2em !important;
+}
+
 body.ad-acs .swal2-popup.ad-crm-swal-popup.ad-crm-swal-chart:not(.swal2-toast) {
   width: min(820px, 94vw) !important;
   max-width: calc(100vw - 1.5rem) !important;

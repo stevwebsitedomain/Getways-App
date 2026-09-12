@@ -3607,7 +3607,7 @@
       const t = data.template || {};
       const result = await window.Swal.fire({
         title: "Set email message",
-        width: 760,
+        width: 920,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: "Save message",
@@ -3615,11 +3615,9 @@
         confirmButtonColor: "#1a3352",
         buttonsStyling: true,
         customClass: {
-          popup: "ad-crm-swal-popup ad-crm-swal-square",
+          popup: "ad-crm-swal-popup ad-crm-swal-square ad-crm-swal-email",
         },
         html: `<div class="ad-crm-email-editor">
-          <p class="ad-crm-email-hint">From: <strong>${esc(data.fromEmail || "stevenabalwambo@gmail.com")}</strong><br/>
-          Sent emails use the purple card design. Use <code>**bold**</code> and placeholders like <code>{{name}}</code>, <code>{{platform}}</code>, <code>{{location}}</code>.</p>
           <label><span>Subject</span>
             <input id="ad-crm-email-subject" type="text" value="${esc(t.subject || "")}" />
           </label>

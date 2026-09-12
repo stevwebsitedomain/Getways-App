@@ -282,9 +282,9 @@ function crmBuildEmailHtml(array $template, array $lead): string
         . '<tr><td style="padding:8px 28px 18px;background:#ffffff;">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F2F2F2;border-radius:12px;">'
         . '<tr>'
-        . '<td width="50%" style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;border-right:1px solid #d4d4d8;">'
-        . '<strong>Focus:</strong> ' . $focus . '</td>'
-        . '<td width="50%" style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;">'
+        . '<td style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;">'
+        . '<strong>Focus:</strong> ' . $focus
+        . ' <span style="color:#9ca3af;padding:0 8px;">|</span> '
         . '<strong>Location:</strong> ' . $location . '</td>'
         . '</tr></table>'
         . '</td></tr>'
