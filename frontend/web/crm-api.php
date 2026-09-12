@@ -414,6 +414,24 @@ function crmEmailInlineFormat(string $text): string
 }
 
 /**
+ * Local path to developer portrait used in CRM emails.
+ */
+function crmDeveloperPortraitPath(): string
+{
+    $candidates = [
+        __DIR__ . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'crm' . DIRECTORY_SEPARATOR . 'steven-makarious.jpg',
+        __DIR__ . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'crm' . DIRECTORY_SEPARATOR . 'developer.png',
+        dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'developer.png',
+    ];
+    foreach ($candidates as $path) {
+        if (is_file($path) && filesize($path) > 0) {
+            return $path;
+        }
+    }
+    return '';
+}
+
+/**
  * Absolute public base URL for email assets (images must load for recipients).
  */
 function crmEmailPublicBaseUrl(): string
@@ -429,6 +447,10 @@ function crmEmailPublicBaseUrl(): string
         }
         $base = rtrim($base, '/');
         if (preg_match('#^https?://#i', $base)) {
+            // Skip localhost for remote recipients — portrait is also embedded via CID.
+            if (preg_match('#://(localhost|127\.0\.0\.1)(:|/|$)#i', $base)) {
+                continue;
+            }
             return $base;
         }
     }
@@ -452,11 +474,28 @@ function crmEmailImageUrl(string $pathOrUrl): string
 
 /**
  * Compact Events + News block for the middle of the CRM email.
+ *
+ * @return array{0:string,1:list<array{cid:string,path:string,mime:string,name:string}>}
  */
-function crmBuildEmailEventsSection(string $font): string
+function crmBuildEmailEventsSection(string $font): array
 {
     $base = crmEmailPublicBaseUrl();
-    $portrait = crmEmailImageUrl('images/crm/steven-makarious.jpg');
+    $portraitPath = crmDeveloperPortraitPath();
+    $portraitCid = 'crm_developer_portrait';
+    $attachments = [];
+    if ($portraitPath !== '') {
+        $ext = strtolower(pathinfo($portraitPath, PATHINFO_EXTENSION));
+        $mime = $ext === 'png' ? 'image/png' : 'image/jpeg';
+        $portrait = 'cid:' . $portraitCid;
+        $attachments[] = [
+            'cid' => $portraitCid,
+            'path' => $portraitPath,
+            'mime' => $mime,
+            'name' => 'steven-makarious.' . ($ext === 'png' ? 'png' : 'jpg'),
+        ];
+    } else {
+        $portrait = crmEmailImageUrl('images/crm/steven-makarious.jpg');
+    }
     // Public stock images (Unsplash) — always reachable in recipient inboxes
     $schoolImg = 'https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=240&h=160&q=80';
     $officeImg = 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=240&h=160&q=80';
@@ -480,7 +519,7 @@ function crmBuildEmailEventsSection(string $font): string
             'img' => $officeImg,
             'title' => 'CRM & PRODUCT MANAGEMENT SESSION',
             'when' => 'Oct 18, 2026 09:30 - 13:00',
-            'where' => 'Julius Nyerere International Convention Centre',
+            'where' => 'Digital Matrix Technology Studio, Dar es Salaam',
             'desc' => 'Lead tracking, product catalogs and end-to-end business workflows.',
         ],
     ];
@@ -508,13 +547,13 @@ function crmBuildEmailEventsSection(string $font): string
         ],
     ];
 
-    $imgStyle = 'display:block;width:72px;height:56px;object-fit:cover;border:0;';
+    $imgStyle = 'display:block;width:72px;height:72px;object-fit:cover;border:0;';
     $eventRows = '';
     foreach ($events as $ev) {
         $eventRows .= '<tr><td style="padding:0 0 14px;">'
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
-            . '<td width="78" valign="top" style="padding-right:10px;">'
-            . '<img src="' . crmEmailEscape((string) $ev['img']) . '" width="72" height="56" alt="" style="' . $imgStyle . '" />'
+            . '<td width="84" valign="top" style="padding-right:10px;">'
+            . '<img src="' . crmEmailEscape((string) $ev['img']) . '" width="72" height="72" alt="" style="' . $imgStyle . '" />'
             . '</td>'
             . '<td valign="top" style="' . $font . '">'
             . '<div style="font-size:11px;font-weight:800;letter-spacing:0.02em;color:#1e293b;text-transform:uppercase;line-height:1.35;margin:0 0 4px;">'
@@ -542,7 +581,7 @@ function crmBuildEmailEventsSection(string $font): string
             . '</td></tr></table></td></tr>';
     }
 
-    return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;border-top:1px solid #e2e8f0;">'
+    $html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;border-top:1px solid #e2e8f0;">'
         . '<tr><td style="padding:18px 0 8px;">'
         . '<div style="' . $font . 'font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#4F378B;margin:0 0 12px;">Highlights</div>'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
@@ -559,6 +598,8 @@ function crmBuildEmailEventsSection(string $font): string
         . '</tr></table>'
         . '<div style="margin-top:6px;' . $font . 'font-size:10px;color:#94a3b8;">More at <a href="' . crmEmailEscape($base) . '" style="color:#4F378B;text-decoration:none;">' . crmEmailEscape(preg_replace('#^https?://#i', '', $base) ?: $base) . '</a></div>'
         . '</td></tr></table>';
+
+    return [$html, $attachments];
 }
 
 /**
@@ -617,10 +658,12 @@ function crmEmailFormatBodyHtml(string $bodyRaw): string
  *
  * @param array<string, mixed> $template
  * @param array<string, mixed> $lead
+ * @return array{html:string,attachments:list<array{cid:string,path:string,mime:string,name:string}>}
  */
-function crmBuildEmailHtml(array $template, array $lead): string
+function crmBuildEmailHtml(array $template, array $lead): array
 {
     $defaults = crmDefaultEmailTemplate();
+    $font = "font-family:Arial,Helvetica,sans-serif;";
     $headerTitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['headerTitle'] ?? ''), $lead));
     $headerSubtitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['headerSubtitle'] ?? ''), $lead));
     $bodyTitle = crmEmailEscape(crmRenderEmailPlaceholders((string) ($template['bodyTitle'] ?? ''), $lead));
@@ -647,10 +690,9 @@ function crmBuildEmailHtml(array $template, array $lead): string
     $location = crmEmailEscape(crmRenderEmailPlaceholders('{{location}}', $lead));
 
     $bodyHtml = crmEmailFormatBodyHtml($bodyRaw);
+    [$eventsHtml, $attachments] = crmBuildEmailEventsSection($font);
 
-    $font = "font-family:Arial,Helvetica,sans-serif;";
-
-    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
         . '<title>' . $bodyTitle . '</title></head>'
         . '<body style="margin:0;padding:0;background:#eef2f7;">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px;">'
@@ -679,7 +721,7 @@ function crmBuildEmailHtml(array $template, array $lead): string
         . $bodyHtml
 
         // Events + News (middle of email)
-        . crmBuildEmailEventsSection($font)
+        . $eventsHtml
 
         // Signature
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 8px;">'
@@ -724,6 +766,11 @@ function crmBuildEmailHtml(array $template, array $lead): string
         . '</table>'
         . '</td></tr></table>'
         . '</body></html>';
+
+    return [
+        'html' => $html,
+        'attachments' => $attachments,
+    ];
 }
 
 function crmMailConfig(): array
@@ -766,8 +813,10 @@ function crmSmtpCommand($socket, string $command, string $expectPrefix): string
 
 /**
  * Send one email via SMTP (Gmail-compatible STARTTLS) as multipart HTML + plain text.
+ *
+ * @param list<array{cid:string,path:string,mime:string,name:string}> $attachments
  */
-function crmSendSmtpMail(string $to, string $subject, string $bodyText, string $bodyHtml = ''): void
+function crmSendSmtpMail(string $to, string $subject, string $bodyText, string $bodyHtml = '', array $attachments = []): void
 {
     $cfg = crmMailConfig();
     if ($cfg['pass'] === '') {
@@ -814,7 +863,15 @@ function crmSendSmtpMail(string $to, string $subject, string $bodyText, string $
         crmSmtpCommand($socket, 'RCPT TO:<' . $to . '>', '250');
         crmSmtpCommand($socket, 'DATA', '354');
 
-        $boundary = 'gw_crm_' . bin2hex(random_bytes(8));
+        $altBoundary = 'gw_crm_alt_' . bin2hex(random_bytes(6));
+        $relBoundary = 'gw_crm_rel_' . bin2hex(random_bytes(6));
+        $hasInline = $attachments !== [];
+
+        if ($bodyHtml === '') {
+            $bodyHtml = '<pre style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">'
+                . crmEmailEscape($bodyText) . '</pre>';
+        }
+
         $headers = [
             'Date: ' . date('r'),
             'From: ' . sprintf('"%s" <%s>', addcslashes($fromName, '"\\'), $from),
@@ -822,25 +879,57 @@ function crmSendSmtpMail(string $to, string $subject, string $bodyText, string $
             'Reply-To: <' . $from . '>',
             'Subject: ' . '=?UTF-8?B?' . base64_encode($subject) . '?=',
             'MIME-Version: 1.0',
-            'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
             'X-Mailer: Getways-CRM',
         ];
 
-        if ($bodyHtml === '') {
-            $bodyHtml = '<pre style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">'
-                . crmEmailEscape($bodyText) . '</pre>';
-        }
+        if ($hasInline) {
+            $headers[] = 'Content-Type: multipart/related; type="multipart/alternative"; boundary="' . $relBoundary . '"';
+            $message = implode("\r\n", $headers) . "\r\n\r\n"
+                . '--' . $relBoundary . "\r\n"
+                . 'Content-Type: multipart/alternative; boundary="' . $altBoundary . '"' . "\r\n\r\n"
+                . '--' . $altBoundary . "\r\n"
+                . "Content-Type: text/plain; charset=UTF-8\r\n"
+                . "Content-Transfer-Encoding: base64\r\n\r\n"
+                . chunk_split(base64_encode($bodyText))
+                . '--' . $altBoundary . "\r\n"
+                . "Content-Type: text/html; charset=UTF-8\r\n"
+                . "Content-Transfer-Encoding: base64\r\n\r\n"
+                . chunk_split(base64_encode($bodyHtml))
+                . '--' . $altBoundary . "--\r\n";
 
-        $message = implode("\r\n", $headers) . "\r\n\r\n"
-            . '--' . $boundary . "\r\n"
-            . "Content-Type: text/plain; charset=UTF-8\r\n"
-            . "Content-Transfer-Encoding: base64\r\n\r\n"
-            . chunk_split(base64_encode($bodyText))
-            . '--' . $boundary . "\r\n"
-            . "Content-Type: text/html; charset=UTF-8\r\n"
-            . "Content-Transfer-Encoding: base64\r\n\r\n"
-            . chunk_split(base64_encode($bodyHtml))
-            . '--' . $boundary . "--\r\n.";
+            foreach ($attachments as $att) {
+                $path = (string) ($att['path'] ?? '');
+                $cid = trim((string) ($att['cid'] ?? ''));
+                $mime = trim((string) ($att['mime'] ?? 'application/octet-stream'));
+                $name = trim((string) ($att['name'] ?? basename($path)));
+                if ($path === '' || $cid === '' || !is_file($path)) {
+                    continue;
+                }
+                $bytes = file_get_contents($path);
+                if (!is_string($bytes) || $bytes === '') {
+                    continue;
+                }
+                $message .= '--' . $relBoundary . "\r\n"
+                    . 'Content-Type: ' . $mime . '; name="' . addcslashes($name, '"\\') . '"' . "\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n"
+                    . 'Content-ID: <' . $cid . '>' . "\r\n"
+                    . "Content-Disposition: inline; filename=\"" . addcslashes($name, '"\\') . "\"\r\n\r\n"
+                    . chunk_split(base64_encode($bytes));
+            }
+            $message .= '--' . $relBoundary . "--\r\n.";
+        } else {
+            $headers[] = 'Content-Type: multipart/alternative; boundary="' . $altBoundary . '"';
+            $message = implode("\r\n", $headers) . "\r\n\r\n"
+                . '--' . $altBoundary . "\r\n"
+                . "Content-Type: text/plain; charset=UTF-8\r\n"
+                . "Content-Transfer-Encoding: base64\r\n\r\n"
+                . chunk_split(base64_encode($bodyText))
+                . '--' . $altBoundary . "\r\n"
+                . "Content-Type: text/html; charset=UTF-8\r\n"
+                . "Content-Transfer-Encoding: base64\r\n\r\n"
+                . chunk_split(base64_encode($bodyHtml))
+                . '--' . $altBoundary . "--\r\n.";
+        }
 
         fwrite($socket, $message . "\r\n");
         crmSmtpExpect($socket, '250');
@@ -1775,7 +1864,9 @@ if ($method === 'POST' && $action === 'send-emails') {
             . trim((string) ($template['signRole'] ?? '')),
             $lead
         );
-        $bodyHtml = crmBuildEmailHtml($template, $lead);
+        $built = crmBuildEmailHtml($template, $lead);
+        $bodyHtml = (string) ($built['html'] ?? '');
+        $attachments = is_array($built['attachments'] ?? null) ? $built['attachments'] : [];
         foreach ($row['emails'] as $email) {
             $entry = [
                 'id' => 'elog_' . bin2hex(random_bytes(6)),
@@ -1789,7 +1880,7 @@ if ($method === 'POST' && $action === 'send-emails') {
                 'error' => '',
             ];
             try {
-                crmSendSmtpMail($email, $subject, $bodyText, $bodyHtml);
+                crmSendSmtpMail($email, $subject, $bodyText, $bodyHtml, $attachments);
                 $sent++;
             } catch (Throwable $e) {
                 $failed++;
@@ -1887,7 +1978,9 @@ if ($method === 'POST' && $action === 'send-test-emails') {
         . trim((string) ($template['signRole'] ?? '')),
         $fakeLead
     );
-    $bodyHtml = crmBuildEmailHtml($template, $fakeLead);
+    $built = crmBuildEmailHtml($template, $fakeLead);
+    $bodyHtml = (string) ($built['html'] ?? '');
+    $attachments = is_array($built['attachments'] ?? null) ? $built['attachments'] : [];
 
     $sent = 0;
     $failed = 0;
@@ -1906,7 +1999,7 @@ if ($method === 'POST' && $action === 'send-test-emails') {
             'error' => '',
         ];
         try {
-            crmSendSmtpMail($email, $subject, $bodyText, $bodyHtml);
+            crmSendSmtpMail($email, $subject, $bodyText, $bodyHtml, $attachments);
             $sent++;
         } catch (Throwable $e) {
             $failed++;
