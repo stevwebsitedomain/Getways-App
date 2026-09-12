@@ -3585,6 +3585,137 @@
       loadSavedLeads();
     });
 
+    async function fetchEmailTemplate() {
+      const res = await fetch("crm-api.php?action=email-template", { credentials: "same-origin" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.message || "Could not load email message.");
+      return data;
+    }
+
+    async function openEmailMessageEditor() {
+      if (!window.Swal || typeof window.Swal.fire !== "function") {
+        notify("SweetAlert is required to edit the message.", "error", { force: true });
+        return;
+      }
+      let data;
+      try {
+        data = await fetchEmailTemplate();
+      } catch (error) {
+        notify(error.message || "Could not load email message.", "error", { force: true });
+        return;
+      }
+      const template = data.template || {};
+      const placeholders = Array.isArray(data.placeholders) ? data.placeholders.join(" ") : "{{name}} {{company}}";
+      const result = await window.Swal.fire({
+        title: "Set email message",
+        width: 720,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: "Save message",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#1a3352",
+        buttonsStyling: true,
+        customClass: {
+          popup: "ad-crm-swal-popup ad-crm-swal-square",
+        },
+        html: `<div class="ad-crm-email-editor">
+          <p class="ad-crm-email-hint">From: <strong>${esc(data.fromEmail || "stevenabalwambo@gmail.com")}</strong><br/>
+          Placeholders: <code>${esc(placeholders)}</code></p>
+          <label><span>Subject</span>
+            <input id="ad-crm-email-subject" type="text" value="${esc(template.subject || "")}" />
+          </label>
+          <label><span>Message</span>
+            <textarea id="ad-crm-email-body">${esc(template.body || "")}</textarea>
+          </label>
+        </div>`,
+        preConfirm: () => {
+          const subject = String(document.getElementById("ad-crm-email-subject")?.value || "").trim();
+          const body = String(document.getElementById("ad-crm-email-body")?.value || "").trim();
+          if (subject.length < 3) {
+            window.Swal.showValidationMessage("Enter a subject.");
+            return false;
+          }
+          if (body.length < 10) {
+            window.Swal.showValidationMessage("Enter the message body.");
+            return false;
+          }
+          return { subject, body };
+        },
+      });
+      if (!result.isConfirmed || !result.value) return;
+      try {
+        const res = await fetch("crm-api.php?action=email-template", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(result.value),
+        });
+        const saved = await res.json().catch(() => ({}));
+        if (!res.ok || !saved.ok) throw new Error(saved.message || "Could not save message.");
+        notify("Email message saved.", "success", { toast: true, force: true });
+      } catch (error) {
+        notify(error.message || "Could not save message.", "error", { force: true });
+      }
+    }
+
+    async function sendDatabaseEmails() {
+      const filtered =
+        crmDbPlatform === "all"
+          ? crmDbItems
+          : crmDbItems.filter((item) => String(item.platform || "") === crmDbPlatform);
+      const withEmail = filtered.filter((item) => {
+        const emails = Array.isArray(item.emails) ? item.emails.filter(Boolean) : [];
+        return Boolean(item.email || emails.length);
+      });
+      if (!withEmail.length) {
+        notify("No leads with email addresses in this filter.", "warning", { force: true });
+        return;
+      }
+
+      const ok = await confirmAction({
+        title: "Send emails?",
+        text: `Send the job-application message to ${withEmail.length} lead${withEmail.length === 1 ? "" : "s"} from stevenabalwambo@gmail.com${crmDbPlatform !== "all" ? ` (${platformLabel(crmDbPlatform)})` : ""}.`,
+        confirmButtonText: "Send emails",
+        confirmButtonColor: "#1a3352",
+        icon: "question",
+      });
+      if (!ok) return;
+
+      showWaitSwal(
+        "Sending emails…",
+        '<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Sending job application emails. Please wait…</p>'
+      );
+      try {
+        const res = await fetch("crm-api.php?action=send-emails", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            platform: crmDbPlatform,
+            ids: withEmail.map((item) => item.id).filter(Boolean),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        dismissWaitSwal();
+        if (!res.ok || !data.ok) {
+          const detail = Array.isArray(data.errors) && data.errors.length ? ` ${data.errors[0]}` : "";
+          throw new Error((data.message || "Could not send emails.") + detail);
+        }
+        notify(data.message || "Emails sent.", "success", { force: true });
+        setCrmMsg(data.message || "Emails sent.", "success", dbMsgEl);
+      } catch (error) {
+        dismissWaitSwal();
+        notify(error.message || "Could not send emails.", "error", { force: true });
+      }
+    }
+
+    document.getElementById("ad-crm-email-set")?.addEventListener("click", () => {
+      void openEmailMessageEditor();
+    });
+    document.getElementById("ad-crm-email-send")?.addEventListener("click", () => {
+      void sendDatabaseEmails();
+    });
+
     async function saveLead(idx) {
       const item = crmItems[idx];
       if (!item) return;

@@ -909,11 +909,19 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="ad-card-head">
         <div>
           <h2><i class="fa-solid fa-database"></i> Database</h2>
-          <p class="ad-period-sub">All leads you saved from CRM searches, grouped by platform</p>
+          <p class="ad-period-sub">Saved leads by platform · send job-application emails from stevenabalwambo@gmail.com</p>
         </div>
-        <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-db-refresh">
-          <i class="fa-solid fa-rotate"></i><span>Refresh</span>
-        </button>
+        <div class="ad-crm-db-actions">
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-email-set">
+            <i class="fa-solid fa-pen-to-square"></i><span>Set message</span>
+          </button>
+          <button type="button" class="ad-btn ad-btn--primary" id="ad-crm-email-send">
+            <i class="fa-solid fa-paper-plane"></i><span>Send emails</span>
+          </button>
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-db-refresh">
+            <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+          </button>
+        </div>
       </div>
       <div class="ad-crm-tabs" role="tablist" aria-label="Saved platforms">
         <button type="button" class="ad-crm-tab is-active" data-crm-db-platform="all">All</button>

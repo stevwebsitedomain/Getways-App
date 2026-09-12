@@ -9,8 +9,9 @@ declare(strict_types=1);
  * GET  ?action=image&u=URL   (proxied profile / media images)
  * GET  ?action=saved
  * GET  ?action=regions
- * POST ?action=save    JSON { item }
- * POST ?action=delete  JSON { id }
+ * GET  ?action=email-template
+ * POST ?action=email-template JSON { subject, body }
+ * POST ?action=send-emails JSON { platform?, ids? }
  */
 
 require_once __DIR__ . '/auth-init.php';
@@ -84,6 +85,227 @@ function crmSaveLeads(array $data): bool
         return false;
     }
     return @file_put_contents($path, $json, LOCK_EX) !== false;
+}
+
+function crmEmailTemplatePath(): string
+{
+    $dir = __DIR__ . DIRECTORY_SEPARATOR . 'runtime';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    return $dir . DIRECTORY_SEPARATOR . 'crm-email-template.json';
+}
+
+function crmDefaultEmailTemplate(): array
+{
+    return [
+        'subject' => 'Job application / Application for opportunities at {{name}}',
+        'body' => "Dear Hiring Team at {{name}},\n\n"
+            . "I hope this email finds you well. My name is Steven Abalwambo, and I am writing to express my strong interest in available job opportunities within your organization.\n\n"
+            . "I am hardworking, reliable, and eager to contribute my skills while growing with a professional team. I would be grateful for the chance to discuss how I can support your goals, whether through a current opening or future opportunities.\n\n"
+            . "Please feel free to contact me if there is a suitable role, or if you would like to schedule a short conversation.\n\n"
+            . "Kind regards,\n"
+            . "Steven Abalwambo\n"
+            . "Email: stevenabalwambo@gmail.com\n"
+            . "Phone: +255 XXX XXX XXX",
+        'fromEmail' => 'stevenabalwambo@gmail.com',
+        'fromName' => 'Steven Abalwambo',
+        'updatedAt' => null,
+    ];
+}
+
+function crmLoadEmailTemplate(): array
+{
+    $defaults = crmDefaultEmailTemplate();
+    $path = crmEmailTemplatePath();
+    if (!is_file($path)) {
+        return $defaults;
+    }
+    $raw = file_get_contents($path);
+    if (!is_string($raw) || $raw === '') {
+        return $defaults;
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        return $defaults;
+    }
+    return [
+        'subject' => trim((string) ($data['subject'] ?? $defaults['subject'])) ?: $defaults['subject'],
+        'body' => trim((string) ($data['body'] ?? $defaults['body'])) ?: $defaults['body'],
+        'fromEmail' => trim((string) ($data['fromEmail'] ?? $defaults['fromEmail'])) ?: $defaults['fromEmail'],
+        'fromName' => trim((string) ($data['fromName'] ?? $defaults['fromName'])) ?: $defaults['fromName'],
+        'updatedAt' => $data['updatedAt'] ?? null,
+    ];
+}
+
+function crmSaveEmailTemplate(array $template): bool
+{
+    $path = crmEmailTemplatePath();
+    $payload = [
+        'subject' => trim((string) ($template['subject'] ?? '')),
+        'body' => trim((string) ($template['body'] ?? '')),
+        'fromEmail' => 'stevenabalwambo@gmail.com',
+        'fromName' => trim((string) ($template['fromName'] ?? 'Steven Abalwambo')) ?: 'Steven Abalwambo',
+        'updatedAt' => gmdate('c'),
+    ];
+    if ($payload['subject'] === '' || $payload['body'] === '') {
+        return false;
+    }
+    $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if (!is_string($json)) {
+        return false;
+    }
+    return @file_put_contents($path, $json, LOCK_EX) !== false;
+}
+
+/**
+ * @param array<string, mixed> $lead
+ */
+function crmRenderEmailPlaceholders(string $text, array $lead): string
+{
+    $name = trim((string) ($lead['name'] ?? $lead['title'] ?? 'your company'));
+    $map = [
+        '{{name}}' => $name,
+        '{{title}}' => trim((string) ($lead['title'] ?? $name)),
+        '{{username}}' => trim((string) ($lead['username'] ?? '')),
+        '{{platform}}' => trim((string) ($lead['platform'] ?? '')),
+        '{{email}}' => trim((string) ($lead['email'] ?? '')),
+        '{{phone}}' => trim((string) ($lead['phone'] ?? '')),
+        '{{website}}' => trim((string) ($lead['website'] ?? '')),
+        '{{address}}' => trim((string) ($lead['address'] ?? '')),
+        '{{company}}' => $name,
+    ];
+    return strtr($text, $map);
+}
+
+function crmMailConfig(): array
+{
+    return [
+        'host' => trim((string) (getenv('CRM_SMTP_HOST') ?: 'smtp.gmail.com')),
+        'port' => (int) (getenv('CRM_SMTP_PORT') ?: 587),
+        'user' => trim((string) (getenv('CRM_SMTP_USER') ?: getenv('CRM_MAIL_FROM') ?: 'stevenabalwambo@gmail.com')),
+        'pass' => trim((string) (getenv('CRM_SMTP_PASS') ?: getenv('CRM_SMTP_PASSWORD') ?: '')),
+        'fromEmail' => trim((string) (getenv('CRM_MAIL_FROM') ?: 'stevenabalwambo@gmail.com')),
+        'fromName' => trim((string) (getenv('CRM_MAIL_FROM_NAME') ?: 'Steven Abalwambo')),
+        'secure' => strtolower(trim((string) (getenv('CRM_SMTP_SECURE') ?: 'tls'))),
+    ];
+}
+
+function crmSmtpExpect($socket, string $expectPrefix): string
+{
+    $data = '';
+    while (!feof($socket)) {
+        $line = fgets($socket, 515);
+        if ($line === false) {
+            break;
+        }
+        $data .= $line;
+        if (isset($line[3]) && $line[3] === ' ') {
+            break;
+        }
+    }
+    if ($data === '' || !str_starts_with(trim($data), $expectPrefix)) {
+        throw new RuntimeException('SMTP unexpected response: ' . trim($data !== '' ? $data : '(empty)'));
+    }
+    return $data;
+}
+
+function crmSmtpCommand($socket, string $command, string $expectPrefix): string
+{
+    fwrite($socket, $command . "\r\n");
+    return crmSmtpExpect($socket, $expectPrefix);
+}
+
+/**
+ * Send one email via SMTP (Gmail-compatible STARTTLS).
+ */
+function crmSendSmtpMail(string $to, string $subject, string $bodyText): void
+{
+    $cfg = crmMailConfig();
+    if ($cfg['pass'] === '') {
+        throw new RuntimeException('CRM_SMTP_PASS is not configured in .env (use a Gmail App Password).');
+    }
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        throw new RuntimeException('Invalid recipient email.');
+    }
+
+    $host = $cfg['host'];
+    $port = $cfg['port'] > 0 ? $cfg['port'] : 587;
+    $errno = 0;
+    $errstr = '';
+    $socket = @stream_socket_client(
+        $host . ':' . $port,
+        $errno,
+        $errstr,
+        25,
+        STREAM_CLIENT_CONNECT
+    );
+    if ($socket === false) {
+        throw new RuntimeException('Could not connect to SMTP: ' . $errstr);
+    }
+    stream_set_timeout($socket, 30);
+
+    try {
+        crmSmtpExpect($socket, '220');
+        crmSmtpCommand($socket, 'EHLO localhost', '250');
+        if ($cfg['secure'] === 'tls' || $port === 587) {
+            crmSmtpCommand($socket, 'STARTTLS', '220');
+            $crypto = stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+            if ($crypto !== true) {
+                throw new RuntimeException('SMTP STARTTLS failed.');
+            }
+            crmSmtpCommand($socket, 'EHLO localhost', '250');
+        }
+        crmSmtpCommand($socket, 'AUTH LOGIN', '334');
+        crmSmtpCommand($socket, base64_encode($cfg['user']), '334');
+        crmSmtpCommand($socket, base64_encode($cfg['pass']), '235');
+
+        $from = $cfg['fromEmail'];
+        $fromName = $cfg['fromName'];
+        crmSmtpCommand($socket, 'MAIL FROM:<' . $from . '>', '250');
+        crmSmtpCommand($socket, 'RCPT TO:<' . $to . '>', '250');
+        crmSmtpCommand($socket, 'DATA', '354');
+
+        $headers = [
+            'Date: ' . date('r'),
+            'From: ' . sprintf('"%s" <%s>', addcslashes($fromName, '"\\'), $from),
+            'To: <' . $to . '>',
+            'Reply-To: <' . $from . '>',
+            'Subject: ' . '=?UTF-8?B?' . base64_encode($subject) . '?=',
+            'MIME-Version: 1.0',
+            'Content-Type: text/plain; charset=UTF-8',
+            'Content-Transfer-Encoding: base64',
+            'X-Mailer: Getways-CRM',
+        ];
+        $encodedBody = chunk_split(base64_encode($bodyText));
+        $data = implode("\r\n", $headers) . "\r\n\r\n" . $encodedBody . "\r\n.";
+        fwrite($socket, $data . "\r\n");
+        crmSmtpExpect($socket, '250');
+        fwrite($socket, "QUIT\r\n");
+    } finally {
+        fclose($socket);
+    }
+}
+
+/**
+ * @return list<string>
+ */
+function crmLeadEmails(array $lead): array
+{
+    $emails = [];
+    if (!empty($lead['emails']) && is_array($lead['emails'])) {
+        foreach ($lead['emails'] as $email) {
+            $email = trim((string) $email);
+            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $emails[] = strtolower($email);
+            }
+        }
+    }
+    $single = trim((string) ($lead['email'] ?? ''));
+    if ($single !== '' && filter_var($single, FILTER_VALIDATE_EMAIL)) {
+        $emails[] = strtolower($single);
+    }
+    return array_values(array_unique($emails));
 }
 
 /**
@@ -844,6 +1066,118 @@ if ($action === 'saved' && $method === 'GET') {
         return strcmp((string) ($b['savedAt'] ?? ''), (string) ($a['savedAt'] ?? ''));
     });
     crmJson(200, ['ok' => true, 'count' => count($leads), 'items' => $leads]);
+}
+
+if ($action === 'email-template' && $method === 'GET') {
+    $template = crmLoadEmailTemplate();
+    $cfg = crmMailConfig();
+    crmJson(200, [
+        'ok' => true,
+        'template' => $template,
+        'mailReady' => $cfg['pass'] !== '',
+        'fromEmail' => $cfg['fromEmail'],
+        'placeholders' => ['{{name}}', '{{title}}', '{{company}}', '{{platform}}', '{{email}}', '{{phone}}', '{{website}}', '{{address}}', '{{username}}'],
+    ]);
+}
+
+if ($method === 'POST' && $action === 'email-template') {
+    $input = crmReadJsonBody();
+    $subject = trim((string) ($input['subject'] ?? ''));
+    $body = trim((string) ($input['body'] ?? ''));
+    $fromName = trim((string) ($input['fromName'] ?? 'Steven Abalwambo'));
+    if ($subject === '' || mb_strlen($subject) < 3) {
+        crmJson(422, ['ok' => false, 'message' => 'Subject is required.']);
+    }
+    if ($body === '' || mb_strlen($body) < 10) {
+        crmJson(422, ['ok' => false, 'message' => 'Message body is required.']);
+    }
+    $template = [
+        'subject' => $subject,
+        'body' => $body,
+        'fromName' => $fromName !== '' ? $fromName : 'Steven Abalwambo',
+        'fromEmail' => 'stevenabalwambo@gmail.com',
+    ];
+    if (!crmSaveEmailTemplate($template)) {
+        crmJson(500, ['ok' => false, 'message' => 'Could not save email template.']);
+    }
+    crmJson(200, ['ok' => true, 'message' => 'Email message saved.', 'template' => crmLoadEmailTemplate()]);
+}
+
+if ($method === 'POST' && $action === 'send-emails') {
+    $input = crmReadJsonBody();
+    $platform = strtolower(trim((string) ($input['platform'] ?? 'all')));
+    $ids = $input['ids'] ?? null;
+    $idList = [];
+    if (is_array($ids)) {
+        foreach ($ids as $id) {
+            $id = trim((string) $id);
+            if ($id !== '') {
+                $idList[$id] = true;
+            }
+        }
+    }
+
+    $template = crmLoadEmailTemplate();
+    if (!empty($input['subject'])) {
+        $template['subject'] = trim((string) $input['subject']);
+    }
+    if (!empty($input['body'])) {
+        $template['body'] = trim((string) $input['body']);
+    }
+
+    $data = crmLoadLeads();
+    $targets = [];
+    foreach ($data['leads'] as $lead) {
+        if (!is_array($lead)) {
+            continue;
+        }
+        if ($idList !== [] && !isset($idList[(string) ($lead['id'] ?? '')])) {
+            continue;
+        }
+        if ($platform !== '' && $platform !== 'all' && strtolower((string) ($lead['platform'] ?? '')) !== $platform) {
+            continue;
+        }
+        $emails = crmLeadEmails($lead);
+        if ($emails === []) {
+            continue;
+        }
+        $targets[] = ['lead' => $lead, 'emails' => $emails];
+    }
+
+    if ($targets === []) {
+        crmJson(422, ['ok' => false, 'message' => 'No saved leads with email addresses matched your filter.']);
+    }
+
+    $sent = 0;
+    $failed = 0;
+    $errors = [];
+    foreach ($targets as $row) {
+        $lead = $row['lead'];
+        $subject = crmRenderEmailPlaceholders((string) $template['subject'], $lead);
+        $body = crmRenderEmailPlaceholders((string) $template['body'], $lead);
+        foreach ($row['emails'] as $email) {
+            try {
+                crmSendSmtpMail($email, $subject, $body);
+                $sent++;
+            } catch (Throwable $e) {
+                $failed++;
+                if (count($errors) < 8) {
+                    $errors[] = $email . ': ' . $e->getMessage();
+                }
+            }
+        }
+    }
+
+    crmJson($sent > 0 ? 200 : 502, [
+        'ok' => $sent > 0,
+        'message' => $sent > 0
+            ? "Sent {$sent} email(s)" . ($failed > 0 ? ", {$failed} failed." : '.')
+            : 'Could not send emails.',
+        'sent' => $sent,
+        'failed' => $failed,
+        'errors' => $errors,
+        'fromEmail' => crmMailConfig()['fromEmail'],
+    ]);
 }
 
 if ($method === 'POST' && $action === 'save') {
