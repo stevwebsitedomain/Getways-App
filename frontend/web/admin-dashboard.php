@@ -820,7 +820,7 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="ad-card-head">
         <div>
           <h2><i class="fa-solid fa-address-book"></i> CRM</h2>
-          <p class="ad-period-sub">Search Facebook, Instagram &amp; LinkedIn leads via Apify</p>
+          <p class="ad-period-sub">Search Facebook, Instagram &amp; LinkedIn leads</p>
         </div>
         <div class="ad-card-actions">
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-save-all" disabled title="Save all current results">

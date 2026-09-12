@@ -318,6 +318,8 @@
       allowEscapeKey: false,
       showConfirmButton: false,
       backdrop: true,
+      timer: undefined,
+      customClass: { popup: "ad-crm-swal-square" },
       didOpen: () => {
         if (typeof window.Swal.showLoading === "function") {
           window.Swal.showLoading();
@@ -3489,10 +3491,21 @@
         confirmButtonText: "Close",
         confirmButtonColor: "#1a3352",
         buttonsStyling: true,
+        showConfirmButton: true,
+        showCloseButton: false,
+        timer: undefined,
+        timerProgressBar: false,
         allowOutsideClick: false,
         allowEscapeKey: false,
-        customClass: { popup: "ad-crm-swal-popup ad-crm-swal-chart" },
+        allowEnterKey: true,
+        customClass: { popup: "ad-crm-swal-popup ad-crm-swal-square ad-crm-swal-chart" },
         didOpen: () => {
+          // Keep this modal open until Close — clear any leftover toast timers.
+          try {
+            if (typeof window.Swal.stopTimer === "function") window.Swal.stopTimer();
+          } catch (_) {
+            /* ignore */
+          }
           const el = document.getElementById("ad-crm-search-chart");
           if (!el || typeof ApexCharts === "undefined") return;
           if (crmChart) {
@@ -4161,7 +4174,7 @@
       resultsEl.innerHTML = `<div class="ad-crm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Searching ${esc(label)}…</div>`;
       showWaitSwal(
         "Searching…",
-        `<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Fetching ${esc(label)} results via Apify. Please wait…</p>`
+        `<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Fetching ${esc(label)} results. Please wait…</p>`
       );
 
       try {
@@ -4180,8 +4193,9 @@
         setCrmMsg(`${items.length} result${items.length === 1 ? "" : "s"} · ${label}${location ? ` · ${location}` : ""}`, "success");
         renderCrmResults(items);
         if (items.length) {
-          notify(`Found ${items.length} ${label} results.`, "success", { toast: true, force: true });
+          // Show chart first (no timed toast) so SweetAlert toast timer cannot auto-close it.
           await showSearchChart(items, platform, query, location);
+          notify(`Found ${items.length} ${label} results.`, "success", { toast: true, force: true });
         }
       } catch (error) {
         dismissWaitSwal();

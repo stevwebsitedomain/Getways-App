@@ -1067,7 +1067,7 @@ function crmApifyRun(string $actorId, array $payload): array
 
     $ch = curl_init($url);
     if ($ch === false) {
-        crmJson(500, ['ok' => false, 'message' => 'Could not start Apify request.']);
+        crmJson(500, ['ok' => false, 'message' => 'Could not start search request.']);
     }
 
     curl_setopt_array($ch, [
@@ -1089,24 +1089,26 @@ function crmApifyRun(string $actorId, array $payload): array
     curl_close($ch);
 
     if ($body === false || $body === '') {
-        crmJson(502, ['ok' => false, 'message' => $err !== '' ? $err : 'Empty response from Apify.']);
+        crmJson(502, ['ok' => false, 'message' => $err !== '' ? $err : 'Empty response from search service.']);
     }
 
     $decoded = json_decode($body, true);
     if ($http >= 400) {
-        $message = 'Apify search failed.';
+        $message = 'Search failed.';
         if (is_array($decoded)) {
             $message = (string) ($decoded['error']['message'] ?? $decoded['message'] ?? $message);
         }
+        $message = preg_replace('/\bApify\b/i', 'search service', $message) ?: $message;
         crmJson($http >= 500 ? 502 : $http, ['ok' => false, 'message' => $message, 'httpStatus' => $http]);
     }
 
     if (!is_array($decoded)) {
-        crmJson(502, ['ok' => false, 'message' => 'Apify returned invalid JSON.']);
+        crmJson(502, ['ok' => false, 'message' => 'Search service returned invalid data.']);
     }
 
     if ($decoded !== [] && array_keys($decoded) !== range(0, count($decoded) - 1)) {
-        $message = (string) ($decoded['error']['message'] ?? $decoded['message'] ?? 'Apify search failed.');
+        $message = (string) ($decoded['error']['message'] ?? $decoded['message'] ?? 'Search failed.');
+        $message = preg_replace('/\bApify\b/i', 'search service', $message) ?: $message;
         crmJson(502, ['ok' => false, 'message' => $message]);
     }
 
