@@ -1761,9 +1761,9 @@
           <td>${money(row.paidAmount || 0)}</td>
           <td>${fmtDate(row.createdAt)}</td>
           <td>
-            <div class="acs-dt-actions ad-actions">
-              <button type="button" class="acs-dt-action" data-view-user="${esc(row.id || "")}" title="View user"><i class="fa-solid fa-eye"></i><span>View</span></button>
-              <button type="button" class="acs-dt-action acs-dt-action--danger" data-delete-user="${esc(row.id || "")}" data-delete-name="${esc(row.fullName || row.username || row.phone || "")}" title="Delete user"><i class="fa-solid fa-trash"></i><span>Delete</span></button>
+            <div class="acs-dt-actions ad-actions ad-actions--users">
+              <button type="button" class="acs-dt-action" data-view-user="${esc(row.id || "")}" title="View user"><i class="fa-solid fa-eye"></i></button>
+              <button type="button" class="acs-dt-action acs-dt-action--danger" data-delete-user="${esc(row.id || "")}" data-delete-name="${esc(row.fullName || row.username || row.phone || "")}" title="Delete user"><i class="fa-solid fa-trash"></i></button>
             </div>
           </td>
         </tr>`).join("") : `<tr class="acs-dt-empty"><td colspan="7"><strong>No matching users</strong>Registered users from the signup page will appear here.</td></tr>`;

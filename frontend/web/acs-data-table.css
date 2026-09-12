@@ -294,6 +294,57 @@
 .acs-dt-table.ad-table--controls th:nth-child(10),
 .acs-dt-table.ad-table--controls td:nth-child(10) { width: 17%; }
 
+/* Registered users — fit main body, no wide overflow */
+.acs-dt-section[data-acs-dt="users"] {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.acs-dt-section[data-acs-dt="users"] .acs-dt-wrapper {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+.acs-dt-table.ad-table--users {
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.acs-dt-table.ad-table--users th:nth-child(1),
+.acs-dt-table.ad-table--users td:nth-child(1) { width: 6%; }
+.acs-dt-table.ad-table--users th:nth-child(2),
+.acs-dt-table.ad-table--users td:nth-child(2) { width: 16%; }
+.acs-dt-table.ad-table--users th:nth-child(3),
+.acs-dt-table.ad-table--users td:nth-child(3) { width: 18%; }
+.acs-dt-table.ad-table--users th:nth-child(4),
+.acs-dt-table.ad-table--users td:nth-child(4) { width: 16%; }
+.acs-dt-table.ad-table--users th:nth-child(5),
+.acs-dt-table.ad-table--users td:nth-child(5) { width: 12%; }
+.acs-dt-table.ad-table--users th:nth-child(6),
+.acs-dt-table.ad-table--users td:nth-child(6) { width: 16%; }
+.acs-dt-table.ad-table--users th:nth-child(7),
+.acs-dt-table.ad-table--users td:nth-child(7) { width: 16%; }
+
+.acs-dt-section[data-acs-dt="users"] .acs-dt-actions {
+  flex-wrap: nowrap;
+  gap: 6px;
+  justify-content: flex-start;
+}
+
+.acs-dt-section[data-acs-dt="users"] .acs-dt-action {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.acs-dt-section[data-acs-dt="users"] .acs-dt-action span {
+  display: none;
+}
+
 @media (max-width: 1100px) {
   .acs-dt-actions .acs-dt-action span {
     display: none;
