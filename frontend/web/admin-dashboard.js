@@ -2183,8 +2183,8 @@
     document.querySelectorAll(".ad-sidebar-link[data-ad-target]").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.adTarget === key);
     });
-    document.querySelectorAll(".ad-sidebar-catalogue").forEach((btn) => {
-      btn.classList.toggle("is-active", false);
+    document.querySelectorAll("[data-ad-nav='home']").forEach((btn) => {
+      btn.classList.remove("is-active");
     });
     document.querySelectorAll(".top-links [data-ad-target]").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.adTarget === key);
@@ -2212,7 +2212,7 @@
     if (home) home.scrollIntoView({ behavior: "smooth", block: "start" });
     const titleEl = document.getElementById("ad-portal-title");
     if (titleEl) titleEl.textContent = PORTAL_SECTION_TITLES.home || "Dashboard";
-    document.querySelectorAll(".ad-sidebar-catalogue").forEach((btn) => btn.classList.add("is-active"));
+    document.querySelectorAll("[data-ad-nav='home']").forEach((btn) => btn.classList.add("is-active"));
     document.querySelectorAll(".ad-sidebar-link[data-ad-target], .top-links [data-ad-target]").forEach((btn) => {
       btn.classList.remove("is-active");
     });
@@ -2281,8 +2281,7 @@
   }
 
   function bindPortalNavigation() {
-    document.querySelector(".ad-sidebar-catalogue")?.addEventListener("click", showPortalHome);
-    document.querySelectorAll(".ad-sidebar-catalogue[data-ad-nav='home']").forEach((btn) => {
+    document.querySelectorAll("[data-ad-nav='home']").forEach((btn) => {
       btn.addEventListener("click", showPortalHome);
     });
     document.querySelectorAll(".ad-sidebar-link[data-ad-target], .top-links [data-ad-target]").forEach((btn) => {

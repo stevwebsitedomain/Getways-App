@@ -110,7 +110,7 @@ require __DIR__ . '/acs-gov-banner.php';
       <button class="mobile-menu-button" type="button" id="ad-menu-open" aria-label="Open menu">☰</button>
       <div class="nav-spacer" aria-hidden="true"></div>
       <div class="top-links app-links">
-        <button type="button" class="ad-sidebar-catalogue is-active" data-ad-nav="home"><i class="fa-solid fa-house"></i> Dashboard</button>
+        <button type="button" class="is-active" data-ad-nav="home"><i class="fa-solid fa-house"></i> Dashboard</button>
         <button type="button" data-ad-target="transactions"><i class="fa-solid fa-receipt"></i> Transactions</button>
         <button type="button" data-ad-target="analytics"><i class="fa-solid fa-chart-line"></i> Analysis</button>
         <button type="button" data-ad-target="whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
