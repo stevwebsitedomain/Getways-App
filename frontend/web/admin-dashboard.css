@@ -3664,7 +3664,21 @@ body.ad-sidebar-collapsed .ad-nav-ico {
   border-radius: 0 !important;
 }
 .ad-crm-swal-popup {
-  width: min(860px, 96vw) !important;
+  width: min(920px, 96vw) !important;
+}
+
+/* Beat ACS compact SweetAlert (360px) so Lead details can show full fields */
+body.ad-acs .swal2-popup.ad-crm-swal-popup:not(.swal2-toast),
+body.ad-acs .swal2-popup.ad-crm-swal-popup.ad-crm-swal-chart:not(.swal2-toast) {
+  width: min(920px, 96vw) !important;
+  max-width: calc(100vw - 1.5rem) !important;
+  padding: 1.35em 1.4em 1.4em !important;
+}
+
+body.ad-acs .swal2-popup.ad-crm-swal-popup .swal2-html-container {
+  margin: 0.75em 0.15em 0.35em !important;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 .ad-crm-swal-chart {
   padding-bottom: 8px;
@@ -3686,9 +3700,12 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 }
 .ad-crm-popup {
   text-align: left;
-  max-height: min(70vh, 560px);
+  max-height: min(72vh, 640px);
   overflow: auto;
-  min-width: min(720px, 88vw);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .ad-crm-popup-hero {
   display: flex;
@@ -3719,9 +3736,10 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 }
 .ad-crm-popup-row {
   display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 8px;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 10px 14px;
   font-size: 0.86rem;
+  align-items: start;
 }
 .ad-crm-popup-row strong {
   color: #64748b;
@@ -3731,6 +3749,8 @@ body.ad-sidebar-collapsed .ad-nav-ico {
 .ad-crm-popup-row a {
   color: #0f172a;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .ad-crm-popup-thumbs {
   display: flex;
