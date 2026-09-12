@@ -426,6 +426,219 @@ body.acs-body textarea {
   line-height: 1.2;
 }
 
+/* Google Sign-In waiting screen */
+.gw-google-wait-wrap {
+  align-items: center;
+  padding-top: 48px;
+}
+
+.gw-google-wait-card {
+  width: min(420px, 100%);
+  margin: 0 auto;
+  padding: 36px 28px 26px;
+  border: 1px solid #e6ebf0;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(20, 35, 50, 0.08);
+  text-align: center;
+  animation: gwGoogleCardIn 0.45s ease both;
+}
+
+@keyframes gwGoogleCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.gw-google-wait-orbit {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 20px;
+  display: grid;
+  place-items: center;
+}
+
+.gw-google-wait-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 0deg,
+      #4285f4 0deg 90deg,
+      #ea4335 90deg 180deg,
+      #fbbc05 180deg 270deg,
+      #34a853 270deg 360deg
+    );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  animation: gwGoogleSpin 0.9s linear infinite;
+}
+
+.gw-google-wait-logo {
+  position: relative;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 1px solid #eef2f6;
+  box-shadow: 0 4px 14px rgba(60, 64, 67, 0.12);
+  animation: gwGooglePulse 1.8s ease-in-out infinite;
+}
+
+.gw-google-wait-card:has(.gw-google-wait-avatar:not([hidden])) .gw-google-wait-orbit {
+  display: none;
+}
+
+.gw-google-wait-avatar {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #e8f0fe;
+  box-shadow: 0 4px 14px rgba(66, 133, 244, 0.2);
+  animation: gwGoogleCardIn 0.35s ease both;
+}
+
+.gw-google-wait-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gw-google-wait-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #172033;
+}
+
+.gw-google-wait-msg {
+  margin: 0 auto;
+  max-width: 320px;
+  min-height: 2.4em;
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.gw-google-wait-msg.is-error {
+  color: #b42318;
+}
+
+.gw-google-wait-dots {
+  display: inline-flex;
+  gap: 7px;
+  margin: 16px 0 18px;
+}
+
+.gw-google-wait-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4285f4;
+  animation: gwGoogleDot 1.2s ease-in-out infinite;
+}
+
+.gw-google-wait-dots span:nth-child(1) { background: #ea4335; }
+.gw-google-wait-dots span:nth-child(2) { background: #fbbc05; animation-delay: 0.15s; }
+.gw-google-wait-dots span:nth-child(3) { background: #34a853; animation-delay: 0.3s; }
+
+.gw-google-wait-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.gw-google-wait-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #e8edf2;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gw-google-wait-chip i {
+  color: #145493;
+}
+
+.gw-google-wait-back {
+  margin: 0;
+  font-size: 13px;
+}
+
+.gw-google-wait-back a {
+  color: #145493;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gw-google-wait-back a:hover {
+  text-decoration: underline;
+}
+
+.gw-google-wait-card[data-state="success"] .gw-google-wait-ring {
+  animation: none;
+  background: #34a853;
+}
+
+.gw-google-wait-card[data-state="success"] .gw-google-wait-dots {
+  display: none;
+}
+
+.gw-google-wait-card[data-state="error"] .gw-google-wait-ring {
+  animation: none;
+  background: #f97066;
+}
+
+.gw-google-wait-card[data-state="error"] .gw-google-wait-dots {
+  display: none;
+}
+
+.gw-google-wait-card[data-state="error"] .gw-google-wait-logo {
+  animation: none;
+  box-shadow: 0 0 0 4px rgba(249, 112, 102, 0.12);
+}
+
+@keyframes gwGoogleSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gwGooglePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+@keyframes gwGoogleDot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+  40% { transform: translateY(-5px); opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .gw-google-wait-card {
+    padding: 28px 18px 22px;
+  }
+}
+
 .auth-pin {
   margin-top: 14px;
   padding-top: 14px;
