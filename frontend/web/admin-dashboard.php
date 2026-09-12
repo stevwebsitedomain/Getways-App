@@ -114,6 +114,7 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" data-ad-target="transactions"><i class="fa-solid fa-receipt"></i> Transactions</button>
         <button type="button" data-ad-target="analytics"><i class="fa-solid fa-chart-line"></i> Analysis</button>
         <button type="button" data-ad-target="whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+        <button type="button" data-ad-target="crm"><i class="fa-solid fa-address-book"></i> CRM</button>
         <button type="button" id="ad-refresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
         <button type="button" id="ad-ga-open"><i class="fa-solid fa-circle-nodes"></i> General Analysis</button>
       </div>
@@ -208,6 +209,12 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" class="ad-sidebar-link" data-ad-target="whatsapp">
           <i class="fa-brands fa-whatsapp ad-nav-ico" style="color:#25d366"></i>
           <span class="ad-sidebar-text">Send WhatsApp</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <p class="ad-sidebar-label">CRM</p>
+        <button type="button" class="ad-sidebar-link" data-ad-target="crm">
+          <i class="fa-solid fa-address-book ad-nav-ico"></i>
+          <span class="ad-sidebar-text">CRM</span>
           <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
         </button>
       </nav>
@@ -801,6 +808,36 @@ require __DIR__ . '/acs-gov-banner.php';
           <nav class="ad-pager ad-wa-pager" id="ad-wa-pager" hidden aria-label="WhatsApp messages pages"></nav>
         </div>
       </div>
+    </section>
+
+    <section class="ad-card ad-page-section" id="ad-section-crm" data-ad-page="crm">
+      <div class="ad-card-head">
+        <div>
+          <h2><i class="fa-solid fa-address-book"></i> CRM</h2>
+          <p class="ad-period-sub">Search Facebook pages &amp; leads via Apify</p>
+        </div>
+      </div>
+      <form id="ad-crm-form" class="ad-crm-search" autocomplete="off">
+        <div class="ad-crm-search-row">
+          <label class="ad-crm-field ad-crm-field--grow">
+            <span>Search</span>
+            <input id="ad-crm-query" type="search" placeholder="e.g. hotel, restaurant, salon…" required />
+          </label>
+          <label class="ad-crm-field">
+            <span>Location</span>
+            <input id="ad-crm-location" type="text" placeholder="e.g. Dar es Salaam, Tanzania" />
+          </label>
+          <label class="ad-crm-field ad-crm-field--sm">
+            <span>Limit</span>
+            <input id="ad-crm-limit" type="number" min="1" max="50" value="12" />
+          </label>
+          <button type="submit" class="ad-btn ad-btn--primary" id="ad-crm-search-btn">
+            <i class="fa-solid fa-magnifying-glass"></i><span>Search</span>
+          </button>
+        </div>
+      </form>
+      <p id="ad-crm-msg" class="ad-msg" hidden></p>
+      <div id="ad-crm-results" class="ad-crm-results" aria-live="polite"></div>
     </section>
 
     <section class="ad-page-section ad-ga-page" id="ad-section-general-analysis" data-ad-page="general-analysis">

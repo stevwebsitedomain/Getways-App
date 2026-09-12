@@ -2110,6 +2110,7 @@
     users: "Registered users",
     recent: "Recent collections",
     whatsapp: "WhatsApp",
+    crm: "CRM",
   };
 
   function scrollToPortalSection(key, options = {}) {
@@ -2122,6 +2123,7 @@
       users: "ad-section-users",
       recent: "ad-section-recent",
       whatsapp: "ad-section-whatsapp",
+      crm: "ad-section-crm",
     };
     if (key === "payouts") key = "payout-dest";
     if (!idMap[key]) return;
@@ -3130,6 +3132,199 @@
     return [...new Set(phones)];
   }
 
+  function bindCrmSection() {
+    const form = document.getElementById("ad-crm-form");
+    const resultsEl = document.getElementById("ad-crm-results");
+    const msgEl = document.getElementById("ad-crm-msg");
+    if (!form || !resultsEl) return;
+
+    let crmItems = [];
+
+    function setCrmMsg(text, type = "") {
+      if (!msgEl) return;
+      const t = String(text || "").trim();
+      if (!t) {
+        msgEl.hidden = true;
+        msgEl.textContent = "";
+        msgEl.className = "ad-msg";
+        return;
+      }
+      msgEl.hidden = false;
+      msgEl.textContent = t;
+      msgEl.className = "ad-msg" + (type ? ` ad-msg--${type}` : "");
+    }
+
+    function formatList(list) {
+      const arr = Array.isArray(list) ? list.filter(Boolean) : [];
+      return arr.length ? arr.map((x) => esc(x)).join(", ") : "—";
+    }
+
+    function avatarHtml(item, sizeClass = "ad-crm-avatar") {
+      const src = String(item.profilePicture || "").trim();
+      if (src) {
+        return `<img class="${sizeClass}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`;
+      }
+      return `<div class="${sizeClass} ad-crm-avatar--ph" aria-hidden="true"><i class="fa-solid fa-user"></i></div>`;
+    }
+
+    function thumbsHtml(item, limit = 4, cls = "ad-crm-thumbs") {
+      const thumbs = Array.isArray(item.thumbnails) ? item.thumbnails.filter(Boolean).slice(0, limit) : [];
+      if (!thumbs.length) return "";
+      return `<div class="${cls}">${thumbs
+        .map((u) => `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" />`)
+        .join("")}</div>`;
+    }
+
+    function renderCrmResults(items) {
+      crmItems = Array.isArray(items) ? items : [];
+      if (!crmItems.length) {
+        resultsEl.innerHTML = `<div class="ad-crm-empty">Hakuna matokeo. Jaribu search nyingine.</div>`;
+        return;
+      }
+      resultsEl.innerHTML = crmItems
+        .map((item, idx) => {
+          const phone = item.phone || (Array.isArray(item.phones) && item.phones[0]) || "";
+          const email = item.email || (Array.isArray(item.emails) && item.emails[0]) || "";
+          const cats = Array.isArray(item.categories) ? item.categories.slice(0, 2).join(" · ") : "";
+          const desc = String(item.description || "").trim();
+          return `<article class="ad-crm-card" data-crm-idx="${idx}">
+            <div class="ad-crm-card-top">
+              ${avatarHtml(item)}
+              <div class="ad-crm-card-meta">
+                <h3>${esc(item.name || item.title || "Facebook page")}</h3>
+                <p>${esc(cats || item.address || "Facebook page")}</p>
+              </div>
+            </div>
+            ${thumbsHtml(item)}
+            <div class="ad-crm-chips">
+              ${phone ? `<span class="ad-crm-chip"><i class="fa-solid fa-phone"></i> ${esc(phone)}</span>` : ""}
+              ${email ? `<span class="ad-crm-chip"><i class="fa-solid fa-envelope"></i> ${esc(email)}</span>` : ""}
+              ${item.likes != null ? `<span class="ad-crm-chip"><i class="fa-solid fa-thumbs-up"></i> ${esc(item.likes)}</span>` : ""}
+              ${item.followers != null ? `<span class="ad-crm-chip"><i class="fa-solid fa-users"></i> ${esc(item.followers)}</span>` : ""}
+            </div>
+            ${desc ? `<p class="ad-crm-desc">${esc(desc)}</p>` : ""}
+            <div class="ad-crm-card-actions">
+              <button type="button" class="ad-btn ad-btn--ghost ad-btn--view" data-crm-view="${idx}">
+                <i class="fa-solid fa-eye"></i> View
+              </button>
+              ${item.pageUrl || item.facebookUrl
+                ? `<a class="ad-btn ad-btn--ghost" href="${esc(item.pageUrl || item.facebookUrl)}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-facebook"></i> Open</a>`
+                : ""}
+            </div>
+          </article>`;
+        })
+        .join("");
+    }
+
+    async function openCrmPopup(idx) {
+      const item = crmItems[idx];
+      if (!item) return;
+      const phones = Array.isArray(item.phones) && item.phones.length ? item.phones : item.phone ? [item.phone] : [];
+      const emails = Array.isArray(item.emails) && item.emails.length ? item.emails : item.email ? [item.email] : [];
+      const pageLink = item.pageUrl || item.facebookUrl || "";
+      const html = `<div class="ad-crm-popup">
+        <div class="ad-crm-popup-hero">
+          ${avatarHtml(item)}
+          <div>
+            <h3>${esc(item.name || item.title || "Facebook page")}</h3>
+            <p>${esc((Array.isArray(item.categories) ? item.categories.join(" · ") : "") || "Facebook page")}</p>
+          </div>
+        </div>
+        <div class="ad-crm-popup-grid">
+          <div class="ad-crm-popup-row"><strong>Phone</strong><span>${formatList(phones)}</span></div>
+          <div class="ad-crm-popup-row"><strong>Email</strong><span>${formatList(emails)}</span></div>
+          <div class="ad-crm-popup-row"><strong>Website</strong><span>${
+            item.website
+              ? `<a href="${esc(item.website)}" target="_blank" rel="noopener noreferrer">${esc(item.website)}</a>`
+              : "—"
+          }</span></div>
+          <div class="ad-crm-popup-row"><strong>Address</strong><span>${esc(item.address || "—")}</span></div>
+          <div class="ad-crm-popup-row"><strong>Likes</strong><span>${item.likes != null ? esc(item.likes) : "—"}</span></div>
+          <div class="ad-crm-popup-row"><strong>Followers</strong><span>${item.followers != null ? esc(item.followers) : "—"}</span></div>
+          <div class="ad-crm-popup-row"><strong>Rating</strong><span>${esc(
+            item.rating || (item.ratingOverall != null ? String(item.ratingOverall) : "") || "—"
+          )}${item.ratingCount != null ? ` (${esc(item.ratingCount)} reviews)` : ""}</span></div>
+          <div class="ad-crm-popup-row"><strong>Messenger</strong><span>${esc(item.messenger || "—")}</span></div>
+          <div class="ad-crm-popup-row"><strong>Price range</strong><span>${esc(item.priceRange || "—")}</span></div>
+          <div class="ad-crm-popup-row"><strong>Created</strong><span>${esc(item.creationDate || "—")}</span></div>
+          <div class="ad-crm-popup-row"><strong>Ad status</strong><span>${esc(item.adStatus || "—")}</span></div>
+          <div class="ad-crm-popup-row"><strong>Page ID</strong><span>${esc(item.pageId || "—")}</span></div>
+          <div class="ad-crm-popup-row"><strong>Facebook</strong><span>${
+            pageLink
+              ? `<a href="${esc(pageLink)}" target="_blank" rel="noopener noreferrer">${esc(pageLink)}</a>`
+              : "—"
+          }</span></div>
+          <div class="ad-crm-popup-row"><strong>Description</strong><span>${esc(item.description || "—")}</span></div>
+        </div>
+        ${thumbsHtml(item, 8, "ad-crm-popup-thumbs")}
+      </div>`;
+
+      if (!window.Swal || typeof window.Swal.fire !== "function") {
+        window.alert(item.name || "CRM lead");
+        return;
+      }
+      await window.Swal.fire({
+        title: "Lead details",
+        html,
+        width: 640,
+        confirmButtonText: "Close",
+        confirmButtonColor: "#1a3352",
+        buttonsStyling: true,
+      });
+    }
+
+    resultsEl.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-crm-view]");
+      if (!btn) return;
+      const idx = Number(btn.getAttribute("data-crm-view"));
+      if (Number.isFinite(idx)) openCrmPopup(idx);
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const query = String(document.getElementById("ad-crm-query")?.value || "").trim();
+      const location = String(document.getElementById("ad-crm-location")?.value || "").trim();
+      const limit = Number(document.getElementById("ad-crm-limit")?.value || 12);
+      if (query.length < 2) {
+        setCrmMsg("Andika search term (angalau herufi 2).", "error");
+        return;
+      }
+
+      const btn = document.getElementById("ad-crm-search-btn");
+      if (btn) btn.disabled = true;
+      setCrmMsg("Inatafuta Facebook pages…");
+      resultsEl.innerHTML = `<div class="ad-crm-loading"><i class="fa-solid fa-spinner fa-spin"></i> Searching…</div>`;
+      showWaitSwal("CRM search", '<p style="margin:0.35rem 0 0;font-size:0.95rem;font-weight:600;color:#475569">Tunatafuta Facebook pages kupitia Apify…</p>');
+
+      try {
+        const res = await fetch("crm-api.php?action=search", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, location, limit }),
+        });
+        const data = await res.json().catch(() => ({}));
+        dismissWaitSwal();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message || "CRM search failed.");
+        }
+        const items = Array.isArray(data.items) ? data.items : [];
+        setCrmMsg(`${items.length} result${items.length === 1 ? "" : "s"} for “${query}”`, "success");
+        renderCrmResults(items);
+        if (items.length) {
+          notify(`Found ${items.length} Facebook pages.`, "success", { toast: true, force: true });
+        }
+      } catch (error) {
+        dismissWaitSwal();
+        resultsEl.innerHTML = `<div class="ad-crm-empty">${esc(error.message || "CRM search failed.")}</div>`;
+        setCrmMsg(error.message || "CRM search failed.", "error");
+        notify(error.message || "CRM search failed.", "error", { force: true });
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+  }
+
   function bindWhatsappSection() {
     if (!document.getElementById("ad-section-whatsapp")) return;
     loadWaHidden();
@@ -3612,6 +3807,7 @@
   bindGeneralAnalysis();
   bindPortalNavigation();
   bindWhatsappSection();
+  bindCrmSection();
   bindAdminProfilePhoto();
   document.body.classList.add("ad-view-home");
   const detailOnLoad = document.getElementById("ad-detail-sections");
