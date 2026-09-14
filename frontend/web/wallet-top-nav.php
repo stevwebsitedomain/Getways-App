@@ -54,7 +54,7 @@ $isActive = static function (string $key) use ($activeTopNav): string {
         <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">AutoPay</a>
         <a class="<?= trim($isActive('history')) ?>" href="payment-details.php?type=success">History</a>
         <a class="<?= trim($isActive('settings')) ?>" href="settings.php">More</a>
-        <a href="logout.php">Logout</a>
+        <a href="logout.php" class="nav-link-logout">Logout</a>
       </div>
       <a class="nav-account" href="settings.php" title="<?= htmlspecialchars($authEmail !== '' ? $authEmail : $authName, ENT_QUOTES) ?>">
         <?php if (!empty($authAvatar)): ?>
@@ -74,6 +74,6 @@ $isActive = static function (string $key) use ($activeTopNav): string {
       <a class="<?= trim($isActive('autopay')) ?>" href="autopay.php">AutoPay</a>
       <a class="<?= trim($isActive('history')) ?>" href="payment-details.php?type=success">History</a>
       <a class="<?= trim($isActive('settings')) ?>" href="settings.php">More</a>
-      <a href="logout.php">Logout</a>
+      <a href="logout.php" class="nav-link-logout">Logout</a>
     </div>
   </div>

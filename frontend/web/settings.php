@@ -113,7 +113,7 @@ $phoneTopbarTitle = 'Profile';
             <h3><i class="fa-solid fa-right-from-bracket"></i> Session</h3>
           </div>
           <div class="w-toggle" role="group" aria-label="Session actions">
-            <a href="logout.php" class="w-toggle-btn w-toggle-link">Logout</a>
+            <a href="logout.php" class="w-toggle-btn w-toggle-link w-logout-text">Logout</a>
           </div>
         </section>
       </div>

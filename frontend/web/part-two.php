@@ -72,6 +72,10 @@ $gwAuthJson = json_encode([
             <a href="payment-details.php?type=success" class="ch-hero-icon" aria-label="Help &amp; history">
               <i class="fa-regular fa-circle-question"></i>
             </a>
+            <a href="logout.php" class="ch-hero-logout" aria-label="Logout">
+              <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+              <span>Logout</span>
+            </a>
           </div>
         </div>
         <h1 class="ch-hero-greet">Hello, <?= htmlspecialchars($authFirst, ENT_QUOTES) ?></h1>
