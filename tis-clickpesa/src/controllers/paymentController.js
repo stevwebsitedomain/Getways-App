@@ -64,6 +64,37 @@ function withCollectorTag(description, collectorUserId) {
   return `${tag} ${base}`.slice(0, 512);
 }
 
+function extractCollectorFromDescription(description) {
+  const match = String(description || "").match(/\[gw:([^\]]+)\]/i);
+  return normalizeCollectorUserId(match?.[1] || "");
+}
+
+function preferText(next, prev) {
+  const a = String(next || "").trim();
+  const b = String(prev || "").trim();
+  if (a && a !== "ClickPesa Payment") return a;
+  if (b) return b;
+  return a || b || "";
+}
+
+function resolvePaymentAttribution(entry = {}, previous = {}) {
+  const collectorUserId =
+    normalizeCollectorUserId(entry.collectorUserId) ||
+    normalizeCollectorUserId(previous.collectorUserId) ||
+    extractCollectorFromDescription(entry.description) ||
+    extractCollectorFromDescription(previous.description) ||
+    null;
+  const description = withCollectorTag(
+    preferText(entry.description, previous.description),
+    collectorUserId
+  );
+  return {
+    collectorUserId: collectorUserId || "",
+    description,
+    customerName: preferText(entry.customerName, previous.customerName),
+  };
+}
+
 async function persistPaymentToDb(entry) {
   if (!entry || !entry.orderReference) {
     return;
@@ -76,7 +107,13 @@ async function persistPaymentToDb(entry) {
   const channel = String(entry.channel || entry.paymentMode || "tis").slice(0, 64) || null;
   const customerName = String(entry.customerName || "").trim().slice(0, 255) || null;
   const collectorUserId = normalizeCollectorUserId(entry.collectorUserId);
-  const description = withCollectorTag(entry.description, collectorUserId);
+  // Never persist a bare default description that would wipe an existing [gw:] tag.
+  let description = String(entry.description || "").trim() || null;
+  if (collectorUserId) {
+    description = withCollectorTag(description || "ClickPesa Payment", collectorUserId);
+  } else if (!description || description === "ClickPesa Payment") {
+    description = null;
+  }
 
   try {
     const db = getPool();
@@ -90,15 +127,21 @@ async function persistPaymentToDb(entry) {
            phone = COALESCE(VALUES(phone), phone),
            collector_user_id = COALESCE(VALUES(collector_user_id), collector_user_id),
            customer_name = COALESCE(VALUES(customer_name), customer_name),
-           description = COALESCE(VALUES(description), description),
+           description = CASE
+             WHEN VALUES(description) IS NULL OR VALUES(description) = '' THEN description
+             WHEN description LIKE '%[gw:%' AND VALUES(description) NOT LIKE '%[gw:%' THEN description
+             ELSE VALUES(description)
+           END,
            payment_status = CASE
-             WHEN payment_status IN ('SUCCESS', 'FAILED', 'REFUNDED')
+             WHEN payment_status IN ('SUCCESS', 'PAID', 'FAILED', 'REFUNDED')
                AND VALUES(payment_status) = 'PENDING' THEN payment_status
+             WHEN payment_status IN ('SUCCESS', 'PAID')
+               AND VALUES(payment_status) = 'FAILED' THEN payment_status
              ELSE VALUES(payment_status)
            END,
            channel = COALESCE(VALUES(channel), channel),
            updated_at = VALUES(updated_at)`,
-        [orderReference, amount, phone, collectorUserId, customerName, description, status, channel, now, now]
+        [orderReference, amount, phone, collectorUserId, customerName, description || withCollectorTag("", collectorUserId), status, channel, now, now]
       );
     } catch (colErr) {
       // Older schemas without collector_user_id
@@ -110,15 +153,19 @@ async function persistPaymentToDb(entry) {
            amount = IF(VALUES(amount) > 0, VALUES(amount), amount),
            phone = COALESCE(VALUES(phone), phone),
            customer_name = COALESCE(VALUES(customer_name), customer_name),
-           description = COALESCE(VALUES(description), description),
+           description = CASE
+             WHEN VALUES(description) IS NULL OR VALUES(description) = '' THEN description
+             WHEN description LIKE '%[gw:%' AND VALUES(description) NOT LIKE '%[gw:%' THEN description
+             ELSE VALUES(description)
+           END,
            payment_status = CASE
-             WHEN payment_status IN ('SUCCESS', 'FAILED', 'REFUNDED')
+             WHEN payment_status IN ('SUCCESS', 'PAID', 'FAILED', 'REFUNDED')
                AND VALUES(payment_status) = 'PENDING' THEN payment_status
              ELSE VALUES(payment_status)
            END,
            channel = COALESCE(VALUES(channel), channel),
            updated_at = VALUES(updated_at)`,
-        [orderReference, amount, phone, customerName, description, status, channel, now, now]
+        [orderReference, amount, phone, customerName, description || "ClickPesa Payment", status, channel, now, now]
       );
     }
   } catch (err) {
@@ -134,10 +181,31 @@ function rememberPayment(entry) {
   if (!key) {
     return;
   }
+  const previous = recentPayments.get(key) || {};
+  let filePrevious = {};
+  try {
+    filePrevious =
+      paymentFileStore.listPayments().find((row) => String(row.orderReference || "").toUpperCase() === key) || {};
+  } catch (_) {
+    filePrevious = {};
+  }
+  const attribution = resolvePaymentAttribution(entry, {
+    ...filePrevious,
+    ...previous,
+  });
   const normalized = {
+    ...previous,
+    ...filePrevious,
     ...entry,
     orderReference: key,
-    status: mapWalletStatus(entry.status),
+    status: mapWalletStatus(entry.status || previous.status || filePrevious.status),
+    collectorUserId: attribution.collectorUserId,
+    description: attribution.description,
+    customerName: attribution.customerName,
+    phone: String(entry.phone || previous.phone || filePrevious.phone || "").trim(),
+    amount: Number(entry.amount || previous.amount || filePrevious.amount || 0),
+    createdAt: previous.createdAt || filePrevious.createdAt || entry.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
   recentPayments.set(key, normalized);
   if (recentPayments.size > MAX_RECENT_PAYMENTS) {
@@ -219,12 +287,17 @@ async function listRecentPayments() {
     for (const row of paymentFileStore.listPayments()) {
       const key = String(row.orderReference || "").toUpperCase();
       if (!key) continue;
-      const existing = byRef.get(key);
+      const existing = byRef.get(key) || {};
+      const mergedAttribution = resolvePaymentAttribution(row, existing);
       byRef.set(key, {
-        ...(existing || {}),
+        ...existing,
         ...row,
         orderReference: key,
-        status: mapWalletStatus(row.status || (existing && existing.status)),
+        status: mapWalletStatus(row.status || existing.status),
+        collectorUserId: mergedAttribution.collectorUserId || existing.collectorUserId || "",
+        description: mergedAttribution.description || existing.description || row.description || "",
+        customerName: preferText(row.customerName, existing.customerName),
+        amount: Number(row.amount || existing.amount || 0) || Number(existing.amount || 0),
       });
     }
   } catch (err) {
@@ -234,12 +307,16 @@ async function listRecentPayments() {
   for (const entry of recentPayments.values()) {
     const key = String(entry.orderReference || "").toUpperCase();
     if (!key) continue;
-    const existing = byRef.get(key);
+    const existing = byRef.get(key) || {};
+    const mergedAttribution = resolvePaymentAttribution(entry, existing);
     byRef.set(key, {
-      ...(existing || {}),
+      ...existing,
       ...entry,
       orderReference: key,
       status: mapWalletStatus(entry.status),
+      collectorUserId: mergedAttribution.collectorUserId || existing.collectorUserId || "",
+      description: mergedAttribution.description || existing.description || entry.description || "",
+      customerName: preferText(entry.customerName, existing.customerName),
     });
   }
 
@@ -652,13 +729,26 @@ function mapAutoPayStatus(rawStatus) {
 async function readDbPaymentStatus(orderReference) {
   try {
     const db = getPool();
-    const [rows] = await db.query(
-      `SELECT payment_status, amount, phone, channel, created_at
-       FROM clickpesa_transactions
-       WHERE order_reference = ?
-       LIMIT 1`,
-      [orderReference]
-    );
+    let rows = [];
+    try {
+      const [dbRows] = await db.query(
+        `SELECT payment_status, amount, phone, channel, created_at, collector_user_id, customer_name, description
+         FROM clickpesa_transactions
+         WHERE order_reference = ?
+         LIMIT 1`,
+        [orderReference]
+      );
+      rows = dbRows || [];
+    } catch (_) {
+      const [dbRows] = await db.query(
+        `SELECT payment_status, amount, phone, channel, created_at, customer_name, description
+         FROM clickpesa_transactions
+         WHERE order_reference = ?
+         LIMIT 1`,
+        [orderReference]
+      );
+      rows = dbRows || [];
+    }
     const row = rows && rows[0];
     if (!row) return null;
     return {
@@ -666,6 +756,9 @@ async function readDbPaymentStatus(orderReference) {
       amount: Number(row.amount || 0),
       phone: row.phone || "",
       channel: row.channel || "",
+      collectorUserId: normalizeCollectorUserId(row.collector_user_id) || "",
+      customerName: row.customer_name || "",
+      description: row.description || "",
     };
   } catch (_) {
     return null;
@@ -721,14 +814,24 @@ async function getAutoPayStatus(req, res, next) {
     }
 
     const amountNum = Number(result.amount || previous?.amount || dbRow?.amount || 0);
+    const attribution = resolvePaymentAttribution(
+      {
+        collectorUserId: previous?.collectorUserId || dbRow?.collectorUserId,
+        description: previous?.description || dbRow?.description,
+        customerName: previous?.customerName || dbRow?.customerName,
+      },
+      { ...dbRow, ...previous }
+    );
 
     rememberPayment({
       id: orderReference,
       orderReference,
-      amount: amountNum > 0 ? amountNum : Number(previous?.amount || 0),
+      amount: amountNum > 0 ? amountNum : Number(previous?.amount || dbRow?.amount || 0),
       status: mapped === "PENDING" ? "PENDING" : mapped,
       phone: String(result.phone || previous?.phone || dbRow?.phone || "").trim(),
-      customerName: String(previous?.customerName || "").trim(),
+      customerName: attribution.customerName,
+      collectorUserId: attribution.collectorUserId,
+      description: attribution.description,
       channel: "autopay",
       paymentMode: "ussd-push",
       createdAt: previous?.createdAt || new Date().toISOString(),
@@ -794,9 +897,18 @@ async function webhook(req, res, next) {
       });
     }
     const previous = recentPayments.get(orderReference);
+    const dbRow = await readDbPaymentStatus(orderReference);
     const amountNum = Number(amount || 0);
-    const finalAmount = amountNum > 0 ? amountNum : Number(previous?.amount || 0);
-    const finalPhone = String(phone || previous?.phone || "").trim().slice(0, 50);
+    const finalAmount = amountNum > 0 ? amountNum : Number(previous?.amount || dbRow?.amount || 0);
+    const finalPhone = String(phone || previous?.phone || dbRow?.phone || "").trim().slice(0, 50);
+    const attribution = resolvePaymentAttribution(
+      {
+        collectorUserId: previous?.collectorUserId || dbRow?.collectorUserId,
+        description: previous?.description || dbRow?.description,
+        customerName: previous?.customerName || dbRow?.customerName,
+      },
+      { ...dbRow, ...previous }
+    );
 
     rememberPayment({
       id: orderReference,
@@ -804,7 +916,9 @@ async function webhook(req, res, next) {
       amount: finalAmount,
       status,
       phone: finalPhone,
-      customerName: String(previous?.customerName || "").trim(),
+      customerName: attribution.customerName,
+      collectorUserId: attribution.collectorUserId,
+      description: attribution.description,
       createdAt: previous?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });

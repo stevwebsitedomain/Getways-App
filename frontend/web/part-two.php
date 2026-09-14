@@ -244,7 +244,7 @@ $gwAuthJson = json_encode([
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
   <script>window.GW_AUTH_USER = <?= $gwAuthJson ?: '{}' ?>;</script>
-  <script src="payments-merge.js?v=3"></script>
+  <script src="payments-merge.js?v=4"></script>
   <script src="receipt-actions.js?v=2"></script>
   <script src="part-two.js?v=<?= urlencode($pageJsVersion) ?>"></script>
   <script>

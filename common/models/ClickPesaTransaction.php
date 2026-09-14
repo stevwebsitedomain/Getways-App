@@ -23,6 +23,7 @@ use yii\db\ActiveRecord;
  * @property string|null $payment_mode
  * @property string|null $phone
  * @property string|null $customer_name
+ * @property string|null $collector_user_id
  * @property string|null $description
  * @property string|null $statement_date
  * @property string $payment_status
@@ -82,6 +83,7 @@ class ClickPesaTransaction extends ActiveRecord
             [['order_reference', 'control_number', 'payout_reference', 'order_id'], 'string', 'max' => 64],
             [['currency'], 'string', 'max' => 8],
             [['phone', 'payout_phone'], 'string', 'max' => 32],
+            [['collector_user_id'], 'string', 'max' => 64],
             [['customer_name'], 'string', 'max' => 255],
             [['description'], 'string', 'max' => 512],
             [['statement_date'], 'string', 'max' => 32],

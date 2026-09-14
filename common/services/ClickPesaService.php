@@ -1026,8 +1026,17 @@ class ClickPesaService extends Component
         $rows = [];
         foreach ($models as $tx) {
             $collectorUserId = '';
-            if (preg_match('/\[gw:([^\]]+)\]/', (string) ($tx->description ?? ''), $m)) {
+            $attrs = $tx->getAttributes();
+            if (!empty($attrs['collector_user_id'])) {
+                $collectorUserId = trim((string) $attrs['collector_user_id']);
+            }
+            $description = (string) ($tx->description ?? '');
+            if ($collectorUserId === '' && preg_match('/\[gw:([^\]]+)\]/', $description, $m)) {
                 $collectorUserId = (string) $m[1];
+            }
+            // Ensure dashboard filters always see the collector tag even if it was wiped earlier.
+            if ($collectorUserId !== '' && !str_contains($description, '[gw:' . $collectorUserId . ']')) {
+                $description = trim('[gw:' . $collectorUserId . '] ' . ($description !== '' ? $description : 'ClickPesa Payment'));
             }
             $rows[] = [
                 'id' => $tx->order_reference,
@@ -1038,7 +1047,7 @@ class ClickPesaService extends Component
                     : $tx->payment_status,
                 'phone' => $tx->phone ?: '',
                 'customerName' => $tx->customer_name ?: '',
-                'description' => $tx->description ?: '',
+                'description' => $description,
                 'collectorUserId' => $collectorUserId,
                 'channel' => $tx->channel ?: '',
                 'controlNumber' => $tx->control_number,

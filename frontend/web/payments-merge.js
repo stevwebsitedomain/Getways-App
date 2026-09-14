@@ -48,12 +48,24 @@
         map.set(row.orderReference, row);
         continue;
       }
-      const keep =
+      const ranked =
         statusRank(row.status) > statusRank(prev.status)
           ? { ...prev, ...row }
           : statusRank(row.status) < statusRank(prev.status)
             ? { ...row, ...prev }
             : { ...prev, ...row, amount: row.amount || prev.amount };
+      const keep = {
+        ...ranked,
+        collectorUserId: String(row.collectorUserId || prev.collectorUserId || "").trim(),
+        description: (() => {
+          const next = String(row.description || "").trim();
+          const old = String(prev.description || "").trim();
+          if (!next || (next === "ClickPesa Payment" && old)) return old || next;
+          return next;
+        })(),
+        customerName: String(row.customerName || prev.customerName || "").trim(),
+        amount: Number(row.amount || prev.amount || 0),
+      };
       map.set(row.orderReference, keep);
     }
     return Array.from(map.values()).sort(

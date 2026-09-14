@@ -8,7 +8,15 @@ const { getOrCreateSettingsRow, getDestinationPhone, maskPhone, normalizePhone }
 
 const DEFAULT_PAYOUT_PHONE = "255715296092";
 const FINAL_PAYOUT_STATUSES = new Set(["SUCCESS", "REFUNDED", "REVERSED"]);
-const IN_FLIGHT_PAYOUT_STATUSES = new Set(["QUEUED", "AWAITING_APPROVAL", "PROCESSING", "PREVIEWED", "PENDING"]);
+const IN_FLIGHT_PAYOUT_STATUSES = new Set([
+  "QUEUED",
+  "AWAITING_APPROVAL",
+  "PROCESSING",
+  "PREVIEWED",
+  "PENDING",
+  "AUTHORIZED",
+  "AUTHORISED",
+]);
 
 function isSuccessfulPayment(status) {
   const value = String(status || "").trim().toUpperCase();
@@ -282,6 +290,40 @@ async function maybeQueueAutomaticPayout(tx) {
   return true;
 }
 
+async function reconcileOpenPayoutStatuses(db, limit = 10) {
+  const [rows] = await db.query(
+    `SELECT * FROM clickpesa_payout
+     WHERE payout_status IN ('AUTHORIZED', 'AUTHORISED', 'PENDING', 'PROCESSING', 'PREVIEWED')
+     ORDER BY id DESC
+     LIMIT ?`,
+    [limit]
+  );
+  let synced = 0;
+  for (const payout of rows || []) {
+    const ref = String(payout.payout_reference || "").trim();
+    if (!ref) continue;
+    try {
+      const remote = await queryPayoutStatus(ref);
+      const remoteMapped = mapPayoutStatus(remote);
+      if (!remoteMapped || remoteMapped === String(payout.payout_status || "").toUpperCase()) {
+        continue;
+      }
+      await db.query(
+        "UPDATE clickpesa_payout SET payout_status = ?, raw_response = ?, updated_at = ? WHERE id = ?",
+        [remoteMapped, JSON.stringify(remote), Math.floor(Date.now() / 1000), payout.id]
+      );
+      const [updatedRows] = await db.query("SELECT * FROM clickpesa_payout WHERE id = ? LIMIT 1", [payout.id]);
+      if (updatedRows[0]) {
+        await syncLegacyPayoutFields(db, updatedRows[0]);
+      }
+      synced += 1;
+    } catch (error) {
+      console.warn("Payout status sync failed:", ref, error.message);
+    }
+  }
+  return synced;
+}
+
 async function processPendingAutoPayouts(limit = 5) {
   const db = getPool();
   const settings = await getOrCreateSettingsRow(db);
@@ -293,6 +335,13 @@ async function processPendingAutoPayouts(limit = 5) {
   const phone = await resolvePayoutPhone(settings);
   if (!phone) {
     return { processed: 0 };
+  }
+
+  // Reconcile AUTHORIZED/PENDING payouts so money that already left the wallet shows SUCCESS.
+  try {
+    await reconcileOpenPayoutStatuses(db, Math.max(limit, 8));
+  } catch (error) {
+    console.warn("reconcileOpenPayoutStatuses:", error.message);
   }
 
   // Recover SUCCESS payments that never got a payout row (the main user-facing bug).
@@ -325,7 +374,7 @@ async function processPendingAutoPayouts(limit = 5) {
 
   let processed = 0;
   for (const payout of rows) {
-    if (String(payout.payout_status).toUpperCase() === "FAILED" && Number(payout.retry_count || 0) >= 3) {
+    if (String(payout.payout_status).toUpperCase() === "FAILED" && Number(payout.retry_count || 0) >= 5) {
       continue;
     }
     try {

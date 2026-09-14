@@ -49,28 +49,35 @@ function upsertPayment(entry) {
     return;
   }
   const rows = readAll();
+  const idx = rows.findIndex((r) => String(r.orderReference || "").toUpperCase() === key);
+  const prev = idx >= 0 ? rows[idx] : null;
+  const nextCollector = String(entry.collectorUserId || "").trim() || String(prev?.collectorUserId || "").trim();
+  const nextDescriptionRaw = String(entry.description || "").trim();
+  const prevDescription = String(prev?.description || "").trim();
+  const nextDescription =
+    nextDescriptionRaw && nextDescriptionRaw !== "ClickPesa Payment"
+      ? nextDescriptionRaw
+      : prevDescription || nextDescriptionRaw;
   const next = {
     id: key,
     orderReference: key,
-    amount: Number(entry.amount || 0),
-    status: String(entry.status || "PENDING").toUpperCase(),
-    phone: entry.phone || "",
-    customerName: String(entry.customerName || "").trim(),
-    description: String(entry.description || "").trim(),
-    collectorUserId: String(entry.collectorUserId || "").trim(),
-    channel: entry.channel || entry.paymentMode || "",
-    createdAt: entry.createdAt || new Date().toISOString(),
+    amount: Number(entry.amount || prev?.amount || 0),
+    status: String(entry.status || prev?.status || "PENDING").toUpperCase(),
+    phone: entry.phone || prev?.phone || "",
+    customerName: String(entry.customerName || prev?.customerName || "").trim(),
+    description: nextDescription,
+    collectorUserId: nextCollector,
+    channel: entry.channel || entry.paymentMode || prev?.channel || "",
+    createdAt: prev?.createdAt || entry.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  const idx = rows.findIndex((r) => String(r.orderReference || "").toUpperCase() === key);
   if (idx >= 0) {
-    const prev = rows[idx];
     const prevRank = statusRank(prev.status);
     const nextRank = statusRank(next.status);
     rows[idx] =
       nextRank >= prevRank
-        ? { ...prev, ...next, createdAt: prev.createdAt || next.createdAt }
-        : { ...next, ...prev, updatedAt: next.updatedAt };
+        ? { ...prev, ...next, createdAt: prev.createdAt || next.createdAt, collectorUserId: next.collectorUserId || prev.collectorUserId || "", description: next.description || prev.description || "" }
+        : { ...next, ...prev, updatedAt: next.updatedAt, collectorUserId: prev.collectorUserId || next.collectorUserId || "", description: prev.description || next.description || "" };
   } else {
     rows.unshift(next);
   }

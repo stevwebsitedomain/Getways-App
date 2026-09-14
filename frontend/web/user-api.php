@@ -172,7 +172,22 @@ function userMergePaymentLists(array $listA, array $listB): array
             $map[$ref] = $row;
             continue;
         }
-        $map[$ref] = array_merge($map[$ref], $row);
+        $prev = $map[$ref];
+        $merged = array_merge($prev, $row);
+        // Never let an empty remote/local field wipe attribution.
+        $merged['collectorUserId'] = trim((string) ($row['collectorUserId'] ?: $prev['collectorUserId']));
+        $prevDesc = trim((string) ($prev['description'] ?? ''));
+        $nextDesc = trim((string) ($row['description'] ?? ''));
+        if ($nextDesc === '' || ($nextDesc === 'ClickPesa Payment' && $prevDesc !== '')) {
+            $merged['description'] = $prevDesc !== '' ? $prevDesc : $nextDesc;
+        }
+        if (trim((string) ($merged['customerName'] ?? '')) === '') {
+            $merged['customerName'] = (string) ($prev['customerName'] ?? '');
+        }
+        if ((float) ($merged['amount'] ?? 0) <= 0 && (float) ($prev['amount'] ?? 0) > 0) {
+            $merged['amount'] = (float) $prev['amount'];
+        }
+        $map[$ref] = $merged;
     }
 
     $out = array_values($map);
