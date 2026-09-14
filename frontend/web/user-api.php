@@ -249,13 +249,24 @@ function userFilterPaymentsByType(array $payments, string $type): array
 
 /**
  * Keep only payments that belong to this logged-in wallet account.
+ * Admins see every collection (all users).
  *
  * @param array<int,array<string,mixed>> $payments
  * @param array<string,mixed> $user
  * @return array<int,array<string,mixed>>
  */
+function userIsAdminAccount(array $user): bool
+{
+    return strtolower(trim((string) ($user['role'] ?? ''))) === 'admin'
+        || strcasecmp(trim((string) ($user['username'] ?? '')), 'admin') === 0;
+}
+
 function userFilterPaymentsForAccount(array $payments, array $user): array
 {
+    if (userIsAdminAccount($user)) {
+        return array_values($payments);
+    }
+
     $uid = trim((string) ($user['id'] ?? ''));
     $phone = normalizePhone((string) ($user['phone'] ?? ''));
     $name = strtolower(trim((string) ($user['fullName'] ?? '')));

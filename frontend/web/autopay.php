@@ -10,6 +10,8 @@ $gwAuthJson = json_encode([
     'id' => (string) ($authUser['id'] ?? ''),
     'fullName' => (string) ($authUser['fullName'] ?? ''),
     'phone' => (string) ($authUser['phone'] ?? ''),
+    'username' => (string) ($authUser['username'] ?? ''),
+    'role' => (string) ($authUser['role'] ?? 'user'),
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!DOCTYPE html>

@@ -129,15 +129,28 @@
     return id;
   }
 
+  function isAdminViewer() {
+    const role = String(global.GW_AUTH_USER?.role || "")
+      .trim()
+      .toLowerCase();
+    const username = String(global.GW_AUTH_USER?.username || "")
+      .trim()
+      .toLowerCase();
+    return role === "admin" || username === "admin";
+  }
+
   function filterPaymentsForCurrentUser(payments) {
+    const list = Array.isArray(payments) ? payments : [];
+    // Admin sees every user's successful collections; regular users only their own.
+    if (isAdminViewer()) return list;
     const uid = currentCollectorUserId();
-    if (!uid) return Array.isArray(payments) ? payments : [];
+    if (!uid) return [];
     const tag = `[gw:${uid}]`;
     const phone = String(global.GW_AUTH_USER?.phone || "").replace(/\D/g, "");
     const name = String(global.GW_AUTH_USER?.fullName || "")
       .trim()
       .toLowerCase();
-    return (payments || []).filter((payment) => {
+    return list.filter((payment) => {
       const collector = String(payment.collectorUserId || "").trim();
       const desc = String(payment.description || "");
       if (collector === uid || desc.includes(tag)) return true;
@@ -159,9 +172,10 @@
     const RENDER_API = "https://getways-app.onrender.com";
     const hdrs = headers || { "Content-Type": "application/json" };
     const collectorId = currentCollectorUserId();
-    const collectorQuery = collectorId
-      ? `?collectorUserId=${encodeURIComponent(collectorId)}&userId=${encodeURIComponent(collectorId)}`
-      : "";
+    const collectorQuery =
+      !isAdminViewer() && collectorId
+        ? `?collectorUserId=${encodeURIComponent(collectorId)}&userId=${encodeURIComponent(collectorId)}`
+        : "";
 
     const proxy = await fetchJsonSafe(`${walletUserApiBase()}?action=wallet-payments`, hdrs);
     if (proxy && proxy.ok !== false && Array.isArray(proxy.payments)) {

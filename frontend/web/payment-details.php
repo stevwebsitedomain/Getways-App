@@ -10,6 +10,8 @@ $gwAuthJson = json_encode([
     'fullName' => (string) ($authUser['fullName'] ?? ''),
     'phone' => (string) ($authUser['phone'] ?? ''),
     'email' => (string) ($authUser['email'] ?? ''),
+    'username' => (string) ($authUser['username'] ?? ''),
+    'role' => (string) ($authUser['role'] ?? 'user'),
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!DOCTYPE html>
@@ -133,7 +135,7 @@ $gwAuthJson = json_encode([
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="wallet-shell.js?v=<?= urlencode($shellVersion) ?>"></script>
   <script>window.GW_AUTH_USER = <?= $gwAuthJson ?: '{}' ?>;</script>
-  <script src="payments-merge.js?v=3"></script>
+  <script src="payments-merge.js?v=5"></script>
   <script src="receipt-actions.js?v=2"></script>
   <script src="payment-details.js?v=4"></script>
 </body>
