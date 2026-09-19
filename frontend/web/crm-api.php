@@ -583,22 +583,22 @@ function crmBuildEmailEventsSection(string $font): array
     $events = [
         [
             'img' => $portrait,
-            'title' => 'THE DIGITAL MATRIX TECHNOLOGY CLIENT SYSTEMS WORKSHOP 2026',
-            'when' => 'Sep 22, 2026 09:00 - Sep 23, 2026 16:00',
+            'title' => 'THE DIGITAL MATRIX TECHNOLOGY CLIENT SYSTEMS WORKSHOP 2025',
+            'when' => 'Delivered: Mar 14, 2025 — Mar 15, 2025',
             'where' => 'Dar es Salaam, Tanzania',
             'desc' => 'Briefings on school portals, TRA data systems, CRM and office platforms.',
         ],
         [
             'img' => $schoolImg,
             'title' => 'SCHOOL SYSTEMS DELIVERY SYSTEM',
-            'when' => 'Oct 05, 2026 10:00 - 14:00',
+            'when' => 'Delivered: Nov 18, 2025',
             'where' => 'Dar es Salaam, Tanzania',
             'desc' => 'Student records, academic operations and administration tools.',
         ],
         [
             'img' => $officeImg,
             'title' => 'CRM & PRODUCT MANAGEMENT SYSTEM',
-            'when' => 'Oct 18, 2026 09:30 - 13:00',
+            'when' => 'Delivered: Jan 22, 2026',
             'where' => 'Digital Matrix Technology Studio, Dar es Salaam',
             'desc' => 'Lead tracking, product catalogs and end-to-end business workflows.',
         ],
@@ -607,7 +607,7 @@ function crmBuildEmailEventsSection(string $font): array
     $news = [
         [
             'day' => '08',
-            'meta' => 'Tue Sep',
+            'meta' => 'Mon Sep',
             'title' => 'DIGITAL MATRIX TECHNOLOGY EXPANDS FULL-STACK DELIVERY',
         ],
         [
@@ -621,8 +621,8 @@ function crmBuildEmailEventsSection(string $font): array
             'title' => 'SUPPORT VIA WHATSAPP · +255 715 296 092',
         ],
         [
-            'day' => '20',
-            'meta' => 'Sat Sep',
+            'day' => '18',
+            'meta' => 'Thu Sep',
             'title' => 'PORTFOLIO UPDATES AT MAKARIOUS.LEGITCONSULT.CO.TZ',
         ],
     ];
