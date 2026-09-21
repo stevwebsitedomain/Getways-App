@@ -116,6 +116,7 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" data-ad-target="whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
         <button type="button" data-ad-target="crm"><i class="fa-solid fa-address-book"></i> CRM</button>
         <button type="button" data-ad-target="crm-database"><i class="fa-solid fa-database"></i> Database</button>
+        <button type="button" data-ad-target="monitoring-devices"><i class="fa-solid fa-desktop"></i> Monitoring</button>
         <button type="button" id="ad-refresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
         <button type="button" id="ad-ga-open"><i class="fa-solid fa-circle-nodes"></i> General Analysis</button>
       </div>
@@ -221,6 +222,22 @@ require __DIR__ . '/acs-gov-banner.php';
         <button type="button" class="ad-sidebar-link" data-ad-target="crm-database">
           <i class="fa-solid fa-database ad-nav-ico"></i>
           <span class="ad-sidebar-text">Database</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <p class="ad-sidebar-label">MONITORING</p>
+        <button type="button" class="ad-sidebar-link" data-ad-target="monitoring-devices">
+          <i class="fa-solid fa-desktop ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Devices</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="monitoring-activity">
+          <i class="fa-solid fa-list-check ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Activity</span>
+          <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ad-sidebar-link" data-ad-target="monitoring-device">
+          <i class="fa-solid fa-server ad-nav-ico"></i>
+          <span class="ad-sidebar-text">Device detail</span>
           <i class="fa-solid fa-chevron-right ad-sidebar-chevron" aria-hidden="true"></i>
         </button>
       </nav>
@@ -940,6 +957,152 @@ require __DIR__ . '/acs-gov-banner.php';
       <p id="ad-crm-db-msg" class="ad-msg" hidden></p>
       <p class="ad-crm-extra-email-hint" id="ad-crm-extra-email-hint" hidden></p>
       <div id="ad-crm-db-results" class="ad-crm-results" aria-live="polite"></div>
+    </section>
+
+    <section class="ad-card ad-page-section" id="ad-section-monitoring-devices" data-ad-page="monitoring-devices">
+      <div class="ad-card-head">
+        <div>
+          <h2><i class="fa-solid fa-desktop"></i> Monitoring · Devices</h2>
+          <p class="ad-period-sub">Localhost installations connected to ACS Portal</p>
+        </div>
+        <div class="ad-card-actions">
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-mon-devices-refresh">
+            <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+          </button>
+        </div>
+      </div>
+      <p id="ad-mon-devices-msg" class="ad-msg" hidden></p>
+      <div class="ad-mon-table-wrap">
+        <table class="ad-mon-table" aria-label="Monitoring devices">
+          <thead>
+            <tr>
+              <th>Device</th>
+              <th>Status</th>
+              <th>Daily limit</th>
+              <th>Expires</th>
+              <th>Last seen</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ad-mon-devices-body">
+            <tr><td colspan="6">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ad-card ad-page-section" id="ad-section-monitoring-activity" data-ad-page="monitoring-activity">
+      <div class="ad-card-head">
+        <div>
+          <h2><i class="fa-solid fa-list-check"></i> Monitoring · Activity</h2>
+          <p class="ad-period-sub">Logs received from installations</p>
+        </div>
+        <div class="ad-card-actions">
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-mon-activity-refresh">
+            <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+          </button>
+        </div>
+      </div>
+      <form id="ad-mon-activity-filters" class="ad-mon-filters" autocomplete="off">
+        <label>Device
+          <select id="ad-mon-filter-device">
+            <option value="">All devices</option>
+          </select>
+        </label>
+        <label>Action
+          <input type="text" id="ad-mon-filter-action" placeholder="e.g. search_performed" />
+        </label>
+        <label>From
+          <input type="date" id="ad-mon-filter-from" />
+        </label>
+        <label>To
+          <input type="date" id="ad-mon-filter-to" />
+        </label>
+        <button type="submit" class="ad-btn ad-btn--primary"><i class="fa-solid fa-filter"></i><span>Filter</span></button>
+      </form>
+      <p id="ad-mon-activity-msg" class="ad-msg" hidden></p>
+      <div class="ad-mon-table-wrap">
+        <table class="ad-mon-table" aria-label="Monitoring activity">
+          <thead>
+            <tr>
+              <th>Received</th>
+              <th>Device</th>
+              <th>User</th>
+              <th>Action</th>
+              <th>Status</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody id="ad-mon-activity-body">
+            <tr><td colspan="6">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ad-card ad-page-section" id="ad-section-monitoring-device" data-ad-page="monitoring-device">
+      <div class="ad-card-head">
+        <div>
+          <h2><i class="fa-solid fa-server"></i> Monitoring · Device detail</h2>
+          <p class="ad-period-sub">Remote control: status, expiry, daily limit, maintenance, message</p>
+        </div>
+        <div class="ad-card-actions">
+          <button type="button" class="ad-btn ad-btn--ghost" id="ad-mon-detail-refresh">
+            <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+          </button>
+        </div>
+      </div>
+      <div class="ad-mon-detail-pick">
+        <label>Device
+          <select id="ad-mon-detail-device">
+            <option value="BOSS-PC-001">BOSS-PC-001</option>
+          </select>
+        </label>
+      </div>
+      <p id="ad-mon-detail-msg" class="ad-msg" hidden></p>
+      <form id="ad-mon-detail-form" class="ad-form ad-mon-detail-form" autocomplete="off">
+        <div class="ad-mon-detail-grid">
+          <label>Status
+            <select name="status" id="ad-mon-detail-status">
+              <option value="active">active</option>
+              <option value="suspended">suspended</option>
+              <option value="expired">expired</option>
+            </select>
+          </label>
+          <label>License expires
+            <input type="datetime-local" name="license_expires_at" id="ad-mon-detail-expires" />
+          </label>
+          <label>Daily search limit
+            <input type="number" name="daily_search_limit" id="ad-mon-detail-limit" min="0" step="1" placeholder="100" />
+          </label>
+          <label class="ad-mon-check">
+            <input type="checkbox" name="maintenance_mode" id="ad-mon-detail-maint" />
+            Maintenance mode
+          </label>
+        </div>
+        <label>Message to device
+          <textarea name="message" id="ad-mon-detail-message" rows="3" placeholder="Optional message shown on the installation"></textarea>
+        </label>
+        <p class="ad-mon-meta" id="ad-mon-detail-meta"></p>
+        <button type="submit" class="ad-btn ad-btn--primary"><i class="fa-solid fa-floppy-disk"></i><span>Save remote settings</span></button>
+      </form>
+      <h3 class="ad-mon-subtitle">Recent logs</h3>
+      <div class="ad-mon-table-wrap">
+        <table class="ad-mon-table" aria-label="Device recent logs">
+          <thead>
+            <tr>
+              <th>Received</th>
+              <th>Action</th>
+              <th>User</th>
+              <th>Status</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody id="ad-mon-detail-logs">
+            <tr><td colspan="5">Select a device…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="ad-page-section ad-ga-page" id="ad-section-general-analysis" data-ad-page="general-analysis">

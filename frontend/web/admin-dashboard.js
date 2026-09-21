@@ -2126,6 +2126,9 @@
     whatsapp: "WhatsApp",
     crm: "CRM",
     "crm-database": "Database",
+    "monitoring-devices": "Monitoring · Devices",
+    "monitoring-activity": "Monitoring · Activity",
+    "monitoring-device": "Monitoring · Device detail",
   };
 
   function scrollToPortalSection(key, options = {}) {
@@ -2140,6 +2143,9 @@
       whatsapp: "ad-section-whatsapp",
       crm: "ad-section-crm",
       "crm-database": "ad-section-crm-database",
+      "monitoring-devices": "ad-section-monitoring-devices",
+      "monitoring-activity": "ad-section-monitoring-activity",
+      "monitoring-device": "ad-section-monitoring-device",
     };
     if (key === "payouts") key = "payout-dest";
     if (!idMap[key]) return;
@@ -2184,6 +2190,15 @@
         }
         if (key === "crm-database") {
           document.dispatchEvent(new CustomEvent("crm:load-database"));
+        }
+        if (key === "monitoring-devices") {
+          document.dispatchEvent(new CustomEvent("mon:load-devices"));
+        }
+        if (key === "monitoring-activity") {
+          document.dispatchEvent(new CustomEvent("mon:load-activity"));
+        }
+        if (key === "monitoring-device") {
+          document.dispatchEvent(new CustomEvent("mon:load-detail"));
         }
       }, 80);
     }
@@ -4397,6 +4412,276 @@
     loadSavedLeads();
   }
 
+  function bindMonitoringSection() {
+    const devicesBody = document.getElementById("ad-mon-devices-body");
+    const activityBody = document.getElementById("ad-mon-activity-body");
+    const detailLogs = document.getElementById("ad-mon-detail-logs");
+    if (!devicesBody && !activityBody && !detailLogs) return;
+
+    const devicesMsg = document.getElementById("ad-mon-devices-msg");
+    const activityMsg = document.getElementById("ad-mon-activity-msg");
+    const detailMsg = document.getElementById("ad-mon-detail-msg");
+    const filterDevice = document.getElementById("ad-mon-filter-device");
+    const detailDevice = document.getElementById("ad-mon-detail-device");
+    let devicesCache = [];
+    let detailDeviceId = "BOSS-PC-001";
+
+    function setMonMsg(el, text, type = "") {
+      if (!el) return;
+      const t = String(text || "").trim();
+      if (!t) {
+        el.hidden = true;
+        el.textContent = "";
+        el.className = "ad-msg";
+        return;
+      }
+      el.hidden = false;
+      el.textContent = t;
+      el.className = "ad-msg" + (type ? ` ad-msg--${type}` : "");
+    }
+
+    function statusBadge(status) {
+      const s = String(status || "active").toLowerCase();
+      const cls =
+        s === "suspended" ? "ad-mon-badge--suspended" : s === "expired" ? "ad-mon-badge--expired" : "ad-mon-badge--active";
+      return `<span class="ad-mon-badge ${cls}">${esc(s)}</span>`;
+    }
+
+    function fmtDt(v) {
+      const s = String(v || "").trim();
+      return s || "—";
+    }
+
+    function toDatetimeLocal(v) {
+      const s = String(v || "").trim();
+      if (!s) return "";
+      const m = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+      return m ? `${m[1]}T${m[2]}` : "";
+    }
+
+    function fromDatetimeLocal(v) {
+      const s = String(v || "").trim();
+      if (!s) return null;
+      return s.replace("T", " ") + (s.length === 16 ? ":00" : "");
+    }
+
+    function fillDeviceSelects(devices) {
+      const opts = ['<option value="">All devices</option>'].concat(
+        devices.map((d) => `<option value="${esc(d.device_id)}">${esc(d.device_id)}</option>`)
+      );
+      if (filterDevice) {
+        const cur = filterDevice.value;
+        filterDevice.innerHTML = opts.join("");
+        if (cur) filterDevice.value = cur;
+      }
+      if (detailDevice) {
+        const cur = detailDevice.value || detailDeviceId;
+        detailDevice.innerHTML = devices
+          .map((d) => `<option value="${esc(d.device_id)}">${esc(d.device_id)}</option>`)
+          .join("") || '<option value="BOSS-PC-001">BOSS-PC-001</option>';
+        if (cur) detailDevice.value = cur;
+        detailDeviceId = detailDevice.value || "BOSS-PC-001";
+      }
+    }
+
+    async function loadDevices() {
+      if (!devicesBody) return;
+      setMonMsg(devicesMsg, "");
+      devicesBody.innerHTML = `<tr><td colspan="6">Loading…</td></tr>`;
+      try {
+        const res = await fetch("monitoring-admin-api.php?action=devices", { credentials: "same-origin" });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Failed to load devices.");
+        devicesCache = Array.isArray(data.devices) ? data.devices : [];
+        fillDeviceSelects(devicesCache);
+        if (!devicesCache.length) {
+          devicesBody.innerHTML = `<tr><td colspan="6">No devices registered yet.</td></tr>`;
+          return;
+        }
+        devicesBody.innerHTML = devicesCache
+          .map(
+            (d) => `<tr>
+              <td><strong>${esc(d.device_id)}</strong>${d.device_uuid ? `<br><small>${esc(d.device_uuid)}</small>` : ""}</td>
+              <td>${statusBadge(d.status)}${Number(d.maintenance_mode) ? " · maint" : ""}</td>
+              <td>${d.daily_search_limit == null ? "—" : esc(d.daily_search_limit)}</td>
+              <td>${fmtDt(d.license_expires_at)}</td>
+              <td>${fmtDt(d.last_seen_at)}</td>
+              <td><button type="button" class="ad-btn ad-btn--ghost ad-mon-open-detail" data-device="${esc(d.device_id)}">Edit</button></td>
+            </tr>`
+          )
+          .join("");
+      } catch (error) {
+        devicesBody.innerHTML = `<tr><td colspan="6">${esc(error.message || "Error")}</td></tr>`;
+        setMonMsg(devicesMsg, error.message || "Failed to load devices.", "error");
+      }
+    }
+
+    async function loadActivity() {
+      if (!activityBody) return;
+      setMonMsg(activityMsg, "");
+      activityBody.innerHTML = `<tr><td colspan="6">Loading…</td></tr>`;
+      const params = new URLSearchParams({ action: "activity", limit: "100" });
+      const deviceId = String(filterDevice?.value || "").trim();
+      const logAction = String(document.getElementById("ad-mon-filter-action")?.value || "").trim();
+      const from = String(document.getElementById("ad-mon-filter-from")?.value || "").trim();
+      const to = String(document.getElementById("ad-mon-filter-to")?.value || "").trim();
+      if (deviceId) params.set("device_id", deviceId);
+      if (logAction) params.set("log_action", logAction);
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      try {
+        if (!devicesCache.length) {
+          const dRes = await fetch("monitoring-admin-api.php?action=devices", { credentials: "same-origin" });
+          const dData = await dRes.json();
+          if (dRes.ok && dData.success) {
+            devicesCache = Array.isArray(dData.devices) ? dData.devices : [];
+            fillDeviceSelects(devicesCache);
+          }
+        }
+        const res = await fetch(`monitoring-admin-api.php?${params}`, { credentials: "same-origin" });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Failed to load activity.");
+        const logs = Array.isArray(data.logs) ? data.logs : [];
+        if (!logs.length) {
+          activityBody.innerHTML = `<tr><td colspan="6">No logs match these filters.</td></tr>`;
+          return;
+        }
+        activityBody.innerHTML = logs
+          .map(
+            (row) => `<tr>
+              <td>${esc(fmtDt(row.received_at))}</td>
+              <td>${esc(row.device_id)}</td>
+              <td>${esc(row.username || "—")}</td>
+              <td>${esc(row.action || "—")}</td>
+              <td>${esc(row.status || "—")}</td>
+              <td>${esc(row.description || "—")}</td>
+            </tr>`
+          )
+          .join("");
+      } catch (error) {
+        activityBody.innerHTML = `<tr><td colspan="6">${esc(error.message || "Error")}</td></tr>`;
+        setMonMsg(activityMsg, error.message || "Failed to load activity.", "error");
+      }
+    }
+
+    async function loadDetail() {
+      if (!detailLogs) return;
+      setMonMsg(detailMsg, "");
+      const deviceId = String(detailDevice?.value || detailDeviceId || "BOSS-PC-001").trim();
+      detailDeviceId = deviceId;
+      detailLogs.innerHTML = `<tr><td colspan="5">Loading…</td></tr>`;
+      try {
+        if (!devicesCache.length) {
+          const dRes = await fetch("monitoring-admin-api.php?action=devices", { credentials: "same-origin" });
+          const dData = await dRes.json();
+          if (dRes.ok && dData.success) {
+            devicesCache = Array.isArray(dData.devices) ? dData.devices : [];
+            fillDeviceSelects(devicesCache);
+            if (detailDevice) detailDevice.value = deviceId;
+          }
+        }
+        const res = await fetch(
+          `monitoring-admin-api.php?action=device&device_id=${encodeURIComponent(deviceId)}`,
+          { credentials: "same-origin" }
+        );
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Failed to load device.");
+        const d = data.device || {};
+        const statusEl = document.getElementById("ad-mon-detail-status");
+        const expiresEl = document.getElementById("ad-mon-detail-expires");
+        const limitEl = document.getElementById("ad-mon-detail-limit");
+        const maintEl = document.getElementById("ad-mon-detail-maint");
+        const messageEl = document.getElementById("ad-mon-detail-message");
+        const metaEl = document.getElementById("ad-mon-detail-meta");
+        if (statusEl) statusEl.value = String(d.status || "active").toLowerCase();
+        if (expiresEl) expiresEl.value = toDatetimeLocal(d.license_expires_at);
+        if (limitEl) limitEl.value = d.daily_search_limit == null ? "" : String(d.daily_search_limit);
+        if (maintEl) maintEl.checked = !!Number(d.maintenance_mode);
+        if (messageEl) messageEl.value = d.message || "";
+        if (metaEl) {
+          metaEl.textContent = `UUID: ${d.device_uuid || "—"} · Last seen: ${fmtDt(d.last_seen_at)} · Created: ${fmtDt(d.created_at)}`;
+        }
+        const logs = Array.isArray(data.recentLogs) ? data.recentLogs : [];
+        detailLogs.innerHTML = logs.length
+          ? logs
+              .map(
+                (row) => `<tr>
+                  <td>${esc(fmtDt(row.received_at))}</td>
+                  <td>${esc(row.action || "—")}</td>
+                  <td>${esc(row.username || "—")}</td>
+                  <td>${esc(row.status || "—")}</td>
+                  <td>${esc(row.description || "—")}</td>
+                </tr>`
+              )
+              .join("")
+          : `<tr><td colspan="5">No recent logs for this device.</td></tr>`;
+      } catch (error) {
+        detailLogs.innerHTML = `<tr><td colspan="5">${esc(error.message || "Error")}</td></tr>`;
+        setMonMsg(detailMsg, error.message || "Failed to load device.", "error");
+      }
+    }
+
+    document.getElementById("ad-mon-devices-refresh")?.addEventListener("click", () => loadDevices());
+    document.getElementById("ad-mon-activity-refresh")?.addEventListener("click", () => loadActivity());
+    document.getElementById("ad-mon-detail-refresh")?.addEventListener("click", () => loadDetail());
+    document.getElementById("ad-mon-activity-filters")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      loadActivity();
+    });
+    detailDevice?.addEventListener("change", () => {
+      detailDeviceId = detailDevice.value;
+      loadDetail();
+    });
+    devicesBody?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".ad-mon-open-detail");
+      if (!btn) return;
+      const id = btn.getAttribute("data-device") || "";
+      if (!id) return;
+      if (detailDevice) detailDevice.value = id;
+      detailDeviceId = id;
+      scrollToPortalSection("monitoring-device");
+    });
+
+    document.getElementById("ad-mon-detail-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const deviceId = String(detailDevice?.value || detailDeviceId || "").trim();
+      if (!deviceId) return;
+      setMonMsg(detailMsg, "Saving…");
+      try {
+        const payload = {
+          device_id: deviceId,
+          status: String(document.getElementById("ad-mon-detail-status")?.value || "active"),
+          license_expires_at: fromDatetimeLocal(document.getElementById("ad-mon-detail-expires")?.value),
+          daily_search_limit: (() => {
+            const raw = String(document.getElementById("ad-mon-detail-limit")?.value || "").trim();
+            return raw === "" ? null : Number(raw);
+          })(),
+          maintenance_mode: !!document.getElementById("ad-mon-detail-maint")?.checked,
+          message: String(document.getElementById("ad-mon-detail-message")?.value || "").trim() || null,
+        };
+        const res = await fetch("monitoring-admin-api.php?action=update-device", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Save failed.");
+        setMonMsg(detailMsg, "Remote settings saved.", "success");
+        notify("Device settings saved.", "success", { force: true });
+        await loadDetail();
+        await loadDevices();
+      } catch (error) {
+        setMonMsg(detailMsg, error.message || "Save failed.", "error");
+        notify(error.message || "Save failed.", "error", { force: true });
+      }
+    });
+
+    document.addEventListener("mon:load-devices", () => loadDevices());
+    document.addEventListener("mon:load-activity", () => loadActivity());
+    document.addEventListener("mon:load-detail", () => loadDetail());
+  }
+
   function bindWhatsappSection() {
     if (!document.getElementById("ad-section-whatsapp")) return;
     loadWaHidden();
@@ -4880,6 +5165,7 @@
   bindPortalNavigation();
   bindWhatsappSection();
   bindCrmSection();
+  bindMonitoringSection();
   bindAdminProfilePhoto();
   document.body.classList.add("ad-view-home");
   const detailOnLoad = document.getElementById("ad-detail-sections");
