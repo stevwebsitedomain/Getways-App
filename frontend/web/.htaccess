@@ -1,8 +1,22 @@
 Options -Indexes
 DirectoryIndex index.php index.html
 
+# Block env / secrets if ever placed under the web root.
+<FilesMatch "(?i)^\.(env|env\..+|htaccess|htpasswd)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
 <IfModule mod_rewrite.c>
 RewriteEngine On
+
+# Deny direct access to runtime / private dirs under web root.
+RewriteRule ^(runtime|\.git)(/|$) - [F,L]
 
 # Serve existing files/folders directly.
 RewriteCond %{REQUEST_FILENAME} -f [OR]

@@ -4423,8 +4423,11 @@
     const detailMsg = document.getElementById("ad-mon-detail-msg");
     const filterDevice = document.getElementById("ad-mon-filter-device");
     const detailDevice = document.getElementById("ad-mon-detail-device");
+    const detailAudit = document.getElementById("ad-mon-detail-audit");
+    const csrfEl = document.getElementById("ad-mon-detail-csrf");
     let devicesCache = [];
     let detailDeviceId = "BOSS-PC-001";
+    let monCsrf = "";
 
     function setMonMsg(el, text, type = "") {
       if (!el) return;
@@ -4447,6 +4450,12 @@
       return `<span class="ad-mon-badge ${cls}">${esc(s)}</span>`;
     }
 
+    function presenceBadge(d) {
+      const online = !!(d.is_online || d.presence === "online");
+      const cls = online ? "ad-mon-badge--online" : "ad-mon-badge--offline";
+      return `<span class="ad-mon-badge ${cls}">${online ? "online" : "offline"}</span>`;
+    }
+
     function fmtDt(v) {
       const s = String(v || "").trim();
       return s || "—";
@@ -4465,9 +4474,15 @@
       return s.replace("T", " ") + (s.length === 16 ? ":00" : "");
     }
 
+    function setCsrf(token) {
+      if (!token) return;
+      monCsrf = String(token);
+      if (csrfEl) csrfEl.value = monCsrf;
+    }
+
     function fillDeviceSelects(devices) {
       const opts = ['<option value="">All devices</option>'].concat(
-        devices.map((d) => `<option value="${esc(d.device_id)}">${esc(d.device_id)}</option>`)
+        devices.map((d) => `<option value="${esc(d.device_id)}">${esc(d.device_name || d.device_id)}</option>`)
       );
       if (filterDevice) {
         const cur = filterDevice.value;
@@ -4477,17 +4492,29 @@
       if (detailDevice) {
         const cur = detailDevice.value || detailDeviceId;
         detailDevice.innerHTML = devices
-          .map((d) => `<option value="${esc(d.device_id)}">${esc(d.device_id)}</option>`)
+          .map((d) => `<option value="${esc(d.device_id)}">${esc(d.device_name || d.device_id)} (${esc(d.device_id)})</option>`)
           .join("") || '<option value="BOSS-PC-001">BOSS-PC-001</option>';
         if (cur) detailDevice.value = cur;
         detailDeviceId = detailDevice.value || "BOSS-PC-001";
       }
     }
 
+    async function ensureCsrf() {
+      if (monCsrf) return monCsrf;
+      try {
+        const res = await fetch("monitoring-admin-api.php?action=csrf", { credentials: "same-origin" });
+        const data = await res.json();
+        if (res.ok && data.csrf) setCsrf(data.csrf);
+      } catch (_) {
+        /* ignore */
+      }
+      return monCsrf;
+    }
+
     async function loadDevices() {
       if (!devicesBody) return;
       setMonMsg(devicesMsg, "");
-      devicesBody.innerHTML = `<tr><td colspan="6">Loading…</td></tr>`;
+      devicesBody.innerHTML = `<tr><td colspan="7">Loading…</td></tr>`;
       try {
         const res = await fetch("monitoring-admin-api.php?action=devices", { credentials: "same-origin" });
         const data = await res.json();
@@ -4495,23 +4522,24 @@
         devicesCache = Array.isArray(data.devices) ? data.devices : [];
         fillDeviceSelects(devicesCache);
         if (!devicesCache.length) {
-          devicesBody.innerHTML = `<tr><td colspan="6">No devices registered yet.</td></tr>`;
+          devicesBody.innerHTML = `<tr><td colspan="7">No devices registered yet.</td></tr>`;
           return;
         }
         devicesBody.innerHTML = devicesCache
           .map(
             (d) => `<tr>
-              <td><strong>${esc(d.device_id)}</strong>${d.device_uuid ? `<br><small>${esc(d.device_uuid)}</small>` : ""}</td>
-              <td>${statusBadge(d.status)}${Number(d.maintenance_mode) ? " · maint" : ""}</td>
+              <td><strong>${esc(d.device_name || d.device_id)}</strong><br><small>${esc(d.device_id)}</small></td>
+              <td>${presenceBadge(d)}</td>
+              <td>${statusBadge(d.status)}${d.maintenance_mode ? " · maint" : ""}</td>
               <td>${d.daily_search_limit == null ? "—" : esc(d.daily_search_limit)}</td>
               <td>${fmtDt(d.license_expires_at)}</td>
-              <td>${fmtDt(d.last_seen_at)}</td>
+              <td>${fmtDt(d.last_seen_at)}${d.last_ip_address ? `<br><small>${esc(d.last_ip_address)}</small>` : ""}</td>
               <td><button type="button" class="ad-btn ad-btn--ghost ad-mon-open-detail" data-device="${esc(d.device_id)}">Edit</button></td>
             </tr>`
           )
           .join("");
       } catch (error) {
-        devicesBody.innerHTML = `<tr><td colspan="6">${esc(error.message || "Error")}</td></tr>`;
+        devicesBody.innerHTML = `<tr><td colspan="7">${esc(error.message || "Error")}</td></tr>`;
         setMonMsg(devicesMsg, error.message || "Failed to load devices.", "error");
       }
     }
@@ -4519,14 +4547,18 @@
     async function loadActivity() {
       if (!activityBody) return;
       setMonMsg(activityMsg, "");
-      activityBody.innerHTML = `<tr><td colspan="6">Loading…</td></tr>`;
+      activityBody.innerHTML = `<tr><td colspan="7">Loading…</td></tr>`;
       const params = new URLSearchParams({ action: "activity", limit: "100" });
       const deviceId = String(filterDevice?.value || "").trim();
+      const username = String(document.getElementById("ad-mon-filter-username")?.value || "").trim();
       const logAction = String(document.getElementById("ad-mon-filter-action")?.value || "").trim();
+      const category = String(document.getElementById("ad-mon-filter-category")?.value || "").trim();
       const from = String(document.getElementById("ad-mon-filter-from")?.value || "").trim();
       const to = String(document.getElementById("ad-mon-filter-to")?.value || "").trim();
       if (deviceId) params.set("device_id", deviceId);
+      if (username) params.set("username", username);
       if (logAction) params.set("log_action", logAction);
+      if (category) params.set("category", category);
       if (from) params.set("from", from);
       if (to) params.set("to", to);
       try {
@@ -4543,23 +4575,24 @@
         if (!res.ok || !data.success) throw new Error(data.message || "Failed to load activity.");
         const logs = Array.isArray(data.logs) ? data.logs : [];
         if (!logs.length) {
-          activityBody.innerHTML = `<tr><td colspan="6">No logs match these filters.</td></tr>`;
+          activityBody.innerHTML = `<tr><td colspan="7">No logs match these filters.</td></tr>`;
           return;
         }
         activityBody.innerHTML = logs
           .map(
             (row) => `<tr>
-              <td>${esc(fmtDt(row.received_at))}</td>
+              <td>${esc(fmtDt(row.occurred_at || row.received_at))}</td>
               <td>${esc(row.device_id)}</td>
               <td>${esc(row.username || "—")}</td>
               <td>${esc(row.action || "—")}</td>
               <td>${esc(row.status || "—")}</td>
+              <td>${row.results_count == null ? "—" : esc(row.results_count)}</td>
               <td>${esc(row.description || "—")}</td>
             </tr>`
           )
           .join("");
       } catch (error) {
-        activityBody.innerHTML = `<tr><td colspan="6">${esc(error.message || "Error")}</td></tr>`;
+        activityBody.innerHTML = `<tr><td colspan="7">${esc(error.message || "Error")}</td></tr>`;
         setMonMsg(activityMsg, error.message || "Failed to load activity.", "error");
       }
     }
@@ -4569,7 +4602,8 @@
       setMonMsg(detailMsg, "");
       const deviceId = String(detailDevice?.value || detailDeviceId || "BOSS-PC-001").trim();
       detailDeviceId = deviceId;
-      detailLogs.innerHTML = `<tr><td colspan="5">Loading…</td></tr>`;
+      detailLogs.innerHTML = `<tr><td colspan="6">Loading…</td></tr>`;
+      if (detailAudit) detailAudit.innerHTML = `<tr><td colspan="4">Loading…</td></tr>`;
       try {
         if (!devicesCache.length) {
           const dRes = await fetch("monitoring-admin-api.php?action=devices", { credentials: "same-origin" });
@@ -4586,6 +4620,7 @@
         );
         const data = await res.json();
         if (!res.ok || !data.success) throw new Error(data.message || "Failed to load device.");
+        if (data.csrf) setCsrf(data.csrf);
         const d = data.device || {};
         const statusEl = document.getElementById("ad-mon-detail-status");
         const expiresEl = document.getElementById("ad-mon-detail-expires");
@@ -4596,27 +4631,43 @@
         if (statusEl) statusEl.value = String(d.status || "active").toLowerCase();
         if (expiresEl) expiresEl.value = toDatetimeLocal(d.license_expires_at);
         if (limitEl) limitEl.value = d.daily_search_limit == null ? "" : String(d.daily_search_limit);
-        if (maintEl) maintEl.checked = !!Number(d.maintenance_mode);
-        if (messageEl) messageEl.value = d.message || "";
+        if (maintEl) maintEl.checked = !!d.maintenance_mode;
+        if (messageEl) messageEl.value = d.maintenance_message || "";
         if (metaEl) {
-          metaEl.textContent = `UUID: ${d.device_uuid || "—"} · Last seen: ${fmtDt(d.last_seen_at)} · Created: ${fmtDt(d.created_at)}`;
+          metaEl.textContent = `${d.device_name || d.device_id} · ${d.presence || "offline"} · Last seen: ${fmtDt(d.last_seen_at)} · IP: ${d.last_ip_address || "—"}`;
         }
         const logs = Array.isArray(data.recentLogs) ? data.recentLogs : [];
         detailLogs.innerHTML = logs.length
           ? logs
               .map(
                 (row) => `<tr>
-                  <td>${esc(fmtDt(row.received_at))}</td>
+                  <td>${esc(fmtDt(row.occurred_at || row.received_at))}</td>
                   <td>${esc(row.action || "—")}</td>
                   <td>${esc(row.username || "—")}</td>
                   <td>${esc(row.status || "—")}</td>
+                  <td>${row.results_count == null ? "—" : esc(row.results_count)}</td>
                   <td>${esc(row.description || "—")}</td>
                 </tr>`
               )
               .join("")
-          : `<tr><td colspan="5">No recent logs for this device.</td></tr>`;
+          : `<tr><td colspan="6">No recent logs for this device.</td></tr>`;
+        const audit = Array.isArray(data.audit) ? data.audit : [];
+        if (detailAudit) {
+          detailAudit.innerHTML = audit.length
+            ? audit
+                .map(
+                  (row) => `<tr>
+                    <td>${esc(fmtDt(row.created_at))}</td>
+                    <td>${esc(row.old_status || "—")}</td>
+                    <td>${esc(row.new_status || "—")}</td>
+                    <td>${esc(row.description || "—")}</td>
+                  </tr>`
+                )
+                .join("")
+            : `<tr><td colspan="4">No control changes yet.</td></tr>`;
+        }
       } catch (error) {
-        detailLogs.innerHTML = `<tr><td colspan="5">${esc(error.message || "Error")}</td></tr>`;
+        detailLogs.innerHTML = `<tr><td colspan="6">${esc(error.message || "Error")}</td></tr>`;
         setMonMsg(detailMsg, error.message || "Failed to load device.", "error");
       }
     }
@@ -4648,8 +4699,10 @@
       if (!deviceId) return;
       setMonMsg(detailMsg, "Saving…");
       try {
+        await ensureCsrf();
         const payload = {
           device_id: deviceId,
+          csrf: monCsrf || csrfEl?.value || "",
           status: String(document.getElementById("ad-mon-detail-status")?.value || "active"),
           license_expires_at: fromDatetimeLocal(document.getElementById("ad-mon-detail-expires")?.value),
           daily_search_limit: (() => {
@@ -4657,7 +4710,7 @@
             return raw === "" ? null : Number(raw);
           })(),
           maintenance_mode: !!document.getElementById("ad-mon-detail-maint")?.checked,
-          message: String(document.getElementById("ad-mon-detail-message")?.value || "").trim() || null,
+          maintenance_message: String(document.getElementById("ad-mon-detail-message")?.value || "").trim() || null,
         };
         const res = await fetch("monitoring-admin-api.php?action=update-device", {
           method: "POST",
@@ -4667,6 +4720,7 @@
         });
         const data = await res.json();
         if (!res.ok || !data.success) throw new Error(data.message || "Save failed.");
+        if (data.csrf) setCsrf(data.csrf);
         setMonMsg(detailMsg, "Remote settings saved.", "success");
         notify("Device settings saved.", "success", { force: true });
         await loadDetail();
@@ -4680,6 +4734,7 @@
     document.addEventListener("mon:load-devices", () => loadDevices());
     document.addEventListener("mon:load-activity", () => loadActivity());
     document.addEventListener("mon:load-detail", () => loadDetail());
+    ensureCsrf();
   }
 
   function bindWhatsappSection() {

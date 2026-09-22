@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 /**
  * POST /monitoring-api/check-device.php
- * Remote control response for localhost installations (status / limits only).
+ * Remote control status for localhost installations.
  */
 
 require_once __DIR__ . '/_lib.php';
 
-$auth = monAuthenticateDevice();
+$auth = monAuthenticateDevice(false);
 /** @var PDO $pdo */
 $pdo = $auth['pdo'];
-$device = $auth['device'];
 $deviceId = (string) $auth['deviceId'];
-$body = $auth['body'];
-$deviceUuid = trim((string) ($body['device_uuid'] ?? ''));
 
-monTouchDevice($pdo, $deviceId, $deviceUuid !== '' ? $deviceUuid : null);
-
-// Refresh device row after touch
-$fresh = monFindDevice($pdo, $deviceId) ?: $device;
+try {
+    monTouchDevice($pdo, $deviceId);
+    $fresh = monFindDevice($pdo, $deviceId) ?: $auth['device'];
+} catch (Throwable $e) {
+    monSafeError('Database unavailable.', $e);
+}
 
 $status = strtolower(trim((string) ($fresh['status'] ?? 'active')));
 if (!in_array($status, ['active', 'suspended', 'expired'], true)) {
@@ -28,20 +27,25 @@ if (!in_array($status, ['active', 'suspended', 'expired'], true)) {
 }
 
 $expires = $fresh['license_expires_at'] ?? null;
-$expiresOut = $expires !== null && $expires !== '' ? (string) $expires : null;
+$expiresOut = ($expires !== null && $expires !== '') ? (string) $expires : null;
 
 $limit = $fresh['daily_search_limit'];
-$limitOut = $limit === null || $limit === '' ? null : (int) $limit;
+$limitOut = ($limit === null || $limit === '') ? null : (int) $limit;
 
 $maintenance = !empty($fresh['maintenance_mode']);
-$message = $fresh['message'] ?? null;
-$messageOut = $message !== null && trim((string) $message) !== '' ? (string) $message : null;
+$message = $fresh['maintenance_message'] ?? null;
+$messageOut = ($message !== null && trim((string) $message) !== '') ? (string) $message : null;
 
-// Auto-expire if past license date
 if ($expiresOut !== null) {
-    $expTs = strtotime($expiresOut . ' UTC');
+    $expTs = strtotime($expiresOut);
     if ($expTs !== false && $expTs < time() && $status === 'active') {
         $status = 'expired';
+        try {
+            $upd = $pdo->prepare('UPDATE monitored_devices SET status = ?, updated_at = ? WHERE device_id = ?');
+            $upd->execute(['expired', gmdate('Y-m-d H:i:s'), $deviceId]);
+        } catch (Throwable $e) {
+            error_log('Monitoring auto-expire failed: ' . $e->getMessage());
+        }
     }
 }
 
@@ -52,4 +56,5 @@ monJson(200, [
     'daily_search_limit' => $limitOut,
     'maintenance_mode' => $maintenance,
     'message' => $messageOut,
+    'server_time' => gmdate('Y-m-d H:i:s'),
 ]);

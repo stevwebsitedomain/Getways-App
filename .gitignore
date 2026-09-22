@@ -53,6 +53,12 @@ phpunit.phar
 
 sync_config.jsonc
 
+# Secrets — never commit real credentials
+/.env
+/.env.local
+**/.env
+!**/.env.example
+
 # Python radar service
 /radar-service/.venv/
 /radar-service/data/

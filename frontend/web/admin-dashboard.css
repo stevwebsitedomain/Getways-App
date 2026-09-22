@@ -4044,6 +4044,8 @@ body.ad-acs .swal2-popup.ad-crm-swal-popup:not(.ad-crm-swal-chart) .swal2-title 
 .ad-mon-badge--active { background: #dcfce7; color: #166534; }
 .ad-mon-badge--suspended { background: #fef3c7; color: #92400e; }
 .ad-mon-badge--expired { background: #fee2e2; color: #991b1b; }
+.ad-mon-badge--online { background: #dbeafe; color: #1e40af; }
+.ad-mon-badge--offline { background: #e5e7eb; color: #4b5563; }
 .ad-mon-filters,
 .ad-mon-detail-pick {
   display: flex;

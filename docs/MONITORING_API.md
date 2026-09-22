@@ -1,6 +1,8 @@
 # Monitoring API + Admin dashboard
 
-Links localhost installations (Online Business Tracker / Tra-Masaki) to ACS Portal.
+Links localhost installations (Online Business Tracker / Tra-Masaki) to ACS Portal using a **dedicated** MySQL database (`MONITORING_DB_*` in project-root `.env`).
+
+Credentials are never committed. `.env` lives outside the public web root; `frontend/web/.htaccess` also denies `.env` if present under web.
 
 ## Endpoints
 
@@ -10,47 +12,55 @@ Links localhost installations (Online Business Tracker / Tra-Masaki) to ACS Port
 | POST | `https://getway.legitconsult.co.tz/monitoring-api/check-device.php` |
 
 Admin UI (after admin login): sidebar **Monitoring** → Devices / Activity / Device detail.  
-Admin JSON: `monitoring-admin-api.php?action=devices|device|activity|update-device` (session auth; never returns API keys).
+Admin JSON: `monitoring-admin-api.php?action=devices|device|activity|update-device|csrf` (session + CSRF on updates; never returns API keys).
 
-## Auth headers (required)
+## Auth headers
 
 - `Authorization: Bearer {CLIENT_API_KEY}`
 - `X-Device-ID: BOSS-PC-001`
-- `X-Timestamp: {unix seconds}`
-- `X-Signature: HMAC-SHA256(api_key, timestamp + "." + raw_json_body)` as hex
+- Optional (recommended): `X-Timestamp` + `X-Signature` = HMAC-SHA256(api_key, `timestamp + "." + raw_json_body`) hex
 - `Content-Type: application/json`
 - HTTPS only (localhost allowed for XAMPP)
-- Timestamp skew max ±300 seconds
+- Timestamp skew max ±300 seconds when signature headers are sent
 - Rate limit: 60 requests / API key / minute
+
+## Env (project root `.env`)
+
+```env
+MONITORING_DB_HOST=localhost
+MONITORING_DB_PORT=3306
+MONITORING_DB_NAME=reacrisc_tra_masaki
+MONITORING_DB_USER=reacrisc_masaki
+MONITORING_DB_PASSWORD=
+MONITORING_OFFLINE_AFTER_MINUTES=10
+```
+
+On StackCP production use `localhost`. Do not point a public ACS host at a developer PC MySQL.
+
+## Schema / seed
+
+- SQL: `docs/sql/monitoring_schema.sql`
+- Yii mirror: `console/migrations/m260922_090000_create_monitored_devices_schema.php`
+- Tables auto-create on first API hit via `monEnsureSchema()`
+- Seed device: `php scripts/seed-monitoring-device.php` (prints plaintext API key once)
+
+Tables: `monitored_devices`, `remote_activity_logs`, `device_control_audit`.
 
 Seeded device:
 
 - `device_id`: `BOSS-PC-001`
-- `api_key`: `qbp385A4STrK6hRattuLqI7NM2peQNVHLACwJ3go` (stored hashed only)
+- `device_name`: `Boss Local Computer`
 - `status`: `active`
-- `daily_search_limit`: `100`
-- `license_expires_at`: `2026-12-31 23:59:59`
+- API key stored only as `password_hash()` in `api_key_hash`
 
-## Schema / migrate
-
-- SQL: `docs/sql/monitoring_schema.sql`
-- Yii: `php yii migrate --migrationPath=@console/migrations` (class `m260921_220000_create_monitoring_tables`)
-- Tables also auto-create + seed on first `monitoring-api` / admin API hit via `monEnsureSchema()`.
-
-## Curl tests
-
-Replace `BASE` if testing locally (`http://localhost/Getways-App/frontend/web`).
-
-### Bash / Git Bash
+## Curl / PowerShell tests
 
 ```bash
 BASE="https://getway.legitconsult.co.tz"
-KEY="qbp385A4STrK6hRattuLqI7NM2peQNVHLACwJ3go"
+KEY="YOUR_PLAIN_API_KEY"
 DEVICE="BOSS-PC-001"
 TS=$(date +%s)
-
-# --- check-device ---
-BODY='{"device_id":"BOSS-PC-001","device_uuid":"uuid-here","checked_at":"2026-09-21T12:00:00+03:00"}'
+BODY='{"device_id":"BOSS-PC-001","checked_at":"2026-09-22T12:00:00+03:00"}'
 SIG=$(printf '%s' "${TS}.${BODY}" | openssl dgst -sha256 -hmac "$KEY" | awk '{print $2}')
 
 curl -sS -X POST "$BASE/monitoring-api/check-device.php" \
@@ -60,42 +70,11 @@ curl -sS -X POST "$BASE/monitoring-api/check-device.php" \
   -H "X-Timestamp: $TS" \
   -H "X-Signature: $SIG" \
   -d "$BODY"
-
-# --- receive-logs ---
-TS=$(date +%s)
-BODY='{"device_id":"BOSS-PC-001","device_uuid":"uuid-here","sent_at":"2026-09-21T12:00:00+03:00","logs":[{"local_id":123,"user_id":null,"username":"masaki","action":"search_performed","description":"Search: masaki","endpoint":"/api/airbnb/jobs","request_method":"POST","status":"ok","ip_address":"127.0.0.1","device_id":"BOSS-PC-001","metadata":{"query":"masaki"},"created_at":"2026-09-21 12:00:00"}]}'
-SIG=$(printf '%s' "${TS}.${BODY}" | openssl dgst -sha256 -hmac "$KEY" | awk '{print $2}')
-
-curl -sS -X POST "$BASE/monitoring-api/receive-logs.php" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $KEY" \
-  -H "X-Device-ID: $DEVICE" \
-  -H "X-Timestamp: $TS" \
-  -H "X-Signature: $SIG" \
-  -d "$BODY"
 ```
 
-### PowerShell
+Or: `php scripts/test-monitoring-api.php http://localhost/Getways-App/frontend/web YOUR_PLAIN_API_KEY`
 
-```powershell
-$Base = "https://getway.legitconsult.co.tz"
-$Key = "qbp385A4STrK6hRattuLqI7NM2peQNVHLACwJ3go"
-$Device = "BOSS-PC-001"
-$Ts = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds().ToString()
-$Body = '{"device_id":"BOSS-PC-001","device_uuid":"uuid-here","checked_at":"2026-09-21T12:00:00+03:00"}'
-$hmac = New-Object System.Security.Cryptography.HMACSHA256
-$hmac.Key = [Text.Encoding]::UTF8.GetBytes($Key)
-$Sig = ([BitConverter]::ToString($hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes("$Ts.$Body")))).Replace("-","").ToLowerInvariant()
-
-Invoke-RestMethod -Method POST -Uri "$Base/monitoring-api/check-device.php" -ContentType "application/json" -Body $Body -Headers @{
-  Authorization = "Bearer $Key"
-  "X-Device-ID" = $Device
-  "X-Timestamp" = $Ts
-  "X-Signature" = $Sig
-}
-```
-
-Expected `check-device` shape:
+Expected `check-device`:
 
 ```json
 {
@@ -104,16 +83,27 @@ Expected `check-device` shape:
   "license_expires_at": "2026-12-31 23:59:59",
   "daily_search_limit": 100,
   "maintenance_mode": false,
-  "message": null
+  "message": null,
+  "server_time": "2026-09-22 12:00:00"
 }
 ```
 
-Expected `receive-logs`: `{ "success": true, "accepted": N, "message": "Logs stored" }`
+Expected `receive-logs`:
 
-## Security notes
+```json
+{
+  "success": true,
+  "accepted_ids": [1, 2],
+  "duplicate_ids": [],
+  "message": "Logs received successfully"
+}
+```
 
-- API keys hashed at rest (`password_hash`)
-- Prepared statements everywhere
-- Admin UI never receives plaintext or hashed keys
-- Remote control fields only: status, license_expires_at, daily_search_limit, maintenance_mode, message
-- No remote file delete / DB wipe / code execution
+## Security
+
+- Dedicated monitoring DB via PDO + prepared statements + utf8mb4
+- API keys hashed at rest; never returned to admin UI
+- Admin session required; CSRF on control updates; audit trail in `device_control_audit`
+- Online/offline from `last_seen_at` (default 10 minutes)
+- Metadata strips passwords/tokens/cookies/session IDs
+- No remote shell / DB wipe / file-delete controls

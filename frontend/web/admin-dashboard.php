@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 declare(strict_types=1);
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -107,7 +107,7 @@ require __DIR__ . '/acs-gov-banner.php';
 ?>
 
     <nav class="top-navigation" aria-label="Admin top navigation">
-      <button class="mobile-menu-button" type="button" id="ad-menu-open" aria-label="Open menu">☰</button>
+      <button class="mobile-menu-button" type="button" id="ad-menu-open" aria-label="Open menu">â˜°</button>
       <div class="nav-spacer" aria-hidden="true"></div>
       <div class="top-links app-links">
         <button type="button" class="is-active" data-ad-nav="home"><i class="fa-solid fa-house"></i> Dashboard</button>
@@ -140,7 +140,7 @@ require __DIR__ . '/acs-gov-banner.php';
 
     <div class="portal-body">
     <aside class="ad-sidebar" id="ad-sidebar">
-      <button type="button" class="ad-sidebar-toggle" id="ad-sidebar-close" aria-label="Close menu">×</button>
+      <button type="button" class="ad-sidebar-toggle" id="ad-sidebar-close" aria-label="Close menu">Ã—</button>
       <div class="profile-uploader">
         <div class="profile-photo-box">
           <?php if ($authAvatarSafe !== ''): ?>
@@ -155,7 +155,7 @@ require __DIR__ . '/acs-gov-banner.php';
           <i class="fa-solid fa-camera" aria-hidden="true"></i> Upload Photo
         </label>
         <input id="profilePhotoInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" hidden />
-        <p class="profile-upload-hint">JPG, PNG au WEBP — itabana otomatiki</p>
+        <p class="profile-upload-hint">JPG, PNG au WEBP â€” itabana otomatiki</p>
         <p class="ad-sidebar-user"><?php echo $authName; ?></p>
       </div>
       <div class="ad-sidebar-head" hidden>
@@ -267,7 +267,7 @@ require __DIR__ . '/acs-gov-banner.php';
       <main class="ad-main content">
         <p id="ad-db-banner" class="ad-db-banner" hidden></p>
 
-        <!-- Hidden stats — JS updates these; portal cards mirror values -->
+        <!-- Hidden stats â€” JS updates these; portal cards mirror values -->
         <section class="ad-stats ad-stats--hidden" id="ad-stats" aria-hidden="true">
           <article class="ad-stat ad-stat--money">
             <p>Available ClickPesa Balance</p>
@@ -302,11 +302,11 @@ require __DIR__ . '/acs-gov-banner.php';
           </article>
         </section>
 
-        <!-- Portal home — ACS dashboard -->
+        <!-- Portal home â€” ACS dashboard -->
         <section class="ad-portal-home" id="ad-view-home">
           <h1 class="welcome-title">
             <?php echo $greet; ?> <?php echo $authFirst; ?>
-            <span class="sun" aria-hidden="true">☀</span>
+            <span class="sun" aria-hidden="true">â˜€</span>
           </h1>
 
           <div class="statistics" aria-label="Collection statistics">
@@ -331,8 +331,8 @@ require __DIR__ . '/acs-gov-banner.php';
           <span id="ad-portal-failed" hidden>0</span>
           <span id="ad-portal-recent" hidden>0</span>
           <span id="ad-portal-recent-sub" hidden></span>
-          <span id="ad-portal-controls" hidden>—</span>
-          <span id="ad-portal-dest" hidden>—</span>
+          <span id="ad-portal-controls" hidden>â€”</span>
+          <span id="ad-portal-dest" hidden>â€”</span>
           <span id="ad-portal-balance-updated" hidden></span>
           <span id="ad-portal-trend" hidden>14 days</span>
 
@@ -546,7 +546,7 @@ require __DIR__ . '/acs-gov-banner.php';
               </tr>
             </thead>
             <tbody id="ad-controls-body">
-              <tr><td colspan="10">Loading…</td></tr>
+              <tr><td colspan="10">Loadingâ€¦</td></tr>
             </tbody>
           </table>
         </div>
@@ -564,7 +564,7 @@ require __DIR__ . '/acs-gov-banner.php';
           <button type="button" class="ad-btn ad-btn--primary" id="ad-manual-payout-open"><i class="fa-solid fa-paper-plane"></i><span>Manual payout</span></button>
         </div>
       </div>
-      <p class="ad-note">Default: <strong>+255715296092</strong>. Badilisha namba hapa — malipo yanayofuata yatatumwa moja kwa moja kwenye namba mpya.</p>
+      <p class="ad-note">Default: <strong>+255715296092</strong>. Badilisha namba hapa â€” malipo yanayofuata yatatumwa moja kwa moja kwenye namba mpya.</p>
       <form id="ad-payout-form" class="ad-form ad-form--dest">
         <label>Payout phone number
           <span class="ad-dest-input-wrap">
@@ -629,7 +629,7 @@ require __DIR__ . '/acs-gov-banner.php';
               </tr>
             </thead>
             <tbody id="ad-payouts-body">
-              <tr><td colspan="9">Loading…</td></tr>
+              <tr><td colspan="9">Loadingâ€¦</td></tr>
             </tbody>
           </table>
         </div>
@@ -677,7 +677,7 @@ require __DIR__ . '/acs-gov-banner.php';
               </tr>
             </thead>
             <tbody id="ad-users-body">
-              <tr><td colspan="7">Loading…</td></tr>
+              <tr><td colspan="7">Loadingâ€¦</td></tr>
             </tbody>
           </table>
         </div>
@@ -724,7 +724,7 @@ require __DIR__ . '/acs-gov-banner.php';
               </tr>
             </thead>
             <tbody id="ad-recent-body">
-              <tr><td colspan="6">Loading…</td></tr>
+              <tr><td colspan="6">Loadingâ€¦</td></tr>
             </tbody>
           </table>
         </div>
@@ -771,16 +771,16 @@ require __DIR__ . '/acs-gov-banner.php';
             <div id="ad-wa-phone-chips" class="ad-wa-chips" hidden></div>
 
             <label class="ad-wa-label" id="ad-wa-body-wrap">Message
-              <textarea id="ad-wa-body" name="body" rows="5" placeholder="Andika ujumbe…" required></textarea>
+              <textarea id="ad-wa-body" name="body" rows="5" placeholder="Andika ujumbeâ€¦" required></textarea>
             </label>
             <label class="ad-wa-label" id="ad-wa-auto-wrap" hidden>Auto message
-              <textarea id="ad-wa-auto-body" rows="5" placeholder="Andika ujumbe wowote unaotaka utumwe automatic…"></textarea>
-              <small class="ad-wa-hint">Unaweza kubadilisha ujumbe wakati wowote — si lazima ule wa mfano. Hubaki kuhifadhiwa.</small>
+              <textarea id="ad-wa-auto-body" rows="5" placeholder="Andika ujumbe wowote unaotaka utumwe automaticâ€¦"></textarea>
+              <small class="ad-wa-hint">Unaweza kubadilisha ujumbe wakati wowote â€” si lazima ule wa mfano. Hubaki kuhifadhiwa.</small>
             </label>
 
             <div class="ad-wa-schedule" id="ad-wa-schedule" hidden>
               <p class="ad-wa-schedule-hint" style="margin:0 0 8px;font-size:0.78rem;color:#475569;line-height:1.35">
-                Automatic: baada ya kutuma, system <strong>inahesabu tena</strong> muda uleule (mf. kila dakika 5) na inaendelea — hata ukilogout (server cron).
+                Automatic: baada ya kutuma, system <strong>inahesabu tena</strong> muda uleule (mf. kila dakika 5) na inaendelea â€” hata ukilogout (server cron).
               </p>
               <label class="ad-wa-label">Repeat every
                 <div class="ad-wa-schedule-row">
@@ -826,7 +826,7 @@ require __DIR__ . '/acs-gov-banner.php';
             <button type="button" class="ad-wa-tab" data-wa-status="expired">Expired</button>
           </div>
           <ul class="ad-wa-list" id="ad-wa-list">
-            <li class="ad-wa-empty">Loading…</li>
+            <li class="ad-wa-empty">Loadingâ€¦</li>
           </ul>
           <nav class="ad-pager ad-wa-pager" id="ad-wa-pager" hidden aria-label="WhatsApp messages pages"></nav>
         </div>
@@ -867,7 +867,7 @@ require __DIR__ . '/acs-gov-banner.php';
           </div>
           <label class="ad-crm-field ad-crm-field--grow">
             <span>Search</span>
-            <input id="ad-crm-query" type="search" placeholder="e.g. hotel, restaurant, salon…" required />
+            <input id="ad-crm-query" type="search" placeholder="e.g. hotel, restaurant, salonâ€¦" required />
           </label>
           <label class="ad-crm-field">
             <span>Mkoa (Location)</span>
@@ -928,7 +928,7 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="ad-card-head">
         <div>
           <h2><i class="fa-solid fa-database"></i> Database</h2>
-          <p class="ad-period-sub">Saved leads by platform · send job-application emails from stevenabalwambo@gmail.com</p>
+          <p class="ad-period-sub">Saved leads by platform Â· send job-application emails from stevenabalwambo@gmail.com</p>
         </div>
         <div class="ad-crm-db-actions">
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-crm-email-set">
@@ -963,7 +963,7 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="ad-card-head">
         <div>
           <h2><i class="fa-solid fa-desktop"></i> Monitoring · Devices</h2>
-          <p class="ad-period-sub">Localhost installations connected to ACS Portal</p>
+          <p class="ad-period-sub">Registered installations · online if heartbeat within last 10 minutes</p>
         </div>
         <div class="ad-card-actions">
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-mon-devices-refresh">
@@ -977,6 +977,7 @@ require __DIR__ . '/acs-gov-banner.php';
           <thead>
             <tr>
               <th>Device</th>
+              <th>Presence</th>
               <th>Status</th>
               <th>Daily limit</th>
               <th>Expires</th>
@@ -985,7 +986,7 @@ require __DIR__ . '/acs-gov-banner.php';
             </tr>
           </thead>
           <tbody id="ad-mon-devices-body">
-            <tr><td colspan="6">Loading…</td></tr>
+            <tr><td colspan="7">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -995,7 +996,7 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="ad-card-head">
         <div>
           <h2><i class="fa-solid fa-list-check"></i> Monitoring · Activity</h2>
-          <p class="ad-period-sub">Logs received from installations</p>
+          <p class="ad-period-sub">Remote logs · filter by device, user, action, date, or category</p>
         </div>
         <div class="ad-card-actions">
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-mon-activity-refresh">
@@ -1009,8 +1010,20 @@ require __DIR__ . '/acs-gov-banner.php';
             <option value="">All devices</option>
           </select>
         </label>
+        <label>Username
+          <input type="text" id="ad-mon-filter-username" placeholder="e.g. masaki" />
+        </label>
         <label>Action
           <input type="text" id="ad-mon-filter-action" placeholder="e.g. search_performed" />
+        </label>
+        <label>Category
+          <select id="ad-mon-filter-category">
+            <option value="">All</option>
+            <option value="login">Login history</option>
+            <option value="search">Searches</option>
+            <option value="api">API requests</option>
+            <option value="error">Errors</option>
+          </select>
         </label>
         <label>From
           <input type="date" id="ad-mon-filter-from" />
@@ -1025,16 +1038,17 @@ require __DIR__ . '/acs-gov-banner.php';
         <table class="ad-mon-table" aria-label="Monitoring activity">
           <thead>
             <tr>
-              <th>Received</th>
+              <th>Occurred</th>
               <th>Device</th>
               <th>User</th>
               <th>Action</th>
               <th>Status</th>
+              <th>Results</th>
               <th>Description</th>
             </tr>
           </thead>
           <tbody id="ad-mon-activity-body">
-            <tr><td colspan="6">Loading…</td></tr>
+            <tr><td colspan="7">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -1044,7 +1058,7 @@ require __DIR__ . '/acs-gov-banner.php';
       <div class="ad-card-head">
         <div>
           <h2><i class="fa-solid fa-server"></i> Monitoring · Device detail</h2>
-          <p class="ad-period-sub">Remote control: status, expiry, daily limit, maintenance, message</p>
+          <p class="ad-period-sub">Remote control: status, expiry, daily limit, maintenance · audited</p>
         </div>
         <div class="ad-card-actions">
           <button type="button" class="ad-btn ad-btn--ghost" id="ad-mon-detail-refresh">
@@ -1061,6 +1075,7 @@ require __DIR__ . '/acs-gov-banner.php';
       </div>
       <p id="ad-mon-detail-msg" class="ad-msg" hidden></p>
       <form id="ad-mon-detail-form" class="ad-form ad-mon-detail-form" autocomplete="off">
+        <input type="hidden" id="ad-mon-detail-csrf" name="csrf" value="" />
         <div class="ad-mon-detail-grid">
           <label>Status
             <select name="status" id="ad-mon-detail-status">
@@ -1080,31 +1095,47 @@ require __DIR__ . '/acs-gov-banner.php';
             Maintenance mode
           </label>
         </div>
-        <label>Message to device
-          <textarea name="message" id="ad-mon-detail-message" rows="3" placeholder="Optional message shown on the installation"></textarea>
+        <label>Maintenance message
+          <textarea name="maintenance_message" id="ad-mon-detail-message" rows="3" placeholder="Optional message shown on the installation"></textarea>
         </label>
         <p class="ad-mon-meta" id="ad-mon-detail-meta"></p>
         <button type="submit" class="ad-btn ad-btn--primary"><i class="fa-solid fa-floppy-disk"></i><span>Save remote settings</span></button>
       </form>
+      <h3 class="ad-mon-subtitle">Control audit</h3>
+      <div class="ad-mon-table-wrap">
+        <table class="ad-mon-table" aria-label="Device control audit">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="ad-mon-detail-audit">
+            <tr><td colspan="4">—</td></tr>
+          </tbody>
+        </table>
+      </div>
       <h3 class="ad-mon-subtitle">Recent logs</h3>
       <div class="ad-mon-table-wrap">
         <table class="ad-mon-table" aria-label="Device recent logs">
           <thead>
             <tr>
-              <th>Received</th>
+              <th>Occurred</th>
               <th>Action</th>
               <th>User</th>
               <th>Status</th>
+              <th>Results</th>
               <th>Description</th>
             </tr>
           </thead>
           <tbody id="ad-mon-detail-logs">
-            <tr><td colspan="5">Select a device…</td></tr>
+            <tr><td colspan="6">Loading…</td></tr>
           </tbody>
         </table>
       </div>
     </section>
-
     <section class="ad-page-section ad-ga-page" id="ad-section-general-analysis" data-ad-page="general-analysis">
       <div class="ad-ga ad-ga--portal" id="ad-ga-overlay" aria-hidden="false">
         <div class="ad-ga-stage">
@@ -1188,7 +1219,7 @@ require __DIR__ . '/acs-gov-banner.php';
             </button>
           </div>
 
-          <p class="ad-ga-hint">Bofya ikoni ili kufungua sehemu husika · Ikoni zinazunguka kiotomatiki</p>
+          <p class="ad-ga-hint">Bofya ikoni ili kufungua sehemu husika Â· Ikoni zinazunguka kiotomatiki</p>
 
           <div class="ad-ga-extra">
             <button type="button" class="ad-ga-chip" data-ga-target="payout-dest" data-ga-action="scroll">
