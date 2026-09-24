@@ -254,8 +254,10 @@ function monDbConfig(): array
 function monDbCandidates(array $cfg): array
 {
     $hosts = [$cfg['host']];
-    // phpMyAdmin on this hosting shows "localhost". That account is not the same as 127.0.0.1.
-    if (monIsPublicHttp()) {
+    // Only substitute localhost when the saved host is the developer-PC address.
+    // A real hosting hostname such as sdb-84.hosting.stackcp.net must be used as given.
+    $configured = strtolower($cfg['host']);
+    if (monIsPublicHttp() && $configured === '127.0.0.1') {
         array_unshift($hosts, 'localhost');
     }
     $seen = [];

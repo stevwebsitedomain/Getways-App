@@ -39,23 +39,31 @@ if ($action === 'save-db' && $method === 'POST') {
     $name = trim((string) ($input['name'] ?? ''));
     $user = trim((string) ($input['user'] ?? ''));
     $pass = (string) ($input['password'] ?? '');
-    if (!preg_match('/^[A-Za-z0-9._-]+$/', $host) || !preg_match('/^[A-Za-z0-9_]+$/', $name) || !preg_match('/^[A-Za-z0-9_]+$/', $user)) {
+    if (!preg_match('/^[A-Za-z0-9._-]+$/', $host) || !preg_match('/^[A-Za-z0-9_-]+$/', $name) || !preg_match('/^[A-Za-z0-9_-]+$/', $user)) {
         monJson(422, ['ok' => false, 'success' => false, 'message' => 'Invalid database settings.']);
     }
     if ($port === '' || !ctype_digit($port)) {
         $port = '3306';
     }
     $cfg = ['host' => $host, 'port' => $port, 'name' => $name, 'user' => $user, 'pass' => $pass];
+    $tables = [];
     try {
         $test = monOpenPdo($cfg);
         $test->query('SELECT 1');
+        $tables = $test->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) ?: [];
     } catch (Throwable $e) {
         monDbFailure($e);
     }
     if (!monStoreRuntimeDbConfig($cfg)) {
         monJson(500, ['ok' => false, 'success' => false, 'message' => 'Could not store database settings. Make frontend/web/runtime writable.']);
     }
-    monJson(200, ['ok' => true, 'success' => true, 'message' => 'Monitoring database connected.', 'csrf' => monCsrfToken()]);
+    monJson(200, [
+        'ok' => true,
+        'success' => true,
+        'message' => 'Monitoring database connected.',
+        'tables' => array_values($tables),
+        'csrf' => monCsrfToken(),
+    ]);
 }
 
 try {
