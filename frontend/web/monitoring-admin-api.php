@@ -31,28 +31,6 @@ if ($action === 'csrf' && $method === 'GET') {
     monJson(200, ['ok' => true, 'success' => true, 'csrf' => monCsrfToken()]);
 }
 
-if ($action === 'db-probe' && $method === 'GET') {
-    $host = strtolower(trim((string) ($_GET['host'] ?? 'localhost')));
-    if (!preg_match('/^(localhost|127\\.0\\.0\\.1|([a-z0-9-]+\\.)*(stackcp\\.(com|net)|webhosting-stack\\.com))$/', $host)) {
-        monJson(422, ['ok' => false, 'success' => false, 'message' => 'Host is not allowed for a probe.']);
-    }
-    $cfg = monDbConfig();
-    $cfg['host'] = $host;
-    try {
-        $test = monOpenPdo($cfg);
-        $database = (string) $test->query('SELECT DATABASE()')->fetchColumn();
-        monJson(200, ['ok' => true, 'success' => true, 'host' => $host, 'database' => $database]);
-    } catch (Throwable $e) {
-        $driver = 0;
-        if ($e instanceof PDOException && is_array($e->errorInfo ?? null) && isset($e->errorInfo[1])) {
-            $driver = (int) $e->errorInfo[1];
-        }
-        $safe = $e->getMessage();
-        $safe = preg_replace("/using password: \\w+/i", 'using password: [hidden]', $safe) ?? $safe;
-        monJson(500, ['ok' => false, 'success' => false, 'host' => $host, 'driver' => $driver, 'detail' => $safe]);
-    }
-}
-
 if ($action === 'save-db' && $method === 'POST') {
     $input = monReadJsonBody();
     monRequireCsrf(isset($input['csrf']) ? (string) $input['csrf'] : null);
