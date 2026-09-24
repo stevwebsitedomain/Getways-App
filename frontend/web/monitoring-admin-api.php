@@ -27,10 +27,41 @@ if ($action === 'logins') {
     $_GET['category'] = 'login';
 }
 
+if ($action === 'csrf' && $method === 'GET') {
+    monJson(200, ['ok' => true, 'success' => true, 'csrf' => monCsrfToken()]);
+}
+
+if ($action === 'save-db' && $method === 'POST') {
+    $input = monReadJsonBody();
+    monRequireCsrf(isset($input['csrf']) ? (string) $input['csrf'] : null);
+    $host = trim((string) ($input['host'] ?? 'localhost'));
+    $port = trim((string) ($input['port'] ?? '3306'));
+    $name = trim((string) ($input['name'] ?? ''));
+    $user = trim((string) ($input['user'] ?? ''));
+    $pass = (string) ($input['password'] ?? '');
+    if (!preg_match('/^[A-Za-z0-9._-]+$/', $host) || !preg_match('/^[A-Za-z0-9_]+$/', $name) || !preg_match('/^[A-Za-z0-9_]+$/', $user)) {
+        monJson(422, ['ok' => false, 'success' => false, 'message' => 'Invalid database settings.']);
+    }
+    if ($port === '' || !ctype_digit($port)) {
+        $port = '3306';
+    }
+    $cfg = ['host' => $host, 'port' => $port, 'name' => $name, 'user' => $user, 'pass' => $pass];
+    try {
+        $test = monOpenPdo($cfg);
+        $test->query('SELECT 1');
+    } catch (Throwable $e) {
+        monDbFailure($e);
+    }
+    if (!monStoreRuntimeDbConfig($cfg)) {
+        monJson(500, ['ok' => false, 'success' => false, 'message' => 'Could not store database settings. Make frontend/web/runtime writable.']);
+    }
+    monJson(200, ['ok' => true, 'success' => true, 'message' => 'Monitoring database connected.', 'csrf' => monCsrfToken()]);
+}
+
 try {
     $pdo = monPdo();
 } catch (Throwable $e) {
-    monSafeError('Database unavailable.', $e);
+    monDbFailure($e);
 }
 
 $adminUserId = isset($user['id']) && is_numeric($user['id']) ? (int) $user['id'] : null;

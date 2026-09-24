@@ -39,7 +39,8 @@ function gwLoadEnv(bool $forceUltamsg = false): void
         if ($name === '') {
             continue;
         }
-        $refresh = $forceUltamsg && (str_starts_with($name, 'ULTAMSG_') || $name === 'BASE_URL');
+        $refresh = ($forceUltamsg && (str_starts_with($name, 'ULTAMSG_') || $name === 'BASE_URL'))
+            || str_starts_with($name, 'MONITORING_DB_');
         if (getenv($name) !== false && !$refresh) {
             continue;
         }

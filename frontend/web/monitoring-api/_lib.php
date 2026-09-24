@@ -26,6 +26,26 @@ function monSafeError(string $publicMessage, Throwable $e): never
     monJson(500, ['success' => false, 'ok' => false, 'message' => $publicMessage]);
 }
 
+function monDbFailure(Throwable $e): never
+{
+    error_log('Monitoring: ' . $e->getMessage());
+    $driver = 0;
+    if ($e instanceof PDOException && is_array($e->errorInfo ?? null) && isset($e->errorInfo[1])) {
+        $driver = (int) $e->errorInfo[1];
+    }
+    $message = 'Database unavailable.';
+    if ($driver === 1045) {
+        $message = 'MySQL rejected the username or password. On this server the host is localhost, the same one in phpMyAdmin.';
+    } elseif ($driver === 1049) {
+        $message = 'Database reacrisc_tra_masaki was not found on this MySQL server.';
+    } elseif (in_array($driver, [2002, 2003, 2005, 2006], true)) {
+        $message = 'Could not reach MySQL. On the website server the host is localhost, not 127.0.0.1.';
+    } elseif (in_array($driver, [1044, 1142], true)) {
+        $message = 'MySQL login worked, but this user cannot use that database.';
+    }
+    monJson(500, ['success' => false, 'ok' => false, 'message' => $message]);
+}
+
 function monIsHttps(): bool
 {
     if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
@@ -125,11 +145,78 @@ function monExtractBearer(): string
     return '';
 }
 
+function monIsPublicHttp(): bool
+{
+    $httpHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    return $httpHost !== ''
+        && !str_contains($httpHost, 'localhost')
+        && !str_starts_with($httpHost, '127.0.0.1');
+}
+
+function monRuntimeDbPath(): string
+{
+    $dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'runtime';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    return $dir . DIRECTORY_SEPARATOR . 'monitoring-db.php';
+}
+
+/**
+ * @return array{host:string,port:string,name:string,user:string,pass:string}|null
+ */
+function monRuntimeDbConfig(): ?array
+{
+    $path = monRuntimeDbPath();
+    if (!is_file($path)) {
+        return null;
+    }
+    $data = include $path;
+    if (!is_array($data)) {
+        return null;
+    }
+    $host = trim((string) ($data['host'] ?? ''));
+    $name = trim((string) ($data['name'] ?? ''));
+    $user = trim((string) ($data['user'] ?? ''));
+    if ($host === '' || $name === '' || $user === '') {
+        return null;
+    }
+    $port = trim((string) ($data['port'] ?? '3306'));
+    return [
+        'host' => $host,
+        'port' => $port !== '' ? $port : '3306',
+        'name' => $name,
+        'user' => $user,
+        'pass' => (string) ($data['pass'] ?? ''),
+    ];
+}
+
+/**
+ * @param array{host:string,port:string,name:string,user:string,pass:string} $cfg
+ */
+function monStoreRuntimeDbConfig(array $cfg): bool
+{
+    $export = var_export([
+        'host' => $cfg['host'],
+        'port' => $cfg['port'],
+        'name' => $cfg['name'],
+        'user' => $cfg['user'],
+        'pass' => $cfg['pass'],
+    ], true);
+    $written = file_put_contents(monRuntimeDbPath(), "<?php\nreturn {$export};\n", LOCK_EX);
+    return $written !== false;
+}
+
 /**
  * @return array{host:string,port:string,name:string,user:string,pass:string}
  */
 function monDbConfig(): array
 {
+    $stored = monRuntimeDbConfig();
+    if ($stored !== null) {
+        return $stored;
+    }
+
     gwLoadEnv();
     $host = trim((string) (getenv('MONITORING_DB_HOST') ?: ''));
     $port = trim((string) (getenv('MONITORING_DB_PORT') ?: '3306'));
@@ -137,17 +224,17 @@ function monDbConfig(): array
     $user = trim((string) (getenv('MONITORING_DB_USER') ?: ''));
     $pass = (string) (getenv('MONITORING_DB_PASSWORD') ?: '');
 
+    if ($host === '' && $name !== '' && $user !== '' && monIsPublicHttp()) {
+        $host = 'localhost';
+    }
+
     if ($host === '' || $name === '' || $user === '') {
         monJson(500, ['success' => false, 'message' => 'Monitoring database is not configured.']);
     }
 
     // Production public hosts must not point monitoring at a developer PC via reverse tunnel names.
-    $httpHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
-    $isPublicHttp = $httpHost !== ''
-        && !str_contains($httpHost, 'localhost')
-        && !str_starts_with($httpHost, '127.0.0.1');
     $blockedRemoteLocal = ['host.docker.internal', '10.0.2.2'];
-    if ($isPublicHttp && in_array(strtolower($host), $blockedRemoteLocal, true)) {
+    if (monIsPublicHttp() && in_array(strtolower($host), $blockedRemoteLocal, true)) {
         monJson(500, ['success' => false, 'message' => 'Invalid monitoring database host.']);
     }
 
@@ -160,6 +247,48 @@ function monDbConfig(): array
     ];
 }
 
+/**
+ * @param array{host:string,port:string,name:string,user:string,pass:string} $cfg
+ * @return list<array{host:string,port:string,name:string,user:string,pass:string}>
+ */
+function monDbCandidates(array $cfg): array
+{
+    $hosts = [$cfg['host']];
+    // phpMyAdmin on this hosting shows "localhost". That account is not the same as 127.0.0.1.
+    if (monIsPublicHttp()) {
+        array_unshift($hosts, 'localhost');
+    }
+    $seen = [];
+    $out = [];
+    foreach ($hosts as $host) {
+        $host = trim($host);
+        $key = strtolower($host);
+        if ($host === '' || isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $copy = $cfg;
+        $copy['host'] = $host;
+        $out[] = $copy;
+    }
+    return $out;
+}
+
+/**
+ * @param array{host:string,port:string,name:string,user:string,pass:string} $cfg
+ */
+function monOpenPdo(array $cfg): PDO
+{
+    $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};dbname={$cfg['name']};charset=utf8mb4";
+    $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+    $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+    return $pdo;
+}
+
 function monPdo(): PDO
 {
     static $pdo = null;
@@ -168,20 +297,27 @@ function monPdo(): PDO
     }
 
     $cfg = monDbConfig();
-    try {
-        $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};dbname={$cfg['name']};charset=utf8mb4";
-        $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
-        $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
-        monEnsureSchema($pdo);
-    } catch (Throwable $e) {
-        monSafeError('Database unavailable.', $e);
+    $last = null;
+    foreach (monDbCandidates($cfg) as $candidate) {
+        try {
+            $pdo = monOpenPdo($candidate);
+            try {
+                monEnsureSchema($pdo);
+            } catch (Throwable $schemaError) {
+                error_log('Monitoring schema: ' . $schemaError->getMessage());
+                $ready = $pdo->query("SHOW TABLES LIKE 'monitored_devices'")->fetchColumn();
+                if (!$ready) {
+                    throw $schemaError;
+                }
+            }
+            return $pdo;
+        } catch (Throwable $e) {
+            $last = $e;
+            $pdo = null;
+        }
     }
 
-    return $pdo;
+    monDbFailure($last instanceof Throwable ? $last : new RuntimeException('Monitoring database connection failed.'));
 }
 
 function monEnsureSchema(PDO $pdo): void
@@ -237,7 +373,7 @@ function monEnsureSchema(PDO $pdo): void
             status VARCHAR(50) NULL,
             results_count INT NULL,
             ip_address VARCHAR(45) NULL,
-            metadata_json JSON NULL,
+            metadata_json LONGTEXT NULL,
             occurred_at DATETIME NOT NULL,
             received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY unique_device_log (device_id, local_record_id),
@@ -275,7 +411,7 @@ function monEnsureSchema(PDO $pdo): void
             username VARCHAR(100) NULL,
             search_term TEXT NOT NULL,
             search_type VARCHAR(100) NULL,
-            filters_json JSON NULL,
+            filters_json LONGTEXT NULL,
             results_count INT UNSIGNED DEFAULT 0,
             status ENUM('started','completed','failed') DEFAULT 'started',
             error_message TEXT NULL,
@@ -302,7 +438,7 @@ function monEnsureSchema(PDO $pdo): void
             profile_url TEXT NULL,
             website_url TEXT NULL,
             description TEXT NULL,
-            result_data_json JSON NULL,
+            result_data_json LONGTEXT NULL,
             created_at DATETIME NOT NULL,
             received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY unique_remote_result (device_id, local_search_id, local_result_id),
@@ -324,7 +460,7 @@ function monEnsureSchema(PDO $pdo): void
             rows_count INT UNSIGNED NULL,
             download_type VARCHAR(100) NULL,
             source_description TEXT NULL,
-            downloaded_records_json JSON NULL,
+            downloaded_records_json LONGTEXT NULL,
             downloaded_at DATETIME NOT NULL,
             received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY unique_remote_download (device_id, local_download_id),
@@ -352,6 +488,35 @@ function monEnsureSchema(PDO $pdo): void
 
     require_once __DIR__ . '/mon-sms.php';
     monEnsureSmsSettings($pdo);
+    monEnsureBossDevice($pdo);
+}
+
+function monEnsureBossDevice(PDO $pdo): void
+{
+    try {
+        $stmt = $pdo->prepare('SELECT id FROM monitored_devices WHERE device_id = ? LIMIT 1');
+        $stmt->execute(['BOSS-PC-001']);
+        if ($stmt->fetchColumn()) {
+            return;
+        }
+        $now = gmdate('Y-m-d H:i:s');
+        $ins = $pdo->prepare(
+            'INSERT INTO monitored_devices
+            (device_id, device_name, api_key_hash, status, license_expires_at, daily_search_limit, maintenance_mode, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, 100, 0, ?, ?)'
+        );
+        $ins->execute([
+            'BOSS-PC-001',
+            'Boss Local Computer',
+            '$2y$10$kmsN/oj/p5jjZC/8P1ZDCeTXmP8jmF/D.eX8/OoYb8Muy/vsW6wUe',
+            'active',
+            '2026-12-31 23:59:59',
+            $now,
+            $now,
+        ]);
+    } catch (Throwable $e) {
+        error_log('Monitoring seed: ' . $e->getMessage());
+    }
 }
 
 function monEnsureColumn(PDO $pdo, string $table, string $column, string $definition): void
