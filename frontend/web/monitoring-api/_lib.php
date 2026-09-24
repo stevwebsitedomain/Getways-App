@@ -280,13 +280,16 @@ function monDbCandidates(array $cfg): array
 function monOpenPdo(array $cfg): PDO
 {
     $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};dbname={$cfg['name']};charset=utf8mb4";
-    $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], [
+    $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
         PDO::ATTR_TIMEOUT => 5,
-        PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 5,
-    ]);
+    ];
+    if (defined('PDO::MYSQL_ATTR_CONNECT_TIMEOUT')) {
+        $options[constant('PDO::MYSQL_ATTR_CONNECT_TIMEOUT')] = 5;
+    }
+    $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], $options);
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     return $pdo;
 }
