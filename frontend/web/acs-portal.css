@@ -1464,6 +1464,11 @@ body.ad-body.ad-acs.ad-view-detail[data-ad-section="crm-database"] #ad-section-c
 body.ad-body.ad-acs.ad-view-detail[data-ad-section="monitoring-devices"] #ad-section-monitoring-devices,
 body.ad-body.ad-acs.ad-view-detail[data-ad-section="monitoring-activity"] #ad-section-monitoring-activity,
 body.ad-body.ad-acs.ad-view-detail[data-ad-section="monitoring-device"] #ad-section-monitoring-device,
+body.ad-body.ad-acs.ad-view-detail[data-ad-section="monitoring-overview"] #ad-section-monitoring-overview,
+body.ad-body.ad-acs.ad-view-detail[data-ad-section="monitoring-searches"] #ad-section-monitoring-searches,
+body.ad-body.ad-acs.ad-view-detail[data-ad-section="monitoring-downloads"] #ad-section-monitoring-downloads,
+body.ad-body.ad-acs.ad-view-detail[data-ad-section="monitoring-control"] #ad-section-monitoring-control,
+body.ad-body.ad-acs.ad-view-detail[data-ad-section="monitoring-sms"] #ad-section-monitoring-sms,
 body.ad-body.ad-acs.ad-view-detail[data-ad-section="general-analysis"] #ad-section-general-analysis {
   display: block !important;
 }
