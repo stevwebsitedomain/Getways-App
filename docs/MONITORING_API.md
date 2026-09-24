@@ -107,3 +107,14 @@ Expected `receive-logs`:
 - Online/offline from `last_seen_at` (default 10 minutes)
 - Metadata strips passwords/tokens/cookies/session IDs
 - No remote shell / DB wipe / file-delete controls
+
+## Search, downloads, control, SMS
+
+| Method | URL |
+|--------|-----|
+| POST | `https://getway.legitconsult.co.tz/monitoring-api/receive-search.php` |
+| POST | `https://getway.legitconsult.co.tz/monitoring-api/receive-download.php` |
+
+`check-device.php` also returns `device_id`, `control_mode`, `control_version`, `daily_download_limit`, `blocked_message`, and `server_time`.
+
+SMS uses meseji `POST /api/v1/sms/send` with `x-api-key`, `sender_id`, `message`, and `contacts`. Credentials stay in `.env` (`SMS_API_KEY`, `SMS_SENDER_ID=MESEJI`). One row in `sms_alert_logs` per search, so a duplicate sync does not send again.

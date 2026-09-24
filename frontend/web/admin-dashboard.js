@@ -2129,6 +2129,11 @@
     "monitoring-devices": "Monitoring · Devices",
     "monitoring-activity": "Monitoring · Activity",
     "monitoring-device": "Monitoring · Device detail",
+    "monitoring-overview": "Monitoring · Overview",
+    "monitoring-searches": "Monitoring · Search",
+    "monitoring-downloads": "Monitoring · Downloads",
+    "monitoring-control": "Monitoring · System Control",
+    "monitoring-sms": "Monitoring · SMS Alerts",
   };
 
   function scrollToPortalSection(key, options = {}) {
@@ -2146,6 +2151,11 @@
       "monitoring-devices": "ad-section-monitoring-devices",
       "monitoring-activity": "ad-section-monitoring-activity",
       "monitoring-device": "ad-section-monitoring-device",
+      "monitoring-overview": "ad-section-monitoring-overview",
+      "monitoring-searches": "ad-section-monitoring-searches",
+      "monitoring-downloads": "ad-section-monitoring-downloads",
+      "monitoring-control": "ad-section-monitoring-control",
+      "monitoring-sms": "ad-section-monitoring-sms",
     };
     if (key === "payouts") key = "payout-dest";
     if (!idMap[key]) return;
@@ -2199,6 +2209,21 @@
         }
         if (key === "monitoring-device") {
           document.dispatchEvent(new CustomEvent("mon:load-detail"));
+        }
+        if (key === "monitoring-overview") {
+          document.dispatchEvent(new CustomEvent("mon:load-overview"));
+        }
+        if (key === "monitoring-searches") {
+          document.dispatchEvent(new CustomEvent("mon:load-searches"));
+        }
+        if (key === "monitoring-downloads") {
+          document.dispatchEvent(new CustomEvent("mon:load-downloads"));
+        }
+        if (key === "monitoring-control") {
+          document.dispatchEvent(new CustomEvent("mon:load-control"));
+        }
+        if (key === "monitoring-sms") {
+          document.dispatchEvent(new CustomEvent("mon:load-sms"));
         }
       }, 80);
     }
@@ -4631,6 +4656,14 @@
         if (statusEl) statusEl.value = String(d.status || "active").toLowerCase();
         if (expiresEl) expiresEl.value = toDatetimeLocal(d.license_expires_at);
         if (limitEl) limitEl.value = d.daily_search_limit == null ? "" : String(d.daily_search_limit);
+        const dlimitEl = document.getElementById("ad-mon-detail-dlimit");
+        if (dlimitEl) dlimitEl.value = d.daily_download_limit == null ? "" : String(d.daily_download_limit);
+        const controlEl = document.getElementById("ad-mon-detail-control");
+        if (controlEl) controlEl.value = String(d.control_mode || "active");
+        const smsEl = document.getElementById("ad-mon-detail-sms");
+        if (smsEl) smsEl.checked = d.sms_alerts_enabled !== false;
+        const blockedEl = document.getElementById("ad-mon-detail-blocked");
+        if (blockedEl) blockedEl.value = d.blocked_message || "";
         if (maintEl) maintEl.checked = !!d.maintenance_mode;
         if (messageEl) messageEl.value = d.maintenance_message || "";
         if (metaEl) {
@@ -4709,6 +4742,13 @@
             const raw = String(document.getElementById("ad-mon-detail-limit")?.value || "").trim();
             return raw === "" ? null : Number(raw);
           })(),
+          daily_download_limit: (() => {
+            const raw = String(document.getElementById("ad-mon-detail-dlimit")?.value || "").trim();
+            return raw === "" ? null : Number(raw);
+          })(),
+          control_mode: String(document.getElementById("ad-mon-detail-control")?.value || "active"),
+          blocked_message: String(document.getElementById("ad-mon-detail-blocked")?.value || "").trim() || null,
+          sms_alerts_enabled: !!document.getElementById("ad-mon-detail-sms")?.checked,
           maintenance_mode: !!document.getElementById("ad-mon-detail-maint")?.checked,
           maintenance_message: String(document.getElementById("ad-mon-detail-message")?.value || "").trim() || null,
         };
@@ -4735,6 +4775,372 @@
     document.addEventListener("mon:load-activity", () => loadActivity());
     document.addEventListener("mon:load-detail", () => loadDetail());
     ensureCsrf();
+  }
+
+  function bindMonitoringPages() {
+    const overviewCards = document.getElementById("ad-mon-overview-cards");
+    const searchBody = document.getElementById("ad-mon-search-body");
+    const dlBody = document.getElementById("ad-mon-dl-body");
+    const smsBody = document.getElementById("ad-mon-sms-body");
+    if (!overviewCards && !searchBody && !dlBody && !smsBody) return;
+
+    let searchPage = 1;
+    let dlPage = 1;
+    let smsPage = 1;
+    let monCsrf = "";
+
+    function setMsg(id, text, type) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const t = String(text || "").trim();
+      el.hidden = !t;
+      el.textContent = t;
+      el.className = "ad-msg" + (type ? ` ad-msg--${type}` : "");
+    }
+
+    function pager(el, page, total, per, onPage) {
+      if (!el) return;
+      const pages = Math.max(1, Math.ceil((total || 0) / (per || 25)));
+      el.innerHTML = `<button type="button" class="ad-btn ad-btn--ghost" ${page <= 1 ? "disabled" : ""} data-dir="-1">Prev</button>
+        <span>Page ${page} / ${pages} · ${total || 0}</span>
+        <button type="button" class="ad-btn ad-btn--ghost" ${page >= pages ? "disabled" : ""} data-dir="1">Next</button>`;
+      el.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => onPage(page + Number(btn.getAttribute("data-dir") || 0)));
+      });
+    }
+
+    async function ensureCsrf() {
+      if (monCsrf) return monCsrf;
+      const res = await fetch("monitoring-admin-api.php?action=csrf", { credentials: "same-origin" });
+      const data = await res.json();
+      monCsrf = data.csrf || "";
+      ["ad-mon-ctrl-csrf", "ad-mon-sms-csrf"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = monCsrf;
+      });
+      return monCsrf;
+    }
+
+    async function loadOverview() {
+      if (!overviewCards) return;
+      setMsg("ad-mon-overview-msg", "");
+      try {
+        const res = await fetch("monitoring-admin-api.php?action=summary&device_id=BOSS-PC-001", { credentials: "same-origin" });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Failed to load summary.");
+        if (data.csrf) monCsrf = data.csrf;
+        const cards = [
+          ["System", data.system_status || "—"],
+          ["Presence", data.presence || "offline"],
+          ["Searches today", data.searches_today],
+          ["Results today", data.results_today],
+          ["Downloads today", data.downloads_today],
+          ["API usage today", data.api_usage_today],
+          ["Failed searches", data.failed_searches_today],
+          ["SMS sent", data.sms_sent_today],
+          ["Last activity", data.last_activity || "—"],
+          ["License expiry", data.license_expires_at || "—"],
+          ["Last sync", data.last_sync_at || "pending"],
+          ["Command applied", data.last_command_applied_at || "—"],
+        ];
+        overviewCards.innerHTML = cards
+          .map(([k, v]) => `<article class="ad-mon-card"><small>${esc(k)}</small><strong>${esc(v)}</strong></article>`)
+          .join("");
+      } catch (error) {
+        setMsg("ad-mon-overview-msg", error.message || "Failed", "error");
+      }
+    }
+
+    async function loadSearches(page) {
+      if (!searchBody) return;
+      searchPage = page || searchPage;
+      const params = new URLSearchParams({
+        action: "searches",
+        page: String(searchPage),
+        per_page: "25",
+        device_id: String(document.getElementById("ad-mon-s-device")?.value || "").trim(),
+        username: String(document.getElementById("ad-mon-s-user")?.value || "").trim(),
+        search_term: String(document.getElementById("ad-mon-s-term")?.value || "").trim(),
+        status: String(document.getElementById("ad-mon-s-status")?.value || "").trim(),
+        from: String(document.getElementById("ad-mon-s-from")?.value || "").trim(),
+        to: String(document.getElementById("ad-mon-s-to")?.value || "").trim(),
+      });
+      const exportLink = document.getElementById("ad-mon-search-export");
+      if (exportLink) {
+        const exp = new URLSearchParams(params);
+        exp.set("action", "export-searches");
+        exp.delete("page");
+        exp.delete("per_page");
+        exportLink.href = `monitoring-admin-api.php?${exp}`;
+      }
+      try {
+        const res = await fetch(`monitoring-admin-api.php?${params}`, { credentials: "same-origin" });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Failed to load searches.");
+        const rows = Array.isArray(data.searches) ? data.searches : [];
+        searchBody.innerHTML = rows.length
+          ? rows
+              .map(
+                (row) => `<tr>
+                  <td>${esc(row.searched_at || "")}</td>
+                  <td>${esc(row.device_id)}</td>
+                  <td>${esc(row.username || "—")}</td>
+                  <td>${esc(row.search_term || "")}</td>
+                  <td>${esc(row.results_count ?? 0)}</td>
+                  <td>${esc(row.status || "")}</td>
+                  <td><button type="button" class="ad-btn ad-btn--ghost ad-mon-view-results" data-id="${esc(row.id)}" data-device="${esc(row.device_id)}" data-local="${esc(row.local_search_id)}">View Results</button></td>
+                </tr>`
+              )
+              .join("")
+          : `<tr><td colspan="7">No searches.</td></tr>`;
+        pager(document.getElementById("ad-mon-search-pager"), data.page, data.total, data.per_page, loadSearches);
+      } catch (error) {
+        searchBody.innerHTML = `<tr><td colspan="7">${esc(error.message || "Error")}</td></tr>`;
+      }
+    }
+
+    async function viewResults(btn) {
+      const meta = document.getElementById("ad-mon-results-meta");
+      const body = document.getElementById("ad-mon-results-body");
+      if (!body) return;
+      const params = new URLSearchParams({
+        action: "search-results",
+        id: btn.getAttribute("data-id") || "",
+        device_id: btn.getAttribute("data-device") || "",
+        local_search_id: btn.getAttribute("data-local") || "",
+      });
+      const res = await fetch(`monitoring-admin-api.php?${params}`, { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Failed to load results.");
+      if (meta) meta.textContent = `Search ${data.local_search_id} · ${data.count} results`;
+      const rows = Array.isArray(data.results) ? data.results : [];
+      body.innerHTML = rows.length
+        ? rows
+            .map(
+              (row) => `<tr>
+                <td>${esc(row.title || "—")}</td>
+                <td>${esc(row.full_name || "—")}</td>
+                <td>${esc(row.username || "—")}</td>
+                <td>${esc(row.phone || "—")}</td>
+                <td>${esc(row.email || "—")}</td>
+                <td>${esc(row.location || "—")}</td>
+              </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="6">No result rows stored.</td></tr>`;
+    }
+
+    async function loadDownloads(page) {
+      if (!dlBody) return;
+      dlPage = page || dlPage;
+      const params = new URLSearchParams({
+        action: "downloads",
+        page: String(dlPage),
+        per_page: "25",
+        device_id: String(document.getElementById("ad-mon-dl-device")?.value || "").trim(),
+        username: String(document.getElementById("ad-mon-dl-user")?.value || "").trim(),
+        file_type: String(document.getElementById("ad-mon-dl-type")?.value || "").trim(),
+        from: String(document.getElementById("ad-mon-dl-from")?.value || "").trim(),
+        to: String(document.getElementById("ad-mon-dl-to")?.value || "").trim(),
+      });
+      const res = await fetch(`monitoring-admin-api.php?${params}`, { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Failed to load downloads.");
+      const rows = Array.isArray(data.downloads) ? data.downloads : [];
+      dlBody.innerHTML = rows.length
+        ? rows
+            .map(
+              (row) => `<tr>
+                <td>${esc(row.downloaded_at || "")}</td>
+                <td>${esc(row.file_name || "")}</td>
+                <td>${esc(row.file_type || "—")}</td>
+                <td>${esc(row.file_size ?? "—")}</td>
+                <td>${esc(row.rows_count ?? "—")}</td>
+                <td>${esc(row.username || "—")}</td>
+                <td><button type="button" class="ad-btn ad-btn--ghost ad-mon-view-dl" data-id="${esc(row.id)}">Records</button></td>
+              </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="7">No downloads.</td></tr>`;
+      pager(document.getElementById("ad-mon-dl-pager"), data.page, data.total, data.per_page, loadDownloads);
+    }
+
+    async function loadControl() {
+      await ensureCsrf();
+      const deviceId = String(document.getElementById("ad-mon-ctrl-device")?.value || "BOSS-PC-001");
+      const res = await fetch(`monitoring-admin-api.php?action=device&device_id=${encodeURIComponent(deviceId)}`, { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Failed to load control.");
+      if (data.csrf) monCsrf = data.csrf;
+      const d = data.device || {};
+      const mode = document.getElementById("ad-mon-ctrl-mode");
+      if (mode) mode.value = d.control_mode || "active";
+      const exp = document.getElementById("ad-mon-ctrl-expires");
+      if (exp && d.license_expires_at) {
+        const m = String(d.license_expires_at).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+        exp.value = m ? `${m[1]}T${m[2]}` : "";
+      }
+      const sl = document.getElementById("ad-mon-ctrl-slimit");
+      const dl = document.getElementById("ad-mon-ctrl-dlimit");
+      if (sl) sl.value = d.daily_search_limit ?? "";
+      if (dl) dl.value = d.daily_download_limit ?? "";
+      const maint = document.getElementById("ad-mon-ctrl-maint");
+      const sms = document.getElementById("ad-mon-ctrl-sms");
+      if (maint) maint.checked = !!d.maintenance_mode;
+      if (sms) sms.checked = d.sms_alerts_enabled !== false;
+      const blocked = document.getElementById("ad-mon-ctrl-blocked");
+      if (blocked) blocked.value = d.blocked_message || "";
+      const meta = document.getElementById("ad-mon-ctrl-meta");
+      if (meta) {
+        meta.textContent = `Last seen: ${d.last_seen_at || "—"} · Sync: ${d.last_sync_at || "—"} · Command received: ${d.last_command_received_at || "—"} · Applied: ${d.last_command_applied_at || "—"} · Version: ${d.control_version || 1}`;
+      }
+      const audit = document.getElementById("ad-mon-ctrl-audit");
+      const rows = Array.isArray(data.audit) ? data.audit : [];
+      if (audit) {
+        audit.innerHTML = rows.length
+          ? rows
+              .map(
+                (row) => `<tr>
+                  <td>${esc(row.created_at || "")}</td>
+                  <td>${esc(row.field_name || "status")}</td>
+                  <td>${esc(row.old_value || row.old_status || "—")}</td>
+                  <td>${esc(row.new_value || row.new_status || "—")}</td>
+                  <td>${esc(row.description || "")}</td>
+                </tr>`
+              )
+              .join("")
+          : `<tr><td colspan="5">No control changes yet.</td></tr>`;
+      }
+    }
+
+    async function loadSms(page) {
+      if (!smsBody) return;
+      smsPage = page || smsPage;
+      await ensureCsrf();
+      const settingsRes = await fetch("monitoring-admin-api.php?action=sms-settings", { credentials: "same-origin" });
+      const settingsData = await settingsRes.json();
+      if (settingsData.csrf) monCsrf = settingsData.csrf;
+      const s = settingsData.settings || {};
+      const en = document.getElementById("ad-mon-sms-enabled");
+      const rec = document.getElementById("ad-mon-sms-recipient");
+      const mode = document.getElementById("ad-mon-sms-mode");
+      const meta = document.getElementById("ad-mon-sms-meta");
+      if (en) en.checked = !!s.enabled;
+      if (rec && !rec.value) rec.value = s.recipient || "";
+      if (mode) mode.value = s.mode || "per_search";
+      if (meta) meta.textContent = `Provider: ${s.provider || "meseji"} · API configured: ${s.api_configured ? "yes" : "no"} · Last summary: ${s.last_summary_sent_at || "—"}`;
+      const res = await fetch(`monitoring-admin-api.php?action=sms-logs&page=${smsPage}&per_page=25`, { credentials: "same-origin" });
+      const data = await res.json();
+      const rows = Array.isArray(data.logs) ? data.logs : [];
+      smsBody.innerHTML = rows.length
+        ? rows
+            .map(
+              (row) => `<tr>
+                <td>${esc(row.created_at || "")}</td>
+                <td>${esc(row.device_id)}</td>
+                <td>${esc(row.recipient)}</td>
+                <td>${esc(row.delivery_status)}</td>
+                <td>${esc(row.provider_message_id || "—")}</td>
+                <td>${esc(row.error_message || "—")}</td>
+              </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="6">No SMS alerts yet.</td></tr>`;
+      pager(document.getElementById("ad-mon-sms-pager"), data.page || 1, data.total || 0, data.per_page || 25, loadSms);
+    }
+
+    document.getElementById("ad-mon-overview-refresh")?.addEventListener("click", () => loadOverview());
+    document.getElementById("ad-mon-search-refresh")?.addEventListener("click", () => loadSearches(1));
+    document.getElementById("ad-mon-search-filters")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      loadSearches(1);
+    });
+    searchBody?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".ad-mon-view-results");
+      if (!btn) return;
+      viewResults(btn).catch((err) => setMsg("ad-mon-search-msg", err.message, "error"));
+    });
+    document.getElementById("ad-mon-dl-refresh")?.addEventListener("click", () => loadDownloads(1));
+    document.getElementById("ad-mon-dl-filters")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      loadDownloads(1);
+    });
+    dlBody?.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".ad-mon-view-dl");
+      if (!btn) return;
+      const box = document.getElementById("ad-mon-dl-records");
+      const res = await fetch(`monitoring-admin-api.php?action=download&id=${encodeURIComponent(btn.getAttribute("data-id") || "")}`, { credentials: "same-origin" });
+      const data = await res.json();
+      if (box) {
+        box.hidden = false;
+        box.textContent = JSON.stringify(data.download?.records || [], null, 2);
+      }
+    });
+    document.getElementById("ad-mon-ctrl-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setMsg("ad-mon-ctrl-msg", "Saving…");
+      try {
+        await ensureCsrf();
+        const expRaw = String(document.getElementById("ad-mon-ctrl-expires")?.value || "");
+        const payload = {
+          device_id: String(document.getElementById("ad-mon-ctrl-device")?.value || "BOSS-PC-001"),
+          csrf: monCsrf,
+          status: "active",
+          control_mode: String(document.getElementById("ad-mon-ctrl-mode")?.value || "active"),
+          license_expires_at: expRaw ? expRaw.replace("T", " ") + (expRaw.length === 16 ? ":00" : "") : null,
+          daily_search_limit: document.getElementById("ad-mon-ctrl-slimit")?.value === "" ? null : Number(document.getElementById("ad-mon-ctrl-slimit")?.value),
+          daily_download_limit: document.getElementById("ad-mon-ctrl-dlimit")?.value === "" ? null : Number(document.getElementById("ad-mon-ctrl-dlimit")?.value),
+          maintenance_mode: !!document.getElementById("ad-mon-ctrl-maint")?.checked,
+          sms_alerts_enabled: !!document.getElementById("ad-mon-ctrl-sms")?.checked,
+          blocked_message: String(document.getElementById("ad-mon-ctrl-blocked")?.value || "").trim() || null,
+        };
+        const res = await fetch("monitoring-admin-api.php?action=update-device", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Save failed.");
+        if (data.csrf) monCsrf = data.csrf;
+        setMsg("ad-mon-ctrl-msg", "Control saved.", "success");
+        await loadControl();
+      } catch (error) {
+        setMsg("ad-mon-ctrl-msg", error.message || "Save failed.", "error");
+      }
+    });
+    document.getElementById("ad-mon-sms-refresh")?.addEventListener("click", () => loadSms(1));
+    document.getElementById("ad-mon-sms-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setMsg("ad-mon-sms-msg", "Saving…");
+      try {
+        await ensureCsrf();
+        const res = await fetch("monitoring-admin-api.php?action=sms-settings", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            csrf: monCsrf,
+            enabled: !!document.getElementById("ad-mon-sms-enabled")?.checked,
+            recipient: String(document.getElementById("ad-mon-sms-recipient")?.value || ""),
+            mode: String(document.getElementById("ad-mon-sms-mode")?.value || "per_search"),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Save failed.");
+        if (data.csrf) monCsrf = data.csrf;
+        setMsg("ad-mon-sms-msg", "SMS settings saved. API key is not stored in the dashboard.", "success");
+        await loadSms(1);
+      } catch (error) {
+        setMsg("ad-mon-sms-msg", error.message || "Save failed.", "error");
+      }
+    });
+
+    document.addEventListener("mon:load-overview", () => loadOverview());
+    document.addEventListener("mon:load-searches", () => loadSearches(searchPage));
+    document.addEventListener("mon:load-downloads", () => loadDownloads(dlPage));
+    document.addEventListener("mon:load-control", () => loadControl().catch((err) => setMsg("ad-mon-ctrl-msg", err.message, "error")));
+    document.addEventListener("mon:load-sms", () => loadSms(smsPage).catch((err) => setMsg("ad-mon-sms-msg", err.message, "error")));
   }
 
   function bindWhatsappSection() {
@@ -5221,6 +5627,7 @@
   bindWhatsappSection();
   bindCrmSection();
   bindMonitoringSection();
+  bindMonitoringPages();
   bindAdminProfilePhoto();
   document.body.classList.add("ad-view-home");
   const detailOnLoad = document.getElementById("ad-detail-sections");

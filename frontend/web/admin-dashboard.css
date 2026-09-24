@@ -4101,5 +4101,28 @@ body.ad-acs .swal2-popup.ad-crm-swal-popup:not(.ad-crm-swal-chart) .swal2-title 
   font-size: 15px;
   color: #0f172a;
 }
+.ad-mon-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.ad-mon-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+}
+.ad-mon-card small { display: block; color: #64748b; font-size: 12px; }
+.ad-mon-card strong { display: block; margin-top: 6px; font-size: 16px; word-break: break-word; }
+.ad-mon-pager { display: flex; gap: 10px; align-items: center; margin: 12px 0; }
+.ad-mon-json {
+  max-height: 280px;
+  overflow: auto;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
 
 

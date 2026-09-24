@@ -195,16 +195,33 @@ function monEnsureSchema(PDO $pdo): void
             status ENUM('active','suspended','expired') NOT NULL DEFAULT 'active',
             license_expires_at DATETIME NULL,
             daily_search_limit INT UNSIGNED NULL,
+            daily_download_limit INT UNSIGNED NULL,
             maintenance_mode TINYINT(1) NOT NULL DEFAULT 0,
             maintenance_message TEXT NULL,
+            control_mode ENUM('active','read_only','api_blocked','fully_blocked') NOT NULL DEFAULT 'active',
+            blocked_message TEXT NULL,
+            control_version BIGINT UNSIGNED NOT NULL DEFAULT 1,
+            sms_alerts_enabled TINYINT(1) NOT NULL DEFAULT 1,
             last_seen_at DATETIME NULL,
             last_ip_address VARCHAR(45) NULL,
+            last_sync_at DATETIME NULL,
+            last_command_received_at DATETIME NULL,
+            last_command_applied_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             UNIQUE KEY uq_monitored_device_id (device_id),
             KEY idx_monitored_devices_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    monEnsureColumn($pdo, 'monitored_devices', 'daily_download_limit', 'INT UNSIGNED NULL AFTER daily_search_limit');
+    monEnsureColumn($pdo, 'monitored_devices', 'control_mode', "ENUM('active','read_only','api_blocked','fully_blocked') NOT NULL DEFAULT 'active' AFTER maintenance_message");
+    monEnsureColumn($pdo, 'monitored_devices', 'blocked_message', 'TEXT NULL AFTER control_mode');
+    monEnsureColumn($pdo, 'monitored_devices', 'control_version', 'BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER blocked_message');
+    monEnsureColumn($pdo, 'monitored_devices', 'sms_alerts_enabled', 'TINYINT(1) NOT NULL DEFAULT 1 AFTER control_version');
+    monEnsureColumn($pdo, 'monitored_devices', 'last_sync_at', 'DATETIME NULL AFTER last_ip_address');
+    monEnsureColumn($pdo, 'monitored_devices', 'last_command_received_at', 'DATETIME NULL AFTER last_sync_at');
+    monEnsureColumn($pdo, 'monitored_devices', 'last_command_applied_at', 'DATETIME NULL AFTER last_command_received_at');
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS remote_activity_logs (
@@ -234,14 +251,158 @@ function monEnsureSchema(PDO $pdo): void
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             device_id VARCHAR(100) NOT NULL,
             admin_user_id BIGINT NULL,
+            field_name VARCHAR(100) NULL,
             old_status VARCHAR(30) NULL,
             new_status VARCHAR(30) NULL,
+            old_value TEXT NULL,
+            new_value TEXT NULL,
             description TEXT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             KEY idx_audit_device (device_id),
             KEY idx_audit_created (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    monEnsureColumn($pdo, 'device_control_audit', 'field_name', 'VARCHAR(100) NULL AFTER admin_user_id');
+    monEnsureColumn($pdo, 'device_control_audit', 'old_value', 'TEXT NULL AFTER new_status');
+    monEnsureColumn($pdo, 'device_control_audit', 'new_value', 'TEXT NULL AFTER old_value');
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS remote_searches (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            device_id VARCHAR(100) NOT NULL,
+            local_search_id BIGINT UNSIGNED NOT NULL,
+            user_id BIGINT NULL,
+            username VARCHAR(100) NULL,
+            search_term TEXT NOT NULL,
+            search_type VARCHAR(100) NULL,
+            filters_json JSON NULL,
+            results_count INT UNSIGNED DEFAULT 0,
+            status ENUM('started','completed','failed') DEFAULT 'started',
+            error_message TEXT NULL,
+            searched_at DATETIME NOT NULL,
+            received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_remote_search (device_id, local_search_id),
+            INDEX idx_device_date (device_id, searched_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS remote_search_results (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            device_id VARCHAR(100) NOT NULL,
+            local_search_id BIGINT UNSIGNED NOT NULL,
+            local_result_id BIGINT UNSIGNED NOT NULL,
+            result_type VARCHAR(100) NULL,
+            title VARCHAR(255) NULL,
+            username VARCHAR(255) NULL,
+            full_name VARCHAR(255) NULL,
+            phone VARCHAR(100) NULL,
+            email VARCHAR(255) NULL,
+            location VARCHAR(255) NULL,
+            profile_url TEXT NULL,
+            website_url TEXT NULL,
+            description TEXT NULL,
+            result_data_json JSON NULL,
+            created_at DATETIME NOT NULL,
+            received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_remote_result (device_id, local_search_id, local_result_id),
+            INDEX idx_search (device_id, local_search_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS remote_downloads (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            device_id VARCHAR(100) NOT NULL,
+            local_download_id BIGINT UNSIGNED NOT NULL,
+            user_id BIGINT NULL,
+            username VARCHAR(100) NULL,
+            search_id BIGINT NULL,
+            file_name VARCHAR(255) NOT NULL,
+            file_type VARCHAR(50) NULL,
+            file_size BIGINT NULL,
+            rows_count INT UNSIGNED NULL,
+            download_type VARCHAR(100) NULL,
+            source_description TEXT NULL,
+            downloaded_records_json JSON NULL,
+            downloaded_at DATETIME NOT NULL,
+            received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_remote_download (device_id, local_download_id),
+            INDEX idx_device_download_date (device_id, downloaded_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS sms_alert_logs (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            device_id VARCHAR(100) NOT NULL,
+            remote_search_id BIGINT UNSIGNED NULL,
+            recipient VARCHAR(30) NOT NULL,
+            message TEXT NOT NULL,
+            provider_message_id VARCHAR(255) NULL,
+            delivery_status VARCHAR(50) DEFAULT 'pending',
+            provider_response TEXT NULL,
+            error_message TEXT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            sent_at DATETIME NULL,
+            UNIQUE KEY unique_search_sms (device_id, remote_search_id),
+            KEY idx_sms_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    require_once __DIR__ . '/mon-sms.php';
+    monEnsureSmsSettings($pdo);
+}
+
+function monEnsureColumn(PDO $pdo, string $table, string $column, string $definition): void
+{
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+    );
+    $stmt->execute([$table, $column]);
+    if ((int) $stmt->fetchColumn() > 0) {
+        return;
+    }
+    $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
+}
+
+function monTouchDevice(PDO $pdo, string $deviceId, bool $sync = false): void
+{
+    $now = gmdate('Y-m-d H:i:s');
+    $ip = monClientIp();
+    if ($sync) {
+        $stmt = $pdo->prepare(
+            'UPDATE monitored_devices
+             SET last_seen_at = ?, last_ip_address = ?, last_sync_at = ?,
+                 last_command_received_at = ?, updated_at = ?
+             WHERE device_id = ?'
+        );
+        $stmt->execute([$now, $ip, $now, $now, $now, $deviceId]);
+    } else {
+        $stmt = $pdo->prepare(
+            'UPDATE monitored_devices SET last_seen_at = ?, last_ip_address = ?, updated_at = ? WHERE device_id = ?'
+        );
+        $stmt->execute([$now, $ip, $now, $deviceId]);
+    }
+}
+
+function monMarkCommandApplied(PDO $pdo, string $deviceId): void
+{
+    $now = gmdate('Y-m-d H:i:s');
+    $pdo->prepare(
+        'UPDATE monitored_devices SET last_command_applied_at = ?, updated_at = ? WHERE device_id = ?'
+    )->execute([$now, $now, $deviceId]);
+}
+
+/**
+ * @return array{page:int,per_page:int,offset:int}
+ */
+function monPagination(int $defaultPerPage = 25, int $maxPerPage = 100): array
+{
+    $page = max(1, (int) ($_GET['page'] ?? 1));
+    $perPage = min($maxPerPage, max(1, (int) ($_GET['per_page'] ?? $defaultPerPage)));
+    return ['page' => $page, 'per_page' => $perPage, 'offset' => ($page - 1) * $perPage];
 }
 
 /**
@@ -312,8 +473,6 @@ function monCheckRateLimit(string $apiKey, int $maxPerMinute = 60): void
 }
 
 /**
- * Authenticate device: Bearer API key + X-Device-ID (+ optional HMAC headers).
- *
  * @return array{device: array<string, mixed>, apiKey: string, body: array, deviceId: string, pdo: PDO}
  */
 function monAuthenticateDevice(bool $requireWritable = false): array
@@ -335,7 +494,6 @@ function monAuthenticateDevice(bool $requireWritable = false): array
         monJson(401, ['success' => false, 'message' => 'Missing auth headers.']);
     }
 
-    // HMAC optional for older clients; when present, must validate.
     if ($timestamp !== '' || $signature !== '') {
         if ($timestamp === '' || $signature === '' || !ctype_digit($timestamp)) {
             monJson(401, ['success' => false, 'message' => 'Invalid signature headers.']);
@@ -374,6 +532,15 @@ function monAuthenticateDevice(bool $requireWritable = false): array
         ]);
     }
 
+    $controlMode = strtolower((string) ($device['control_mode'] ?? 'active'));
+    if ($requireWritable && $controlMode === 'fully_blocked') {
+        monJson(403, [
+            'success' => false,
+            'message' => 'Device is fully blocked.',
+            'control_mode' => $controlMode,
+        ]);
+    }
+
     $bodyDevice = trim((string) ($body['device_id'] ?? ''));
     if ($bodyDevice !== '' && strcasecmp($bodyDevice, $deviceId) !== 0) {
         monJson(400, ['success' => false, 'message' => 'device_id mismatch.']);
@@ -386,16 +553,6 @@ function monAuthenticateDevice(bool $requireWritable = false): array
         'deviceId' => $deviceId,
         'pdo' => $pdo,
     ];
-}
-
-function monTouchDevice(PDO $pdo, string $deviceId): void
-{
-    $now = gmdate('Y-m-d H:i:s');
-    $ip = monClientIp();
-    $stmt = $pdo->prepare(
-        'UPDATE monitored_devices SET last_seen_at = ?, last_ip_address = ?, updated_at = ? WHERE device_id = ?'
-    );
-    $stmt->execute([$now, $ip, $now, $deviceId]);
 }
 
 function monSanitizeMetadata(mixed $meta): ?string
@@ -467,5 +624,8 @@ function monPublicDeviceRow(array $device): array
     $device['presence'] = monPresenceLabel($device['last_seen_at'] ?? null);
     $device['is_online'] = monIsOnline($device['last_seen_at'] ?? null);
     $device['maintenance_mode'] = !empty($device['maintenance_mode']);
+    $device['sms_alerts_enabled'] = !isset($device['sms_alerts_enabled']) || !empty($device['sms_alerts_enabled']);
+    $device['control_mode'] = (string) ($device['control_mode'] ?? 'active');
+    $device['control_version'] = (int) ($device['control_version'] ?? 1);
     return $device;
 }
