@@ -3,9 +3,15 @@
 declare(strict_types=1);
 
 /**
- * Project root entry. Sends visitors to the public start page (login).
+ * Entry file for the domain root.
+ * On cPanel, public_html is often frontend/web (login.php sits next to this file).
+ * Locally, this file sits in the project root (login.php is under frontend/web).
  */
-$target = 'frontend/web/login.php';
+$target = 'login.php';
+if (!is_file(__DIR__ . '/login.php') && is_file(__DIR__ . '/frontend/web/login.php')) {
+    $target = 'frontend/web/login.php';
+}
+
 $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
 if ($query !== '') {
     $target .= '?' . $query;
