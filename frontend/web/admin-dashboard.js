@@ -2126,14 +2126,6 @@
     whatsapp: "WhatsApp",
     crm: "CRM",
     "crm-database": "Database",
-    "monitoring-devices": "Monitoring · Devices",
-    "monitoring-activity": "Monitoring · Activity",
-    "monitoring-device": "Monitoring · Device detail",
-    "monitoring-overview": "Monitoring · Overview",
-    "monitoring-searches": "Monitoring · Search",
-    "monitoring-downloads": "Monitoring · Downloads",
-    "monitoring-control": "Monitoring · System Control",
-    "monitoring-sms": "Monitoring · SMS Alerts",
   };
 
   function scrollToPortalSection(key, options = {}) {
@@ -2148,14 +2140,6 @@
       whatsapp: "ad-section-whatsapp",
       crm: "ad-section-crm",
       "crm-database": "ad-section-crm-database",
-      "monitoring-devices": "ad-section-monitoring-devices",
-      "monitoring-activity": "ad-section-monitoring-activity",
-      "monitoring-device": "ad-section-monitoring-device",
-      "monitoring-overview": "ad-section-monitoring-overview",
-      "monitoring-searches": "ad-section-monitoring-searches",
-      "monitoring-downloads": "ad-section-monitoring-downloads",
-      "monitoring-control": "ad-section-monitoring-control",
-      "monitoring-sms": "ad-section-monitoring-sms",
     };
     if (key === "payouts") key = "payout-dest";
     if (!idMap[key]) return;
@@ -2200,30 +2184,6 @@
         }
         if (key === "crm-database") {
           document.dispatchEvent(new CustomEvent("crm:load-database"));
-        }
-        if (key === "monitoring-devices") {
-          document.dispatchEvent(new CustomEvent("mon:load-devices"));
-        }
-        if (key === "monitoring-activity") {
-          document.dispatchEvent(new CustomEvent("mon:load-activity"));
-        }
-        if (key === "monitoring-device") {
-          document.dispatchEvent(new CustomEvent("mon:load-detail"));
-        }
-        if (key === "monitoring-overview") {
-          document.dispatchEvent(new CustomEvent("mon:load-overview"));
-        }
-        if (key === "monitoring-searches") {
-          document.dispatchEvent(new CustomEvent("mon:load-searches"));
-        }
-        if (key === "monitoring-downloads") {
-          document.dispatchEvent(new CustomEvent("mon:load-downloads"));
-        }
-        if (key === "monitoring-control") {
-          document.dispatchEvent(new CustomEvent("mon:load-control"));
-        }
-        if (key === "monitoring-sms") {
-          document.dispatchEvent(new CustomEvent("mon:load-sms"));
         }
       }, 80);
     }
@@ -5626,8 +5586,6 @@
   bindPortalNavigation();
   bindWhatsappSection();
   bindCrmSection();
-  bindMonitoringSection();
-  bindMonitoringPages();
   bindAdminProfilePhoto();
   document.body.classList.add("ad-view-home");
   const detailOnLoad = document.getElementById("ad-detail-sections");
